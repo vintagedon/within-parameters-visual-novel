@@ -36,6 +36,7 @@ export const DEFAULT_PROTAGONIST: ProtagonistIdentity = {
   backstoryId: null,
   positiveTrait: null,
   negativeTrait: null,
+  station: null,
 };
 
 export function initNewGame(config: GameConfig, runNumber: number = 1): GameState {

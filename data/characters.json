@@ -57,6 +57,8 @@
   "portraits": [
     { "key": "protagonist-neutral", "path": "portraits/protagonist-neutral.png", "placeholderColor": "#1a2535" },
     { "key": "protagonist-focused", "path": "portraits/protagonist-focused.png", "placeholderColor": "#1a2535" },
+    { "key": "protagonist-female", "path": "portraits/protagonist-female.png", "placeholderColor": "#1c2a3f" },
+    { "key": "protagonist-male", "path": "portraits/protagonist-male.png", "placeholderColor": "#16243a" },
     { "key": "coworker-neutral", "path": "portraits/coworker-neutral.png", "placeholderColor": "#0d2035" },
     { "key": "coworker-concerned", "path": "portraits/coworker-concerned.png", "placeholderColor": "#0d2035" },
     { "key": "coworker-urgent", "path": "portraits/coworker-urgent.png", "placeholderColor": "#0d2035" },

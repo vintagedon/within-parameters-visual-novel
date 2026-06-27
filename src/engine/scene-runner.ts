@@ -14,6 +14,7 @@ import type {
   EventDef,
   Community,
   RewardOption,
+  ProtagonistIdentity,
 } from '../types/index';
 import {
   applyStatChanges,
@@ -26,6 +27,9 @@ import {
   isClockFull,
 } from './game-state';
 import { scoreRun } from './scoring';
+import { buildEffectiveConfig } from './traits';
+import { generateProtagonist, type ProtagonistPool } from './chargen';
+import type { Rng } from './rng';
 import {
   initEventPool,
   drawEvent,
@@ -53,6 +57,18 @@ export interface SceneRunnerCallbacks {
   ): void;
   /** Show a comms interrupt beat between stops */
   onCommsInterrupt(state: GameState, onContinue: () => void): void;
+  /**
+   * Show the chargen dossier for a candidate protagonist (spec 03). The UI
+   * builds the dossier view from the candidate and binds DEPLOY/REROLL to the
+   * provided actions. Invoked by beginNewRun() and rerollCandidate().
+   */
+  onDossier?(
+    candidate: ProtagonistIdentity,
+    rerollCount: number,
+    actions: { deploy: () => void; reroll: () => void }
+  ): void;
+  /** Hide the dossier overlay (called when DEPLOY commits the protagonist). */
+  onDossierHide?(): void;
 }
 
 // ─── Scene Registry ───────────────────────────────────────────────────────────
@@ -87,18 +103,26 @@ export class SceneRunner {
   private eventPool: EventPoolState | null = null;
   private pendingResolve: (() => void) | null = null;
 
+  // Chargen phase state (spec 03). Present only when the runner was constructed
+  // for a new game (chargen pool + rng supplied). Resume runners omit it.
+  private chargen: { pool: ProtagonistPool; rng: Rng } | null;
+  private candidate: ProtagonistIdentity | null = null;
+  private candidateRerollCount = 0;
+
   constructor(
     initialState: GameState,
     config: GameConfig,
     registry: SceneRegistry,
     communities: Community[],
-    callbacks: SceneRunnerCallbacks
+    callbacks: SceneRunnerCallbacks,
+    chargen?: { pool: ProtagonistPool; rng: Rng }
   ) {
     this.state = initialState;
     this.config = config;
     this.registry = registry;
     this.communities = communities;
     this.callbacks = callbacks;
+    this.chargen = chargen ?? null;
   }
 
   getState(): GameState {
@@ -109,6 +133,74 @@ export class SceneRunner {
 
   start(): void {
     this.loadScene(this.state.currentScene);
+  }
+
+  // ─── Chargen (spec 03) ────────────────────────────────────────────────────
+
+  /**
+   * Begins a new run: rolls the first candidate protagonist and shows the
+   * dossier. Only valid for new-game runners (chargen pool supplied). The UI's
+   * DEPLOY/REROLL drive deployProtagonist()/rerollCandidate() via the actions
+   * passed to onDossier.
+   */
+  beginNewRun(): void {
+    if (!this.chargen) {
+      throw new Error('[scene-runner] beginNewRun() requires a chargen pool');
+    }
+    this.candidateRerollCount = 0;
+    this.candidate = generateProtagonist(this.chargen.pool, this.chargen.rng);
+    this.emitDossier();
+  }
+
+  /** Regenerates the candidate, increments the reroll count, re-shows the dossier. */
+  rerollCandidate(): void {
+    if (!this.chargen || !this.candidate) return;
+    this.candidateRerollCount++;
+    this.candidate = generateProtagonist(this.chargen.pool, this.chargen.rng);
+    this.emitDossier();
+  }
+
+  private emitDossier(): void {
+    if (!this.candidate) return;
+    this.callbacks.onDossier?.(this.candidate, this.candidateRerollCount, {
+      deploy: () => this.deployProtagonist(),
+      reroll: () => this.rerollCandidate(),
+    });
+  }
+
+  /**
+   * Commits the candidate protagonist: builds the effective (trait-modified)
+   * config, re-derives the starting stats from it (so P1/P3 etc. take effect),
+   * stores protagonist + rerollCount on the run state, hides the dossier, and
+   * transitions to the lore card. The committed rerollCount drives scoring.
+   */
+  deployProtagonist(): void {
+    const candidate = this.candidate;
+    if (!candidate || !candidate.positiveTrait || !candidate.negativeTrait) return;
+    const rerollCount = this.candidateRerollCount;
+    this.candidate = null;
+    this.candidateRerollCount = 0;
+
+    this.config = buildEffectiveConfig(
+      this.config,
+      candidate.positiveTrait,
+      candidate.negativeTrait
+    );
+
+    this.state = {
+      ...this.state,
+      protagonist: candidate,
+      rerollCount,
+      stats: {
+        knowledge: this.config.startingKnowledge,
+        consumables: this.config.startingConsumables,
+        rapport: this.config.startingRapport,
+        startingRapport: this.config.startingRapport,
+      },
+    };
+
+    this.callbacks.onDossierHide?.();
+    this.loadScene('scene-lore-01');
   }
 
   // ─── Scene Loading ────────────────────────────────────────────────────────

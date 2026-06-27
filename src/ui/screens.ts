@@ -14,7 +14,7 @@
  * @module ui/screens
  */
 
-import type { SaveSlot, PersistentData, GameState, CommunityRunState, RewardOption } from "../types/index";
+import type { SaveSlot, PersistentData, GameState, CommunityRunState, RewardOption, GameConfig } from "../types/index";
 import {
   createButton,
   createSwitch,
@@ -23,6 +23,9 @@ import {
   createCard,
   type ModalControl,
 } from "./gameui";
+import type { DossierView, ProtagonistPool } from "../engine/chargen";
+import { backstoryEpilogue, traitEpilogueLine } from "../engine/chargen";
+import { buildScoreBreakdown } from "../engine/scoring";
 
 // ─── Screen container refs ─────────────────────────────────────────────────────
 
@@ -32,6 +35,7 @@ let endingScreen: HTMLElement;
 let settingsScreen: HTMLElement;
 let rewardOverlay: HTMLElement;
 let commsOverlay: HTMLElement;
+let dossierScreen: HTMLElement;
 
 // ─── Init all screen overlays ─────────────────────────────────────────────────
 
@@ -63,7 +67,19 @@ export function initScreens(root: HTMLElement): void {
         <div class="ending-type" id="ending-type-label"></div>
         <div class="ending-title" id="ending-title"></div>
         <div class="ending-epilogue" id="ending-epilogue"></div>
+        <div class="wp-ending-score" id="ending-score"></div>
         <div class="gui-panel__footer wp-ending-actions" id="ending-actions"></div>
+      </div>
+    </div>
+
+    <!-- Dossier Screen (chargen — spec 03) -->
+    <div id="dossier-screen" class="screen-overlay hidden">
+      <div class="gui-panel gui-panel--primary wp-dossier-panel">
+        <div class="gui-panel__header">
+          <div class="gui-panel__title">DOSSIER</div>
+        </div>
+        <div class="wp-dossier-body" id="dossier-body"></div>
+        <div class="gui-panel__footer wp-dossier-footer" id="dossier-footer"></div>
       </div>
     </div>
 
@@ -106,6 +122,7 @@ export function initScreens(root: HTMLElement): void {
   settingsScreen = document.getElementById('settings-screen')!;
   rewardOverlay = document.getElementById('reward-overlay')!;
   commsOverlay = document.getElementById('comms-overlay')!;
+  dossierScreen = document.getElementById('dossier-screen')!;
 }
 
 // ─── Title Screen ─────────────────────────────────────────────────────────────
@@ -160,6 +177,141 @@ export function showTitleScreen(
 
 export function hideTitleScreen(): void {
   titleScreen.classList.add('hidden');
+}
+
+// ─── Dossier Screen (chargen — spec 03) ───────────────────────────────────────
+
+/** Escapes a dynamic string for safe insertion via innerHTML. */
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * Renders the chargen dossier as a GameUI panel: portrait (placeholder block),
+ * name + callsign, assignment, resolved backstory paragraph, two createCard
+ * trait cards (positive = success accent, negative = danger accent), a reroll
+ * status line, and DEPLOY/REROLL createButton controls. DEPLOY commits the
+ * candidate; REROLL regenerates (the caller re-invokes this with a new view).
+ */
+export function showDossierScreen(
+  view: DossierView,
+  callbacks: { onDeploy: () => void; onReroll: () => void }
+): void {
+  const body = document.getElementById('dossier-body')!;
+  const footer = document.getElementById('dossier-footer')!;
+  body.innerHTML = '';
+  footer.innerHTML = '';
+
+  // Identity row: portrait block (placeholder color, no image load → no 404) + name/callsign
+  const identity = document.createElement('div');
+  identity.className = 'wp-dossier-identity';
+
+  const portrait = document.createElement('div');
+  portrait.className = 'wp-dossier-portrait';
+  portrait.style.background = view.portraitPlaceholderColor;
+  const initials = view.fullName
+    .split(' ')
+    .map((w) => w[0] ?? '')
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+  portrait.textContent = initials;
+
+  const namehead = document.createElement('div');
+  namehead.className = 'wp-dossier-namehead';
+  const nameEl = document.createElement('div');
+  nameEl.className = 'wp-dossier-name';
+  nameEl.textContent = view.fullName;
+  const callEl = document.createElement('div');
+  callEl.className = 'wp-dossier-callsign';
+  callEl.textContent = view.callsign;
+  namehead.appendChild(nameEl);
+  namehead.appendChild(callEl);
+
+  identity.appendChild(portrait);
+  identity.appendChild(namehead);
+  body.appendChild(identity);
+
+  // Assignment
+  const assignment = document.createElement('div');
+  assignment.className = 'wp-dossier-assignment';
+  const assignLabel = document.createElement('span');
+  assignLabel.className = 'wp-dossier-label';
+  assignLabel.textContent = 'ASSIGNMENT';
+  const assignValue = document.createElement('span');
+  assignValue.className = 'wp-dossier-value';
+  assignValue.textContent = view.assignment;
+  assignment.appendChild(assignLabel);
+  assignment.appendChild(assignValue);
+  body.appendChild(assignment);
+
+  // Backstory
+  const backstory = document.createElement('div');
+  backstory.className = 'wp-dossier-backstory';
+  const bsLabel = document.createElement('span');
+  bsLabel.className = 'wp-dossier-label';
+  bsLabel.textContent = `BACKSTORY — ${view.backstoryTitle}`;
+  const bsPara = document.createElement('p');
+  bsPara.textContent = view.backstoryFlavor;
+  backstory.appendChild(bsLabel);
+  backstory.appendChild(bsPara);
+  body.appendChild(backstory);
+
+  // Trait cards: positive (success) + negative (danger)
+  const traits = document.createElement('div');
+  traits.className = 'wp-dossier-traits';
+  const posCard = createCard({
+    title: `+ ${view.positiveTrait.name}`,
+    tag: { label: 'POSITIVE', accent: view.positiveTrait.accent },
+    body: view.positiveTrait.summary,
+    accent: view.positiveTrait.accent,
+  });
+  const negCard = createCard({
+    title: `\u2212 ${view.negativeTrait.name}`,
+    tag: { label: 'NEGATIVE', accent: view.negativeTrait.accent },
+    body: view.negativeTrait.summary,
+    accent: view.negativeTrait.accent,
+  });
+  traits.appendChild(posCard.el);
+  traits.appendChild(negCard.el);
+  body.appendChild(traits);
+
+  // Reroll status line
+  const status = document.createElement('div');
+  status.className = 'wp-dossier-reroll-status';
+  status.innerHTML =
+    `<span>REROLLS: <strong>${view.rerollCount}</strong></span>` +
+    `<span>SCORE CEILING: <strong>\u00d7${view.rerollCeilingPercent}%</strong></span>`;
+  body.appendChild(status);
+
+  // Footer: DEPLOY (primary solid) + REROLL (outline)
+  const deploy = createButton({
+    label: 'DEPLOY',
+    accent: 'primary',
+    variant: 'solid',
+    onClick: callbacks.onDeploy,
+  });
+  deploy.el.id = 'dossier-deploy';
+  const reroll = createButton({
+    label: 'REROLL',
+    accent: 'primary',
+    variant: 'outline',
+    onClick: callbacks.onReroll,
+  });
+  reroll.el.id = 'dossier-reroll';
+  footer.appendChild(deploy.el);
+  footer.appendChild(reroll.el);
+
+  dossierScreen.classList.remove('hidden');
+}
+
+export function hideDossierScreen(): void {
+  dossierScreen.classList.add('hidden');
 }
 
 // ─── Save / Load Screen ───────────────────────────────────────────────────────
@@ -325,6 +477,7 @@ const ENDING_SUBTITLES: Record<string, string> = {
 export function showEndingScreen(
   endingType: 'clock-failure' | 'destruction' | 'correction',
   state: GameState,
+  deps: { config: GameConfig; pool: ProtagonistPool },
   callbacks: {
     onNewGame: () => void;
     onTitle: () => void;
@@ -333,11 +486,18 @@ export function showEndingScreen(
   const typeLabel = document.getElementById('ending-type-label')!;
   const titleEl = document.getElementById('ending-title')!;
   const epilogueEl = document.getElementById('ending-epilogue')!;
+  const scoreEl = document.getElementById('ending-score')!;
 
   typeLabel.textContent = ENDING_SUBTITLES[endingType] ?? '';
   titleEl.textContent = ENDING_TITLES[endingType] ?? 'THE END';
 
+  // Pre-existing rapport-modified community narrative epilogue (stays above the breakdown).
   epilogueEl.innerHTML = buildEpilogue(endingType, state.communities);
+
+  // Score breakdown (additive): grade, final score, component rows, reroll
+  // penalty line (only when rerollCount > 0), backstory epilogue line, and the
+  // two trait run-summary lines. Composed from GameUI tokens.
+  scoreEl.innerHTML = buildScoreBreakdownHtml(state, deps.config, deps.pool);
 
   const actions = document.getElementById('ending-actions')!;
   actions.innerHTML = '';
@@ -357,6 +517,67 @@ export function showEndingScreen(
   actions.appendChild(titleBtn.el);
 
   endingScreen.classList.remove('hidden');
+}
+
+/**
+ * Builds the end-of-run score breakdown HTML. The numeric decomposition comes
+ * from buildScoreBreakdown (scoring.ts — single source of truth, sums to the raw
+ * score); the backstory/trait lines come from chargen. The reroll-penalty line
+ * is shown only when rerollCount > 0.
+ */
+function buildScoreBreakdownHtml(
+  state: GameState,
+  config: GameConfig,
+  pool: ProtagonistPool
+): string {
+  const bd = buildScoreBreakdown(state, config, state.rerollCount);
+  const protagonist = state.protagonist;
+
+  const rows = bd.components
+    .map(
+      (c) =>
+        `<div class="wp-score-row"><span class="wp-score-row-label">${escapeHtml(c.label)}</span><span class="wp-score-row-value">${c.value}</span></div>`
+    )
+    .join('');
+
+  const capNote =
+    bd.rawScoreClamped < bd.rawScore
+      ? `<div class="wp-score-cap">Hard cap: ${bd.rawScore} &rarr; ${bd.rawScoreClamped}</div>`
+      : '';
+
+  const penaltyLine =
+    bd.rerollCount > 0
+      ? `<div class="wp-score-penalty">Reroll penalty: ${bd.rerollCount} reroll${bd.rerollCount > 1 ? 's' : ''} &rarr; &times;${Math.round(bd.multiplier * 100)}%</div>`
+      : '';
+
+  const bsLine = backstoryEpilogue(protagonist, pool, bd.ending);
+  const bsHtml = bsLine ? `<p class="wp-score-backstory">${escapeHtml(bsLine)}</p>` : '';
+
+  const traitLines = [protagonist.positiveTrait, protagonist.negativeTrait]
+    .map((id) => traitEpilogueLine(id))
+    .filter((line): line is string => line !== null)
+    .map((line) => `<p class="wp-score-traitline">${escapeHtml(line)}</p>`)
+    .join('');
+
+  return `
+    <div class="wp-score-head">
+      <div class="wp-score-grade wp-score-grade--${bd.grade}">${bd.grade}</div>
+      <div class="wp-score-final">
+        <span class="wp-score-final-num">${bd.finalScore}</span>
+        <span class="wp-score-final-lbl">FINAL SCORE</span>
+      </div>
+    </div>
+    <div class="wp-score-components">
+      ${rows}
+      <div class="wp-score-row wp-score-row--total">
+        <span class="wp-score-row-label">Raw score</span>
+        <span class="wp-score-row-value">${bd.rawScore}</span>
+      </div>
+    </div>
+    ${capNote}
+    ${penaltyLine}
+    <div class="wp-score-epilogue">${bsHtml}${traitLines}</div>
+  `;
 }
 
 /** Generates epilogue HTML from the run's community outcome data. Named communities appear as styled spans. Three branches: clock-failure, destruction, correction. */

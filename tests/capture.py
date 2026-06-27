@@ -52,6 +52,8 @@ CHECK_MODE = "--check" in sys.argv
 SCREENS: list[tuple[str, str]] = [
     ("title", "01-title.png"),
     ("settings", "04-settings.png"),
+    ("dossier", "09-dossier.png"),
+    ("dossier-reroll", "10-dossier-reroll.png"),
     ("lore-card", "02-lore-card.png"),
     ("hud-midrun", "03-hud-midrun.png"),
     ("comms-interrupt", "07-comms-interrupt.png"),
@@ -146,6 +148,10 @@ VERIFY: dict[str, str] = {
     "comms-interrupt": "#comms-panel-body.gui-panel--warning",
     "reward-overlay": ".wp-reward-cards .gui-card",
     "ending": "#ending-actions .gui-btn",
+    # Spec 03: the dossier (chargen) and its post-reroll state. Both render
+    # the two framework trait cards plus DEPLOY/REROLL gui-btn controls.
+    "dossier": "#dossier-screen:not(.hidden) .wp-dossier-traits .gui-card",
+    "dossier-reroll": "#dossier-screen:not(.hidden) .wp-dossier-traits .gui-card",
 }
 
 
@@ -218,9 +224,32 @@ def capture_settings(page: Page, captured: set[str], errors: list[str]):
 
 
 def start_run_and_capture_lore(page: Page, captured: set[str], errors: list[str]):
-    """Click NEW GAME and capture the lore card at run start (dossier-absent)."""
+    """Click NEW GAME, capture the chargen dossier (initial and post-reroll),
+    then DEPLOY into the lore card. Spec 03 inserts the dossier before the lore
+    card; the dossier's REROLL regenerates and increments the displayed score
+    ceiling, so both states are captured."""
     click_text(page, "#title-menu", "NEW GAME")
     page.locator("#title-screen").wait_for(state="hidden", timeout=10000)
+
+    # Dossier appears (chargen) before the lore card.
+    page.wait_for_selector("#dossier-screen:not(.hidden)", timeout=10000)
+    page.wait_for_timeout(400)
+    if "dossier" not in captured:
+        assert_framework(page, "dossier", errors)
+        capture(page, SCREEN_MAP["dossier"], errors)
+        captured.add("dossier")
+
+    # Reroll once → the ceiling increments; capture the post-reroll state.
+    click_first(page, "#dossier-reroll")
+    page.wait_for_timeout(500)
+    if "dossier-reroll" not in captured:
+        assert_framework(page, "dossier-reroll", errors)
+        capture(page, SCREEN_MAP["dossier-reroll"], errors)
+        captured.add("dossier-reroll")
+
+    # Deploy the candidate → transitions to the lore card.
+    click_first(page, "#dossier-deploy")
+    page.locator("#dossier-screen").wait_for(state="hidden", timeout=10000)
     page.wait_for_selector("#dialogue-text", timeout=10000)
     # Let the lore scene's first line and background settle, then skip typewriter.
     page.wait_for_timeout(500)
@@ -299,11 +328,20 @@ def walk_run(page: Page, captured: set[str], errors: list[str]):
 
 
 def capture_ending(page: Page, captured: set[str], errors: list[str]):
-    """Capture the ending shell via the dev hook, which composes the migrated
-    ending screen (GameUI panel + buttons) with a representative run state."""
+    """Capture the ending screen via the dev hook, which composes the migrated
+    ending panel + buttons with a representative complete run state. Spec 03
+    adds the score breakdown (grade, components, reroll penalty, epilogue lines)
+    below the narrative epilogue, so the grade element is asserted here too."""
     page.evaluate("window.__wp && window.__wp.triggerEnding()")
     page.wait_for_selector("#ending-screen:not(.hidden)", timeout=5000)
     page.wait_for_timeout(500)
+    # Spec 03: the score breakdown must render (grade + reroll penalty line).
+    if page.locator("#ending-score .wp-score-grade").count() == 0:
+        errors.append("ending: score breakdown grade missing")
+        print("    FRAMEWORK-FAIL ending: #ending-score .wp-score-grade")
+    if page.locator("#ending-score .wp-score-penalty").count() == 0:
+        errors.append("ending: reroll penalty line missing")
+        print("    FRAMEWORK-FAIL ending: #ending-score .wp-score-penalty")
     if "ending" not in captured:
         assert_framework(page, "ending", errors)
         capture(page, SCREEN_MAP["ending"], errors)
@@ -390,6 +428,23 @@ def main() -> int:
             ))
 
             captured: set[str] = set()
+            # Seed every randomness source so captures are deterministic across
+            # capture/check runs: __wpSeed fixes the rolled protagonist (which
+            # drives trait-modified starting stats); Math.random is replaced with
+            # a seeded mulberry32 so the run walk's event draws and clock jitter
+            # (which use defaultRng -> Math.random) are reproducible too; and
+            # Date.now is pinned so save-slot timestamps stop flapping. All three
+            # are no-ops in production (this script never ships).
+            page.add_init_script(
+                "window.__wpSeed = 2027;"
+                "Date.now = () => 1719504000000;"
+                "Math.random = (function(){ let s = 2027 >>> 0;"
+                "  return function(){ s |= 0; s = (s + 0x6d2b79f5) | 0;"
+                "    let t = Math.imul(s ^ (s >>> 15), 1 | s);"
+                "    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;"
+                "    return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };"
+                "})();"
+            )
             boot_and_capture_title(page, base_url, captured, errors)
             capture_settings(page, captured, errors)
             capture_save_load_confirm(page, captured, errors)

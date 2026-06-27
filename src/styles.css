@@ -541,6 +541,242 @@ body {
   gap: var(--gui-space-md);
 }
 
+/* ─── Ending Score Breakdown (additive, below the narrative epilogue) ────── */
+
+.wp-ending-score {
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto var(--gui-space-lg);
+  padding: var(--gui-space-md);
+  border: var(--gui-border-width) solid var(--gui-border);
+  border-radius: var(--gui-radius-md);
+  background: var(--gui-surface);
+  text-align: left;
+}
+
+.wp-score-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gui-space-md);
+  padding-bottom: var(--gui-space-sm);
+  border-bottom: var(--gui-border-width) solid var(--gui-border);
+  margin-bottom: var(--gui-space-sm);
+}
+
+.wp-score-grade {
+  font-family: var(--gui-font-display);
+  font-size: var(--gui-font-size-xxl, 3rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.05em;
+  color: var(--gui-accent-success);
+}
+
+.wp-score-grade--S, .wp-score-grade--A { color: var(--gui-accent-success); }
+.wp-score-grade--B, .wp-score-grade--C { color: var(--gui-accent-primary); }
+.wp-score-grade--D { color: var(--gui-accent-warning); }
+.wp-score-grade--F { color: var(--gui-accent-danger); }
+
+.wp-score-final {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--gui-space-xs);
+}
+
+.wp-score-final-num {
+  font-family: var(--gui-font-mono);
+  font-size: var(--gui-font-size-xl);
+  font-weight: 700;
+  color: var(--gui-text);
+}
+
+.wp-score-final-lbl {
+  font-family: var(--gui-font-display);
+  font-size: var(--gui-font-size-sm);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gui-text-muted);
+}
+
+.wp-score-components {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gui-space-xs);
+}
+
+.wp-score-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--gui-font-body);
+  font-size: var(--gui-font-size-sm);
+  color: var(--gui-text-muted);
+}
+
+.wp-score-row-value {
+  font-family: var(--gui-font-mono);
+  color: var(--gui-text);
+}
+
+.wp-score-row--total {
+  margin-top: var(--gui-space-xs);
+  padding-top: var(--gui-space-xs);
+  border-top: var(--gui-border-width) solid var(--gui-border);
+  font-weight: 700;
+  color: var(--gui-text);
+}
+
+.wp-score-cap,
+.wp-score-penalty {
+  font-family: var(--gui-font-mono);
+  font-size: var(--gui-font-size-sm);
+  color: var(--gui-text-muted);
+  margin-top: var(--gui-space-xs);
+}
+
+.wp-score-penalty { color: var(--gui-accent-warning); }
+
+.wp-score-epilogue {
+  margin-top: var(--gui-space-sm);
+  padding-top: var(--gui-space-sm);
+  border-top: var(--gui-border-width) solid var(--gui-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gui-space-xs);
+}
+
+.wp-score-backstory,
+.wp-score-traitline {
+  font-family: var(--gui-font-body);
+  font-size: var(--gui-font-size-sm);
+  line-height: 1.6;
+  color: var(--gui-text-muted);
+  font-style: italic;
+}
+
+/* ─── Dossier Screen (chargen — spec 03) ─────────────────────────────────── */
+
+#dossier-screen {
+  background: radial-gradient(ellipse at center, var(--gui-surface) 0%, var(--gui-bg) 70%);
+}
+
+.wp-dossier-panel {
+  width: 100%;
+  max-width: 720px;
+  max-height: calc(100vh - var(--gui-space-xl) * 2);
+  overflow-y: auto;
+}
+
+.wp-dossier-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gui-space-md);
+}
+
+.wp-dossier-identity {
+  display: flex;
+  align-items: center;
+  gap: var(--gui-space-md);
+}
+
+.wp-dossier-portrait {
+  width: 96px;
+  height: 124px;
+  flex-shrink: 0;
+  border-radius: var(--gui-radius-sm);
+  border: var(--gui-border-width) solid var(--gui-border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--gui-font-display);
+  font-size: var(--gui-font-size-xl);
+  font-weight: 700;
+  color: var(--gui-text-muted);
+  letter-spacing: 0.05em;
+}
+
+.wp-dossier-namehead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gui-space-xs);
+  min-width: 0;
+}
+
+.wp-dossier-name {
+  font-family: var(--gui-font-display);
+  font-size: var(--gui-font-size-xl);
+  font-weight: 700;
+  color: var(--gui-text);
+  letter-spacing: 0.05em;
+}
+
+.wp-dossier-callsign {
+  font-family: var(--gui-font-mono);
+  font-size: var(--gui-font-size-sm);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gui-accent-primary);
+}
+
+.wp-dossier-label {
+  display: block;
+  font-family: var(--gui-font-display);
+  font-size: var(--gui-font-size-sm);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gui-text-muted);
+  margin-bottom: var(--gui-space-xs);
+}
+
+.wp-dossier-value {
+  font-family: var(--gui-font-body);
+  font-size: var(--gui-font-size-md);
+  color: var(--gui-text);
+}
+
+.wp-dossier-backstory p {
+  font-family: var(--gui-font-body);
+  font-size: var(--gui-font-size-md);
+  line-height: 1.7;
+  color: var(--gui-text-muted);
+}
+
+.wp-dossier-traits {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gui-space-sm);
+}
+
+@media (max-width: 540px) {
+  .wp-dossier-traits { grid-template-columns: 1fr; }
+}
+
+.wp-dossier-reroll-status {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--gui-space-md);
+  padding: var(--gui-space-sm) var(--gui-space-md);
+  border: var(--gui-border-width) solid var(--gui-border);
+  border-radius: var(--gui-radius-sm);
+  background: var(--gui-bg);
+  font-family: var(--gui-font-mono);
+  font-size: var(--gui-font-size-sm);
+  letter-spacing: 0.08em;
+  color: var(--gui-text-muted);
+}
+
+.wp-dossier-reroll-status strong {
+  color: var(--gui-accent-primary);
+  font-weight: 700;
+}
+
+.wp-dossier-footer {
+  justify-content: center;
+  gap: var(--gui-space-md);
+}
+
 /* ─── Lore Card ──────────────────────────────────────────────────────────── */
 
 #lore-screen {
