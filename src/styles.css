@@ -1,55 +1,30 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   Within Parameters — Main Stylesheet
-   Industrial HUD aesthetic, cyan/amber on dark blue-black.
-   Three-pane layout: viewport (65%) | sidebar (35%) | bottom bar (33vh)
+   Within Parameters — WP composition stylesheet
+   ─────────────────────────────────────────────────────────────────────────────
+   This file contains ONLY what the GameUI framework does not provide:
+   - the three-pane session layout (viewport / sidebar / bottom bar)
+   - the VN presentation layer (background crossfade, portraits, dialogue box,
+     typewriter, speaker name)
+   - the journey timeline, screen-overlay positioning, and narrative typography
+   - per-component layout composition (slot rows, reward grid, settings stack)
+
+   Every color, font, radius, spacing, and motion value flows through a GameUI
+   token (var(--gui-*)). There are no raw hex/px literals: a preset swap reaches
+   WP too. Buttons, panels, stat bars, modals, settings controls, and cards are
+   framework components and are NOT re-styled here.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ─── CSS Custom Properties ──────────────────────────────────────────────── */
+/* ─── WP-specific layout tokens (no framework equivalent) ─────────────────── */
 
 :root {
-  /* Backgrounds */
-  --bg-primary: #0a0e14;
-  --bg-panel: rgba(10, 14, 20, 0.85);
-  --bg-panel-solid: #0d1117;
-
-  /* Accent colors */
-  --accent-cyan: #00d4ff;
-  --accent-amber: #ff9800;
-  --accent-red: #ff3b30;
-  --accent-green: #4caf50;
-  --accent-purple: #9c27b0;
-
-  /* Clock threshold colors */
-  --clock-safe: #4caf50;
-  --clock-warn: #ff9800;
-  --clock-danger: #ff3b30;
-
-  /* Text */
-  --text-primary: #e0e6ed;
-  --text-secondary: #8899aa;
-  --text-label: #5c7080;
-
-  /* Borders */
-  --border-panel: rgba(0, 212, 255, 0.2);
-  --border-active: rgba(0, 212, 255, 0.5);
-  --border-amber: rgba(255, 152, 0, 0.4);
-
-  /* Typography */
-  --font-body: 'IBM Plex Mono', 'Courier New', monospace;
-  --font-display: 'IBM Plex Sans Condensed', 'Arial Narrow', sans-serif;
-
-  /* Spacing */
-  --bar-height: 18px;
-  --panel-padding: 14px;
-  --gap-sm: 6px;
-  --gap-md: 12px;
-  --gap-lg: 20px;
-
-  /* Layout */
-  --viewport-width: 65%;
-  --sidebar-width: 35%;
-  --bottom-bar-height: 33vh;
-  --bottom-bar-min-height: 280px;
+  /* Three-pane geometry. These are WP's session layout, not component skin. */
+  --wp-viewport-width: 65%;
+  --wp-sidebar-width: 35%;
+  --wp-bottom-bar-height: 33vh;
+  --wp-bottom-bar-min-height: 280px;
+  --wp-portrait-width: 120px;
+  --wp-portrait-frame-width: 100px;
+  --wp-portrait-frame-height: 130px;
 }
 
 /* ─── Reset ──────────────────────────────────────────────────────────────── */
@@ -67,10 +42,10 @@ body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  font-family: var(--font-body);
-  font-size: 14px;
+  background: var(--gui-bg);
+  color: var(--gui-text);
+  font-family: var(--gui-font-body);
+  font-size: var(--gui-font-size-md);
   line-height: 1.5;
 }
 
@@ -80,7 +55,7 @@ body {
   position: relative;
 }
 
-/* ─── Game Container ─────────────────────────────────────────────────────── */
+/* ─── Game Container & three-pane layout ─────────────────────────────────── */
 
 #game-container {
   width: 100%;
@@ -90,8 +65,6 @@ body {
   position: relative;
 }
 
-/* ─── Main Area (viewport + sidebar) ────────────────────────────────────── */
-
 #main-area {
   display: flex;
   flex: 1;
@@ -99,17 +72,14 @@ body {
   min-height: 0;
 }
 
-/* ─── Viewport ───────────────────────────────────────────────────────────── */
-
 #viewport {
   position: relative;
-  width: var(--viewport-width);
+  width: var(--wp-viewport-width);
   flex-shrink: 0;
   overflow: hidden;
-  background: var(--bg-primary);
+  background: var(--gui-bg);
 }
 
-/* Full-screen mode: viewport fills everything */
 #game-container.fullscreen #viewport {
   width: 100%;
 }
@@ -118,30 +88,24 @@ body {
   display: none;
 }
 
-/* Background layers for crossfade */
+/* Background crossfade layers (two-layer A/B swap). */
 .bg-layer {
   position: absolute;
   inset: 0;
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  transition: opacity 0.5s ease;
+  transition: opacity var(--gui-duration-slow) var(--gui-ease-out);
 }
 
-.bg-layer.active {
-  opacity: 1;
-}
+.bg-layer.active { opacity: 1; }
+.bg-layer.inactive { opacity: 0; }
 
-.bg-layer.inactive {
-  opacity: 0;
-}
-
-/* Vignette overlay */
 #viewport::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at center, transparent 50%, rgba(5, 8, 14, 0.5) 100%);
+  background: radial-gradient(ellipse at center, transparent 50%, rgba(var(--gui-accent-primary-rgb), 0.04) 100%);
   pointer-events: none;
   z-index: 1;
 }
@@ -149,272 +113,120 @@ body {
 /* ─── Sidebar ────────────────────────────────────────────────────────────── */
 
 #sidebar {
-  width: var(--sidebar-width);
+  width: var(--wp-sidebar-width);
   flex-shrink: 0;
-  background: var(--bg-panel-solid);
-  border-left: 1px solid var(--border-panel);
+  background: var(--gui-bg);
+  border-left: var(--gui-border-width) solid var(--gui-border);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: var(--panel-padding);
-  gap: var(--gap-md);
+  padding: var(--gui-space-md);
+  gap: var(--gui-space-md);
 }
 
-#sidebar::-webkit-scrollbar {
-  width: 4px;
-}
-
-#sidebar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
+#sidebar::-webkit-scrollbar { width: var(--gui-space-xs); }
+#sidebar::-webkit-scrollbar-track { background: transparent; }
 #sidebar::-webkit-scrollbar-thumb {
-  background: var(--border-panel);
-  border-radius: 2px;
+  background: var(--gui-border-strong);
+  border-radius: var(--gui-radius-pill);
 }
 
-/* Sidebar section label */
-.sidebar-label {
-  font-family: var(--font-display);
-  font-size: 10px;
+/* Sidebar panels sit on the app background; tighten their padding so three
+   stacked panels read as a compact HUD rather than loose cards. */
+#sidebar .gui-panel {
+  padding: var(--gui-space-md);
+  border-radius: var(--gui-radius-md);
+  gap: var(--gui-space-sm);
+}
+
+/* Clock reading — terminal-style mono readout; color follows urgency. */
+.wp-clock-reading {
+  font-family: var(--gui-font-mono);
+  font-size: var(--gui-font-size-xl);
   font-weight: 700;
-  letter-spacing: 0.15em;
-  color: var(--text-label);
-  text-transform: uppercase;
-  margin-bottom: var(--gap-sm);
-}
-
-/* ─── Stat Bars ──────────────────────────────────────────────────────────── */
-
-#stat-panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--gap-sm);
-}
-
-.stat-row {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.stat-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.stat-name {
-  font-family: var(--font-display);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-}
-
-.stat-value {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
-}
-
-.stat-bar-track {
-  height: var(--bar-height);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--border-panel);
-  border-radius: 2px;
-  overflow: hidden;
-  position: relative;
-}
-
-.stat-bar-fill {
-  height: 100%;
-  border-radius: 1px;
-  transition: width 0.4s ease, background-color 0.4s ease;
-}
-
-/* Clock bar — color shifts with fill % */
-.stat-bar-fill.clock-fill {
-  background: var(--clock-safe);
-}
-
-.stat-bar-fill.clock-fill.warn {
-  background: var(--clock-warn);
-}
-
-.stat-bar-fill.clock-fill.danger {
-  background: var(--clock-danger);
-}
-
-/* Knowledge bar */
-.stat-bar-fill.knowledge-fill {
-  background: var(--accent-cyan);
-  box-shadow: 0 0 6px rgba(0, 212, 255, 0.3);
-}
-
-/* Rapport bar — center-origin, grows left (negative) or right (positive) */
-.rapport-bar-track {
-  height: var(--bar-height);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--border-panel);
-  border-radius: 2px;
-  overflow: hidden;
-  position: relative;
-}
-
-.rapport-center {
-  position: absolute;
-  left: 50%;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: var(--border-panel);
-}
-
-.rapport-fill {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  transition: left 0.4s ease, width 0.4s ease, background-color 0.4s ease;
-}
-
-/* Resources (consumables) — segmented */
-.consumables-row {
-  display: flex;
-  gap: 3px;
-  flex-wrap: wrap;
-}
-
-.consumable-pip {
-  width: 14px;
-  height: 14px;
-  border: 1px solid var(--border-panel);
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.05);
-  transition: background 0.2s;
-}
-
-.consumable-pip.filled {
-  background: var(--accent-green);
-  box-shadow: 0 0 4px rgba(76, 175, 80, 0.4);
-}
-
-/* ─── Intrusion Clock (prominent display) ────────────────────────────────── */
-
-#clock-panel {
-  border: 1px solid var(--border-panel);
-  border-radius: 3px;
-  padding: var(--panel-padding);
-  background: rgba(10, 14, 20, 0.6);
-}
-
-#clock-panel.warn {
-  border-color: var(--border-amber);
-  box-shadow: 0 0 8px rgba(255, 152, 0, 0.1);
-}
-
-#clock-panel.danger {
-  border-color: rgba(255, 59, 48, 0.5);
-  box-shadow: 0 0 12px rgba(255, 59, 48, 0.15);
-  animation: clock-pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes clock-pulse {
-  0%, 100% { box-shadow: 0 0 12px rgba(255, 59, 48, 0.15); }
-  50% { box-shadow: 0 0 20px rgba(255, 59, 48, 0.3); }
-}
-
-#clock-label {
-  font-family: var(--font-display);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.15em;
-  color: var(--text-label);
-  text-transform: uppercase;
-  margin-bottom: var(--gap-sm);
-}
-
-#clock-reading {
-  font-family: var(--font-display);
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--clock-safe);
-  transition: color 0.4s ease;
   letter-spacing: 0.05em;
-  margin-bottom: var(--gap-sm);
+  color: var(--gui-accent-success);
+  transition: color var(--gui-duration-md) var(--gui-ease-out);
 }
 
-#clock-reading.warn { color: var(--clock-warn); }
-#clock-reading.danger { color: var(--clock-danger); }
+.wp-clock-reading[data-level="warn"] { color: var(--gui-accent-warning); }
+.wp-clock-reading[data-level="danger"] {
+  color: var(--gui-accent-danger);
+  animation: wp-clock-pulse 1.5s var(--gui-ease-in-out) infinite;
+}
 
-/* ─── Location Timeline ──────────────────────────────────────────────────── */
+@keyframes wp-clock-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
 
-#timeline-panel {
+/* ─── Journey timeline (WP-specific composition) ─────────────────────────── */
+
+.wp-timeline {
   display: flex;
   flex-direction: column;
-  gap: var(--gap-sm);
+  gap: var(--gui-space-sm);
 }
 
-.timeline-stop {
+.wp-timeline__stop {
   display: flex;
   align-items: center;
-  gap: var(--gap-sm);
+  gap: var(--gui-space-sm);
   opacity: 0.4;
-  transition: opacity 0.3s;
+  transition: opacity var(--gui-duration-md) var(--gui-ease-out);
 }
 
-.timeline-stop.visited { opacity: 0.7; }
-.timeline-stop.current { opacity: 1; }
-.timeline-stop.upcoming { opacity: 0.3; }
+.wp-timeline__stop.is-visited { opacity: 0.7; }
+.wp-timeline__stop.is-current { opacity: 1; }
+.wp-timeline__stop.is-upcoming { opacity: 0.3; }
 
-.timeline-dot {
-  width: 8px;
-  height: 8px;
+.wp-timeline__dot {
+  width: var(--gui-space-sm);
+  height: var(--gui-space-sm);
   border-radius: 50%;
-  border: 1px solid var(--border-panel);
+  border: var(--gui-border-width) solid var(--gui-border-strong);
   background: transparent;
   flex-shrink: 0;
-  transition: background 0.3s, border-color 0.3s;
+  transition: background var(--gui-duration-md) var(--gui-ease-out),
+              border-color var(--gui-duration-md) var(--gui-ease-out);
 }
 
-.timeline-stop.visited .timeline-dot {
-  background: var(--text-label);
-  border-color: var(--text-label);
+.wp-timeline__stop.is-visited .wp-timeline__dot {
+  background: var(--gui-text-muted);
+  border-color: var(--gui-text-muted);
 }
 
-.timeline-stop.current .timeline-dot {
-  background: var(--accent-cyan);
-  border-color: var(--accent-cyan);
-  box-shadow: 0 0 6px rgba(0, 212, 255, 0.6);
+.wp-timeline__stop.is-current .wp-timeline__dot {
+  background: var(--gui-accent-primary);
+  border-color: var(--gui-accent-primary);
+  box-shadow: 0 0 var(--gui-glow-blur) rgba(var(--gui-accent-primary-rgb), var(--gui-glow-alpha));
 }
 
-.timeline-label {
-  font-family: var(--font-display);
-  font-size: 11px;
-  color: var(--text-secondary);
+.wp-timeline__label {
+  font-family: var(--gui-font-display);
+  font-size: var(--gui-font-size-sm);
+  color: var(--gui-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.timeline-stop.current .timeline-label {
-  color: var(--text-primary);
+.wp-timeline__stop.is-current .wp-timeline__label {
+  color: var(--gui-text);
 }
 
 /* ─── Bottom Bar ─────────────────────────────────────────────────────────── */
 
 #bottom-bar {
-  height: var(--bottom-bar-height);
-  min-height: var(--bottom-bar-min-height);
-  background: var(--bg-panel-solid);
-  border-top: 1px solid var(--border-panel);
+  height: var(--wp-bottom-bar-height);
+  min-height: var(--wp-bottom-bar-min-height);
+  background: var(--gui-surface);
+  border-top: var(--gui-border-width) solid var(--gui-border);
   display: flex;
   align-items: stretch;
-  padding: var(--panel-padding);
-  gap: var(--gap-md);
+  padding: var(--gui-space-md);
+  gap: var(--gui-space-md);
   cursor: pointer;
   user-select: none;
   position: relative;
@@ -426,15 +238,15 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+  height: var(--gui-border-width);
+  background: linear-gradient(90deg, transparent, var(--gui-accent-primary), transparent);
   opacity: 0.3;
 }
 
-/* ─── Portrait Area ──────────────────────────────────────────────────────── */
+/* ─── Portrait Area (VN presentation) ────────────────────────────────────── */
 
 #portrait-area {
-  width: 120px;
+  width: var(--wp-portrait-width);
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -442,18 +254,16 @@ body {
   position: relative;
 }
 
-#portrait-area.hidden {
-  display: none;
-}
+#portrait-area.hidden { display: none; }
 
 .portrait-frame {
-  width: 100px;
-  height: 130px;
-  border: 1px solid var(--border-panel);
-  border-radius: 3px;
+  width: var(--wp-portrait-frame-width);
+  height: var(--wp-portrait-frame-height);
+  border: var(--gui-border-width) solid var(--gui-border-strong);
+  border-radius: var(--gui-radius-sm);
   overflow: hidden;
   position: relative;
-  background: var(--bg-primary);
+  background: var(--gui-bg);
 }
 
 .portrait-frame img {
@@ -463,602 +273,357 @@ body {
   object-position: top center;
 }
 
-/* Placeholder portrait (colored rectangle with initials) */
+/* Placeholder portrait (colored rectangle with initials). */
 .portrait-placeholder {
   width: 100%;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--font-display);
-  font-size: 24px;
+  font-family: var(--gui-font-display);
+  font-size: var(--gui-font-size-xl);
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--gui-text-muted);
 }
 
-/* Portrait crossfade */
 .portrait-layer {
   position: absolute;
   inset: 0;
-  transition: opacity 0.3s ease;
+  transition: opacity var(--gui-duration-md) var(--gui-ease-out);
 }
 
 .portrait-layer.active { opacity: 1; }
 .portrait-layer.inactive { opacity: 0; }
 
-/* ─── Dialogue Area ──────────────────────────────────────────────────────── */
+/* ─── Dialogue Area (VN presentation) ────────────────────────────────────── */
 
 #dialogue-area {
   flex: 1;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  gap: var(--gap-sm);
+  gap: var(--gui-space-sm);
   min-width: 0;
 }
 
 #speaker-name {
-  font-family: var(--font-display);
-  font-size: 13px;
+  font-family: var(--gui-font-display);
+  font-size: var(--gui-font-size-sm);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--accent-cyan);
-  min-height: 18px;
+  color: var(--gui-accent-primary);
+  min-height: 1.2em;
 }
 
-#speaker-name:empty {
-  display: none;
-}
+#speaker-name:empty { display: none; }
 
 #dialogue-text {
-  font-family: var(--font-body);
-  font-size: 15px;
+  font-family: var(--gui-font-body);
+  font-size: var(--gui-font-size-md);
   line-height: 1.65;
-  color: var(--text-primary);
+  color: var(--gui-text);
   flex: 1;
   position: relative;
 }
 
-/* Typewriter cursor */
+/* Typewriter cursor. */
 #dialogue-text::after {
   content: '▌';
   display: inline;
-  animation: cursor-blink 0.8s step-end infinite;
-  color: var(--accent-cyan);
+  animation: wp-cursor-blink 0.8s step-end infinite;
+  color: var(--gui-accent-primary);
   opacity: 0;
 }
 
-#dialogue-text.typing::after {
-  opacity: 1;
-}
+#dialogue-text.typing::after { opacity: 1; }
 
-@keyframes cursor-blink {
+@keyframes wp-cursor-blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
 }
 
-/* Advance indicator */
 #advance-indicator {
   position: absolute;
-  bottom: 4px;
+  bottom: var(--gui-space-xs);
   right: 0;
-  font-size: 11px;
-  color: var(--text-label);
-  animation: indicator-pulse 1.5s ease-in-out infinite;
+  font-size: var(--gui-font-size-sm);
+  color: var(--gui-text-muted);
+  animation: wp-indicator-pulse 1.5s var(--gui-ease-in-out) infinite;
 }
 
-@keyframes indicator-pulse {
+@keyframes wp-indicator-pulse {
   0%, 100% { opacity: 0.4; }
   50% { opacity: 1; }
 }
 
-/* ─── Choice Buttons ─────────────────────────────────────────────────────── */
+/* ─── Choices (framework buttons, WP layout) ─────────────────────────────── */
 
 #choices-area {
   display: flex;
-  gap: var(--gap-sm);
+  gap: var(--gui-space-sm);
   flex-wrap: wrap;
-  margin-top: var(--gap-sm);
+  margin-top: var(--gui-space-sm);
 }
 
-.choice-btn {
+/* Choices are framework .gui-btn controls; WP only stretches them full-width. */
+.wp-choice-btn {
   flex: 1;
   min-width: 180px;
-  padding: 10px 16px;
-  background: var(--bg-panel);
-  border: 1px solid var(--border-panel);
-  border-radius: 3px;
-  color: var(--accent-cyan);
-  font-family: var(--font-body);
-  font-size: 13px;
-  cursor: pointer;
   text-align: left;
-  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
-  line-height: 1.4;
+  justify-content: flex-start;
 }
 
-.choice-btn:hover {
-  border-color: var(--border-active);
-  box-shadow: 0 0 10px rgba(0, 212, 255, 0.15);
-  background: rgba(0, 212, 255, 0.05);
-}
-
-.choice-btn:active {
-  background: rgba(0, 212, 255, 0.1);
-}
-
-.choice-btn.gated {
-  color: var(--text-label);
-  border-color: rgba(92, 112, 128, 0.3);
-  cursor: not-allowed;
-  font-style: italic;
-}
-
-.choice-btn.gated:hover {
-  border-color: rgba(92, 112, 128, 0.3);
-  box-shadow: none;
-  background: var(--bg-panel);
-}
-
-/* ─── Reward Screen (overlays bottom bar + more) ─────────────────────────── */
-
-#reward-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(5, 8, 14, 0.92);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  gap: var(--gap-lg);
-  padding: var(--gap-lg);
-}
-
-#reward-overlay.hidden {
-  display: none;
-}
-
-.reward-title {
-  font-family: var(--font-display);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.2em;
-  color: var(--text-label);
-  text-transform: uppercase;
-}
-
-.reward-cards {
-  display: flex;
-  gap: var(--gap-md);
-  width: 100%;
-  max-width: 800px;
-}
-
-.reward-card {
-  flex: 1;
-  padding: var(--gap-lg);
-  background: var(--bg-panel-solid);
-  border: 1px solid var(--border-panel);
-  border-radius: 4px;
-  cursor: pointer;
-  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
-  display: flex;
-  flex-direction: column;
-  gap: var(--gap-sm);
-}
-
-.reward-card:hover {
-  border-color: var(--border-active);
-  box-shadow: 0 0 16px rgba(0, 212, 255, 0.15);
-  transform: translateY(-2px);
-}
-
-.reward-card-type {
-  font-family: var(--font-display);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: var(--text-label);
-}
-
-.reward-card-label {
-  font-family: var(--font-display);
-  font-size: 17px;
-  font-weight: 700;
-  color: var(--accent-cyan);
-}
-
-.reward-card-desc {
-  font-family: var(--font-body);
-  font-size: 12px;
-  color: var(--text-secondary);
-  line-height: 1.5;
-}
-
-/* ─── Full-screen Overlay Screens ────────────────────────────────────────── */
+/* ─── Full-screen overlay screens (positioning only) ─────────────────────── */
 
 .screen-overlay {
   position: fixed;
   inset: 0;
-  background: var(--bg-primary);
+  background: var(--gui-bg);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  z-index: 200;
-  gap: var(--gap-lg);
-  padding: var(--gap-lg);
+  z-index: var(--gui-z-overlay);
+  gap: var(--gui-space-lg);
+  padding: var(--gui-space-lg);
 }
 
-.screen-overlay.hidden {
-  display: none;
-}
+.screen-overlay.hidden { display: none; }
 
 /* ─── Title Screen ───────────────────────────────────────────────────────── */
 
 #title-screen {
-  background: radial-gradient(ellipse at center, #0a1428 0%, #050810 70%);
+  background: radial-gradient(ellipse at center, var(--gui-surface) 0%, var(--gui-bg) 70%);
 }
 
 .title-logo {
   text-align: center;
-  margin-bottom: var(--gap-lg);
+  margin-bottom: var(--gui-space-lg);
 }
 
 .title-main {
-  font-family: var(--font-display);
-  font-size: 52px;
+  font-family: var(--gui-font-display);
+  font-size: var(--gui-font-size-xl);
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--gui-text);
   letter-spacing: 0.15em;
   text-transform: uppercase;
   line-height: 1;
 }
 
 .title-sub {
-  font-family: var(--font-body);
-  font-size: 12px;
-  color: var(--text-label);
+  font-family: var(--gui-font-mono);
+  font-size: var(--gui-font-size-sm);
+  color: var(--gui-text-muted);
   letter-spacing: 0.3em;
   text-transform: uppercase;
-  margin-top: var(--gap-md);
+  margin-top: var(--gui-space-md);
 }
 
+/* The title menu is a stacked column of framework buttons. */
 .title-menu {
   display: flex;
   flex-direction: column;
-  gap: var(--gap-sm);
+  gap: var(--gui-space-sm);
   width: 280px;
 }
 
-.title-btn {
-  padding: 14px 24px;
-  background: transparent;
-  border: 1px solid var(--border-panel);
-  border-radius: 3px;
-  color: var(--text-primary);
-  font-family: var(--font-display);
-  font-size: 14px;
-  font-weight: 600;
+.title-menu .gui-btn {
+  justify-content: center;
+  text-transform: uppercase;
   letter-spacing: 0.1em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: border-color 0.2s, color 0.2s, box-shadow 0.2s;
-  text-align: left;
 }
 
-.title-btn:hover {
-  border-color: var(--accent-cyan);
-  color: var(--accent-cyan);
-  box-shadow: 0 0 12px rgba(0, 212, 255, 0.1);
-}
+/* ─── Save/Load composition ──────────────────────────────────────────────── */
 
-.title-btn:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
-.title-btn:disabled:hover {
-  border-color: var(--border-panel);
-  color: var(--text-primary);
-  box-shadow: none;
-}
-
-/* ─── Save/Load Modal ────────────────────────────────────────────────────── */
-
-#save-load-screen {
-  background: rgba(5, 8, 14, 0.96);
-}
-
-.modal-title {
-  font-family: var(--font-display);
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: 0.15em;
-  color: var(--text-primary);
-  text-transform: uppercase;
+.wp-save-load-panel {
+  width: 100%;
+  max-width: 640px;
 }
 
 .slot-list {
   display: flex;
   flex-direction: column;
-  gap: var(--gap-sm);
+  gap: var(--gui-space-sm);
   width: 100%;
-  max-width: 600px;
 }
 
-.slot-item {
+.wp-slot-panel {
+  padding: var(--gui-space-sm) var(--gui-space-md) !important;
+  border-radius: var(--gui-radius-md) !important;
+  gap: var(--gui-space-xs) !important;
+}
+
+.wp-slot-header { min-height: auto; }
+
+.wp-slot-label {
+  font-size: var(--gui-font-size-sm);
+  color: var(--gui-text-muted);
+}
+
+.wp-slot-meta {
+  font-size: var(--gui-font-size-md);
+  color: var(--gui-text);
+}
+
+.wp-slot-footer {
+  justify-content: space-between;
+  padding-top: var(--gui-space-xs);
+}
+
+.wp-slot-time {
+  font-family: var(--gui-font-mono);
+  font-size: var(--gui-font-size-sm);
+  color: var(--gui-text-muted);
+}
+
+#save-load-footer { justify-content: center; }
+
+/* ─── Settings composition ───────────────────────────────────────────────── */
+
+.wp-settings-panel {
+  width: 100%;
+  max-width: 480px;
+}
+
+.wp-settings-rows {
   display: flex;
-  align-items: center;
-  gap: var(--gap-md);
-  padding: 12px var(--panel-padding);
-  background: var(--bg-panel-solid);
-  border: 1px solid var(--border-panel);
-  border-radius: 3px;
-  cursor: pointer;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  flex-direction: column;
+  gap: var(--gui-space-sm);
 }
 
-.slot-item:hover {
-  border-color: var(--border-active);
-  box-shadow: 0 0 8px rgba(0, 212, 255, 0.1);
-}
+#settings-footer { justify-content: center; }
 
-.slot-item.empty {
-  opacity: 0.4;
-  cursor: pointer;
-}
+/* ─── Ending Screen (narrative) ──────────────────────────────────────────── */
 
-.slot-item.empty:hover {
-  opacity: 0.7;
-}
-
-.slot-label {
-  font-family: var(--font-display);
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-secondary);
-  width: 80px;
-  flex-shrink: 0;
-}
-
-.slot-scene {
-  font-size: 13px;
-  color: var(--text-primary);
-  flex: 1;
-}
-
-.slot-time {
-  font-size: 11px;
-  color: var(--text-label);
-  flex-shrink: 0;
-}
-
-.modal-close {
-  padding: 10px 24px;
-  background: transparent;
-  border: 1px solid var(--border-panel);
-  border-radius: 3px;
-  color: var(--text-secondary);
-  font-family: var(--font-display);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: border-color 0.2s, color 0.2s;
-}
-
-.modal-close:hover {
-  border-color: var(--accent-cyan);
-  color: var(--accent-cyan);
-}
-
-/* ─── Ending Screen ──────────────────────────────────────────────────────── */
-
-#ending-screen {
+.wp-ending-panel {
+  width: 100%;
+  max-width: 720px;
   text-align: center;
-  max-width: 700px;
-  margin: auto;
 }
 
 .ending-type {
-  font-family: var(--font-display);
-  font-size: 11px;
+  font-family: var(--gui-font-display);
+  font-size: var(--gui-font-size-sm);
   font-weight: 700;
   letter-spacing: 0.25em;
-  color: var(--text-label);
+  color: var(--gui-text-muted);
   text-transform: uppercase;
 }
 
 .ending-title {
-  font-family: var(--font-display);
-  font-size: 36px;
+  font-family: var(--gui-font-display);
+  font-size: var(--gui-font-size-xl);
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--gui-text);
   letter-spacing: 0.1em;
-  margin: var(--gap-md) 0;
+  margin: var(--gui-space-md) 0;
 }
 
 .ending-epilogue {
-  font-family: var(--font-body);
-  font-size: 14px;
+  font-family: var(--gui-font-body);
+  font-size: var(--gui-font-size-md);
   line-height: 1.8;
-  color: var(--text-secondary);
+  color: var(--gui-text-muted);
   text-align: left;
   max-width: 560px;
-  margin: 0 auto var(--gap-lg);
+  margin: 0 auto var(--gui-space-lg);
 }
 
 .ending-community {
-  color: var(--accent-amber);
+  color: var(--gui-accent-warning);
   font-weight: 600;
 }
 
-.ending-btn {
-  padding: 12px 32px;
-  background: transparent;
-  border: 1px solid var(--border-panel);
-  border-radius: 3px;
-  color: var(--text-primary);
-  font-family: var(--font-display);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: border-color 0.2s, color 0.2s;
+.wp-ending-actions {
+  justify-content: center;
+  gap: var(--gui-space-md);
 }
 
-.ending-btn:hover {
-  border-color: var(--accent-cyan);
-  color: var(--accent-cyan);
-}
-
-/* ─── Lore Card (full-screen) ────────────────────────────────────────────── */
+/* ─── Lore Card ──────────────────────────────────────────────────────────── */
 
 #lore-screen {
   text-align: center;
-  background: linear-gradient(180deg, #050810 0%, #080c18 100%);
+  background: linear-gradient(180deg, var(--gui-bg) 0%, var(--gui-surface) 100%);
 }
 
 .lore-text {
-  font-family: var(--font-body);
-  font-size: 15px;
+  font-family: var(--gui-font-body);
+  font-size: var(--gui-font-size-md);
   line-height: 1.9;
-  color: var(--text-secondary);
+  color: var(--gui-text-muted);
   max-width: 640px;
   text-align: left;
 }
 
 .lore-skip {
-  font-family: var(--font-display);
-  font-size: 11px;
-  color: var(--text-label);
+  font-family: var(--gui-font-display);
+  font-size: var(--gui-font-size-sm);
+  color: var(--gui-text-muted);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   cursor: pointer;
   opacity: 0.6;
-  transition: opacity 0.2s;
+  transition: opacity var(--gui-duration-fast) var(--gui-ease-out);
 }
 
-.lore-skip:hover {
-  opacity: 1;
-}
+.lore-skip:hover { opacity: 1; }
 
-/* ─── Settings Screen ────────────────────────────────────────────────────── */
+/* ─── Reward Overlay (positioning + grid; cards are framework) ───────────── */
 
-#settings-screen {
-  align-items: flex-start;
-  padding: var(--gap-lg) 60px;
-  max-width: 500px;
-  margin: auto;
-}
-
-.settings-title {
-  font-family: var(--font-display);
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: 0.15em;
-  color: var(--text-primary);
-  text-transform: uppercase;
-  margin-bottom: var(--gap-lg);
-}
-
-.settings-row {
+#reward-overlay {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--gui-bg) 92%, transparent);
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
+  z-index: var(--gui-z-overlay);
+  padding: var(--gui-space-lg);
+}
+
+#reward-overlay.hidden { display: none; }
+
+.wp-reward-panel {
   width: 100%;
-  padding: 12px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  gap: var(--gap-md);
+  max-width: 860px;
 }
 
-.settings-label {
-  font-family: var(--font-display);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+.wp-reward-cards {
+  display: flex;
+  gap: var(--gui-space-md);
 }
 
-.toggle-btn {
-  padding: 6px 16px;
-  background: var(--bg-panel);
-  border: 1px solid var(--border-panel);
-  border-radius: 2px;
-  color: var(--text-secondary);
-  font-family: var(--font-display);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+.wp-reward-cards .gui-card {
+  flex: 1;
   cursor: pointer;
-  transition: all 0.2s;
-  min-width: 70px;
-  text-align: center;
 }
 
-.toggle-btn.active {
-  background: rgba(0, 212, 255, 0.1);
-  border-color: var(--accent-cyan);
-  color: var(--accent-cyan);
-}
-
-/* ─── Comms Interrupt ────────────────────────────────────────────────────── */
+/* ─── Comms Overlay (positioning; panel is framework) ────────────────────── */
 
 #comms-overlay {
   position: fixed;
-  bottom: calc(var(--bottom-bar-height) + 20px);
-  right: 20px;
-  width: 300px;
-  background: var(--bg-panel-solid);
-  border: 1px solid var(--border-amber);
-  border-radius: 4px;
-  padding: var(--panel-padding);
-  z-index: 150;
-  box-shadow: 0 0 16px rgba(255, 152, 0, 0.15);
+  bottom: calc(var(--wp-bottom-bar-height) + var(--gui-space-md));
+  right: var(--gui-space-md);
+  width: 320px;
+  z-index: var(--gui-z-sticky);
 }
 
-#comms-overlay.hidden {
-  display: none;
-}
+#comms-overlay.hidden { display: none; }
 
-.comms-header {
-  font-family: var(--font-display);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.15em;
-  color: var(--accent-amber);
-  text-transform: uppercase;
-  margin-bottom: var(--gap-sm);
-}
+.wp-comms-panel { padding: var(--gui-space-md); }
 
-.comms-text {
-  font-family: var(--font-body);
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--text-primary);
-  margin-bottom: var(--gap-md);
-}
-
-.comms-dismiss {
-  font-family: var(--font-display);
-  font-size: 11px;
-  color: var(--text-label);
-  cursor: pointer;
-  text-transform: uppercase;
+.wp-comms-title {
+  font-size: var(--gui-font-size-sm);
   letter-spacing: 0.1em;
-  transition: color 0.2s;
 }
 
-.comms-dismiss:hover {
-  color: var(--accent-amber);
+.wp-comms-text {
+  font-family: var(--gui-font-body);
+  font-size: var(--gui-font-size-sm);
+  line-height: 1.5;
+  color: var(--gui-text);
 }
 
 /* ─── Utility ────────────────────────────────────────────────────────────── */
@@ -1068,8 +633,8 @@ body {
 }
 
 .divider {
-  height: 1px;
-  background: var(--border-panel);
+  height: var(--gui-border-width);
+  background: var(--gui-border);
   width: 100%;
   opacity: 0.5;
 }

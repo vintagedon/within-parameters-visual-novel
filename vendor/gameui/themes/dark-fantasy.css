@@ -1,0 +1,133 @@
+/* =============================================================================
+   GameUI Dark-Fantasy Preset
+   -----------------------------------------------------------------------------
+   Gold-on-brown RPG palette with Cinzel display typography and MedievalSharp
+   body text. Sourced from the ui-theme-dark-fantasy ("Obsidian Grimoire UI")
+   pack. The original hot-linked Google Fonts stylesheet is replaced by
+   @font-face rules below; the OFL font files are vendored at themes/fonts/.
+
+   This preset populates every token in tokens/tokens.css. It declares
+   @font-face rules (skin) and overrides token values; it introduces no other
+   selectors. To switch a host document from dark fantasy to neon, swap this
+   <link> for neon.css.
+
+   Sanitization targets executed against the source pack:
+     - Stripped Phaser and Tone.js importmaps (esm.sh)
+     - Stripped Google Fonts hot-links (fonts.googleapis.com / gstatic.com)
+     - Stripped Rosebud asset hot-links (rosebud.ai, storage.googleapis.com)
+     - Renamed .png.webp double extensions to clean .webp
+     - Self-hosted OFL Cinzel and MedievalSharp at themes/fonts/
+   =============================================================================
+*/
+
+/* -----------------------------------------------------------------------------
+   §0. Self-hosted OFL fonts
+   -----------------------------------------------------------------------------
+   Cinzel is a variable font (weights 400–900 in a single file). MedievalSharp
+   ships a single regular weight. Both fall through to a serif/cursive system
+   stack if the file fails to load. Source: google/fonts OFL release.
+   -------------------------------------------------------------------------- */
+
+@font-face {
+  font-family: "Cinzel";
+  src: url("fonts/Cinzel.ttf") format("truetype");
+  font-weight: 400 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MedievalSharp";
+  src: url("fonts/MedievalSharp.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* §1. Surface and text — warm brown-black with parchment text.
+     The original pack ran rgba(0,0,0,0.85) over a game canvas; the framework
+     runs opaque so panels compose cleanly without a backdrop. */
+  --gui-bg: #0c0a08;
+  --gui-surface: #1a1410;
+  --gui-surface-strong: #241b14;
+  --gui-border: #5c4033;
+  --gui-border-strong: #8a6535;
+  --gui-text: #e0d8c8;
+  --gui-text-muted: #a89880;
+  --gui-text-on-accent: #1a1410;
+
+  /* §2. Accents — gold leads, with HP/mana/XP from the source pack mapped
+     to the danger/info/magic roles. Warning is an amber complementary;
+     pink is a muted rose that holds the dialogue role without breaking
+     the gold-brown palette. */
+  --gui-accent-primary: #ffd700;
+  --gui-accent-primary-rgb: 255, 215, 0;
+
+  --gui-accent-success: #b8860b;
+  --gui-accent-success-rgb: 184, 134, 11;
+
+  --gui-accent-warning: #d97706;
+  --gui-accent-warning-rgb: 217, 119, 6;
+
+  --gui-accent-danger: #e74c3c;
+  --gui-accent-danger-rgb: 231, 76, 60;
+
+  --gui-accent-info: #3498db;
+  --gui-accent-info-rgb: 52, 152, 219;
+
+  --gui-accent-magic: #9b59b6;
+  --gui-accent-magic-rgb: 155, 89, 182;
+
+  --gui-accent-pink: #c4716b;
+  --gui-accent-pink-rgb: 196, 113, 107;
+
+  /* §3. Typography — Cinzel for display, MedievalSharp for body. Both
+     fall through to a serif/cursive system stack if the file is absent. */
+  --gui-font-display: "Cinzel", "Trajan Pro", "Optima", Georgia, serif;
+  --gui-font-body: "MedievalSharp", "Lucida Calligraphy", "Papyrus", cursive;
+  --gui-font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* §4. Borders — the source pack uses 15px panel radius. */
+  --gui-radius-sm: 4px;
+  --gui-radius-md: 8px;
+  --gui-radius-lg: 15px;
+  --gui-radius-pill: 999px;
+
+  /* §5. Glow — dark fantasy is about texture, not neon. Glow is muted and
+     warm; the box-shadow border treatment on panels is the signature. */
+  --gui-glow-blur: 6px;
+  --gui-glow-spread: 0px;
+  --gui-glow-alpha: 0.35;
+
+  /* §6. Spacing — inherited from contract defaults. */
+  --gui-space-xs: 4px;
+  --gui-space-sm: 8px;
+  --gui-space-md: 16px;
+  --gui-space-lg: 24px;
+  --gui-space-xl: 40px;
+
+  /* §7. Shadow — long, warm-toned drop shadows. */
+  --gui-shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.6);
+  --gui-shadow-md: 0 12px 32px rgba(0, 0, 0, 0.7);
+  --gui-shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.8);
+
+  /* §8. Motion — slightly slower, more weighty than neon. */
+  --gui-duration-fast: 100ms;
+  --gui-duration-md: 260ms;
+  --gui-duration-slow: 420ms;
+  --gui-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --gui-ease-in: ease-in;
+  --gui-ease-in-out: ease-in-out;
+
+  /* §9. Component asset hooks — wire skin images to the sanitized assets in
+     themes/dark-fantasy-assets/. URLs resolve relative to this file. The
+     neon preset leaves these as `none`. */
+  --gui-panel-bg-image: url("dark-fantasy-assets/panel-bg.webp");
+  --gui-panel-border-image: url("dark-fantasy-assets/ornate-border.webp");
+  --gui-stat-orb-health-image: url("dark-fantasy-assets/health-orb.webp");
+  --gui-stat-orb-mana-image: url("dark-fantasy-assets/mana-orb.webp");
+  /* XP has no orb asset in the source pack; the stat-display component
+     renders a CSS-only circular badge when this token is `none`. */
+  --gui-stat-orb-xp-image: none;
+}

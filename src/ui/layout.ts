@@ -86,8 +86,8 @@ export function setBackground(assetKey: string): void {
     };
     img.src = `/assets/${asset.path}`;
   } else {
-    // No asset found — use a generic dark background
-    applyPlaceholder(incoming, 'linear-gradient(180deg, #050810 0%, #0a0e14 100%)');
+    // No asset found — use a generic dark background expressed through tokens.
+    applyPlaceholder(incoming, 'linear-gradient(180deg, var(--gui-bg) 0%, var(--gui-surface) 100%)');
     swap(incoming, outgoing);
   }
 }

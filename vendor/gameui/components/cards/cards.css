@@ -1,0 +1,198 @@
+/* =============================================================================
+   GameUI Card Primitive
+   -----------------------------------------------------------------------------
+   New-construction family (charter §2 v1). The card is the structural backbone
+   for Holdfast entity panels and Within Parameters dossier entries: a frame
+   with title, type-tag, body, and optional footer slots, plus selectable and
+   disabled states. The cards.js factory wires selection, click, and the slot
+   API; this CSS ships only structure.
+
+   Structure only. Accent tint flows through var(); a card never hardcodes a
+   palette value.
+   =============================================================================
+
+   HTML:
+     <article class="gui-card gui-card--primary" tabindex="0">
+       <header class="gui-card__header">
+         <div class="gui-card__title">Fireball</div>
+         <span class="gui-card__tag gui-card__tag--magic">Spell</span>
+       </header>
+       <div class="gui-card__body"> ...any content; composes with other factories... </div>
+       <footer class="gui-card__footer"> ...optional actions... </footer>
+     </article>
+
+   States:
+     .is-selected   Tints the frame with the active accent (selection ring).
+     .is-disabled   Dims and blocks pointer events.
+   =============================================================================
+*/
+
+/* -----------------------------------------------------------------------------
+   §1. Card frame
+   -------------------------------------------------------------------------- */
+
+.gui-card {
+  --card-accent: var(--gui-accent-primary);
+  --card-accent-rgb: var(--gui-accent-primary-rgb);
+
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gui-space-sm);
+  padding: var(--gui-space-md);
+  border-radius: var(--gui-radius-md);
+  background-color: var(--gui-surface);
+  border: var(--gui-border-width) solid var(--gui-border-strong);
+  box-shadow: var(--gui-shadow-sm);
+  font-family: var(--gui-font-body);
+  color: var(--gui-text);
+  transition:
+    border-color var(--gui-duration-fast) var(--gui-ease-out),
+    box-shadow var(--gui-duration-fast) var(--gui-ease-out),
+    transform var(--gui-duration-fast) var(--gui-ease-out);
+}
+
+/* Accent modifiers set the local --card-accent vars. Default is primary. */
+.gui-card--primary { --card-accent: var(--gui-accent-primary); --card-accent-rgb: var(--gui-accent-primary-rgb); }
+.gui-card--success { --card-accent: var(--gui-accent-success); --card-accent-rgb: var(--gui-accent-success-rgb); }
+.gui-card--warning { --card-accent: var(--gui-accent-warning); --card-accent-rgb: var(--gui-accent-warning-rgb); }
+.gui-card--danger  { --card-accent: var(--gui-accent-danger);  --card-accent-rgb: var(--gui-accent-danger-rgb); }
+.gui-card--info    { --card-accent: var(--gui-accent-info);    --card-accent-rgb: var(--gui-accent-info-rgb); }
+.gui-card--magic   { --card-accent: var(--gui-accent-magic);   --card-accent-rgb: var(--gui-accent-magic-rgb); }
+.gui-card--pink    { --card-accent: var(--gui-accent-pink);    --card-accent-rgb: var(--gui-accent-pink-rgb); }
+
+/* Selectable cards get a focusable affordance and hover lift. */
+.gui-card.is-selectable {
+  cursor: pointer;
+}
+
+.gui-card.is-selectable:hover {
+  border-color: var(--card-accent);
+  box-shadow:
+    0 0 var(--gui-glow-blur) rgba(var(--card-accent-rgb), calc(var(--gui-glow-alpha) * 0.6)),
+    var(--gui-shadow-md);
+}
+
+.gui-card.is-selectable:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px var(--gui-surface-strong),
+    0 0 0 5px var(--card-accent);
+}
+
+.gui-card.is-selected {
+  border-color: var(--card-accent);
+  box-shadow:
+    0 0 var(--gui-glow-blur) rgba(var(--card-accent-rgb), var(--gui-glow-alpha)),
+    var(--gui-shadow-md);
+}
+
+/* Selection check pip rendered from a ::after on the frame. */
+.gui-card.is-selected::before {
+  content: "✓";
+  position: absolute;
+  top: var(--gui-space-sm);
+  right: var(--gui-space-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--card-accent);
+  color: var(--gui-text-on-accent);
+  font-family: var(--gui-font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.gui-card.is-disabled,
+.gui-card[aria-disabled="true"] {
+  opacity: 0.45;
+  pointer-events: none;
+  filter: grayscale(0.3);
+}
+
+/* -----------------------------------------------------------------------------
+   §2. Card anatomy
+   -------------------------------------------------------------------------- */
+
+.gui-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gui-space-sm);
+}
+
+.gui-card__title {
+  font-family: var(--gui-font-display);
+  font-size: var(--gui-font-size-md);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--gui-text);
+}
+
+.gui-card__subtitle {
+  margin-top: calc(var(--gui-space-xs) * -1);
+  font-size: var(--gui-font-size-sm);
+  color: var(--gui-text-muted);
+}
+
+.gui-card__body {
+  font-size: var(--gui-font-size-md);
+  color: var(--gui-text);
+  line-height: 1.5;
+  /* Body is the flex slot; child factories (stat bars, buttons) stack here. */
+  display: flex;
+  flex-direction: column;
+  gap: var(--gui-space-sm);
+}
+
+.gui-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--gui-space-sm);
+  margin-top: var(--gui-space-xs);
+  padding-top: var(--gui-space-sm);
+  border-top: var(--gui-border-width) solid var(--gui-border);
+}
+
+/* -----------------------------------------------------------------------------
+   §3. Type tag — small role chip in the header
+   -------------------------------------------------------------------------
+   Accent modifiers tint the tag; defaults inherit the card's accent.
+   -------------------------------------------------------------------------- */
+
+.gui-card__tag {
+  --tag-accent: var(--card-accent);
+  --tag-accent-rgb: var(--card-accent-rgb);
+
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--gui-space-sm);
+  border-radius: var(--gui-radius-pill);
+  border: var(--gui-border-width) solid var(--tag-accent);
+  background: rgba(var(--tag-accent-rgb), 0.12);
+  color: var(--tag-accent);
+  font-family: var(--gui-font-display);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.gui-card__tag--primary { --tag-accent: var(--gui-accent-primary); --tag-accent-rgb: var(--gui-accent-primary-rgb); }
+.gui-card__tag--success { --tag-accent: var(--gui-accent-success); --tag-accent-rgb: var(--gui-accent-success-rgb); }
+.gui-card__tag--warning { --tag-accent: var(--gui-accent-warning); --tag-accent-rgb: var(--gui-accent-warning-rgb); }
+.gui-card__tag--danger  { --tag-accent: var(--gui-accent-danger);  --tag-accent-rgb: var(--gui-accent-danger-rgb); }
+.gui-card__tag--info    { --tag-accent: var(--gui-accent-info);    --tag-accent-rgb: var(--gui-accent-info-rgb); }
+.gui-card__tag--magic   { --tag-accent: var(--gui-accent-magic);   --tag-accent-rgb: var(--gui-accent-magic-rgb); }
+.gui-card__tag--pink    { --tag-accent: var(--gui-accent-pink);    --tag-accent-rgb: var(--gui-accent-pink-rgb); }
+
+@media (prefers-reduced-motion: reduce) {
+  .gui-card {
+    transition-duration: 1ms;
+  }
+}

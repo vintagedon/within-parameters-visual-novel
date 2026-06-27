@@ -5,12 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Within Parameters — a roguelike visual novel" />
     <title>Within Parameters</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
+
+    <!-- GameUI framework — load order is the contract: tokens define the
+         vocabulary, the neon preset populates it, components consume it,
+         and WP's styles.css composes only what the framework does not.
+         The framework is self-contained (system-ui fonts, image-free neon
+         preset); there are no non-origin requests beyond this origin. -->
+    <link rel="stylesheet" href="/vendor/gameui/tokens/tokens.css" />
+    <link rel="stylesheet" href="/vendor/gameui/themes/neon.css" />
+    <link rel="stylesheet" href="/vendor/gameui/components/panels/panels.css" />
+    <link rel="stylesheet" href="/vendor/gameui/components/buttons/buttons.css" />
+    <link rel="stylesheet" href="/vendor/gameui/components/stat-displays/stat-displays.css" />
+    <link rel="stylesheet" href="/vendor/gameui/components/modals/modals.css" />
+    <link rel="stylesheet" href="/vendor/gameui/components/settings/settings.css" />
+    <link rel="stylesheet" href="/vendor/gameui/components/cards/cards.css" />
   </head>
   <body>
     <div id="root"></div>

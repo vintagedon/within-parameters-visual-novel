@@ -1,28 +1,44 @@
 /**
  * HUD (sidebar) — stat bars, intrusion clock, and journey timeline.
  * All elements are built once in initHUD and updated in place thereafter.
- * Clock urgency is CSS-class-driven: warn at 40%, danger at 70%.
+ *
+ * Rendered through the GameUI framework: each section is a .gui-panel and the
+ * stats are .gui-bar components (linear bars for knowledge/rapport, segmented
+ * bars for the intrusion clock and resources). Only the WP stat semantics and
+ * the engine bindings are preserved; the rendering is the framework's.
+ *
+ * Clock urgency is expressed through framework accent roles: success (safe),
+ * warning (≥40%), danger (≥70%), applied to both the clock panel and the
+ * segmented bar.
  *
  * @module ui/hud
  */
 
-import type { GameState, CommunityRunState } from '../types/index';
+import type { GameState, CommunityRunState } from "../types/index";
+
+// ─── Display constants ────────────────────────────────────────────────────────
+
+const KNOWLEDGE_DISPLAY_MAX = 10;
+const RAPPORT_DISPLAY_MAX = 6;
+const RESOURCE_SEGMENTS = 8;
 
 // ─── DOM References ───────────────────────────────────────────────────────────
 
 let clockPanel: HTMLElement;
 let clockReading: HTMLElement;
-let clockFill: HTMLElement;
+let clockBar: HTMLElement;
+let clockSegments: HTMLElement;
 
-let knowledgeFill: HTMLElement;
+let knowledgeBar: HTMLElement;
 let knowledgeValue: HTMLElement;
 
-let rapportFill: HTMLElement;
+let rapportBar: HTMLElement;
 let rapportValue: HTMLElement;
 
-let consumablesRow: HTMLElement;
+let resourcesValue: HTMLElement;
+let resourceSegments: HTMLElement;
 
-let timelinePanel: HTMLElement;
+let timelineBody: HTMLElement;
 
 let totalStops = 6;
 
@@ -32,159 +48,138 @@ export function initHUD(sidebar: HTMLElement, journeyStops: number): void {
   totalStops = journeyStops;
 
   sidebar.innerHTML = `
-    <div id="clock-panel">
-      <div id="clock-label">INTRUSION CLOCK</div>
-      <div id="clock-reading">0 / 10</div>
-      <div class="stat-bar-track">
-        <div id="clock-fill" class="stat-bar-fill clock-fill" style="width:0%"></div>
+    <section class="gui-panel gui-panel--success wp-clock-panel" id="clock-panel">
+      <div class="gui-panel__header">
+        <div class="gui-panel__title">Intrusion Clock</div>
+        <div class="wp-clock-reading" id="clock-reading">0 / 10</div>
       </div>
-    </div>
+      <div class="gui-bar gui-bar--success gui-bar--segmented" id="clock-bar">
+        <div class="gui-bar__segments" id="clock-segments"></div>
+      </div>
+    </section>
 
-    <div class="divider"></div>
-
-    <div id="stat-panel">
-      <div class="stat-row">
-        <div class="stat-header">
-          <span class="stat-name">Knowledge</span>
-          <span id="knowledge-value" class="stat-value">0</span>
+    <section class="gui-panel gui-panel--info" id="stat-panel">
+      <div class="gui-bar gui-bar--info" id="knowledge-bar" style="--amount: 0;">
+        <div class="gui-bar__header">
+          <span class="gui-bar__label">Knowledge</span>
+          <span class="gui-bar__value" id="knowledge-value">0</span>
         </div>
-        <div class="stat-bar-track">
-          <div id="knowledge-fill" class="stat-bar-fill knowledge-fill" style="width:0%"></div>
-        </div>
+        <div class="gui-bar__track"><div class="gui-bar__fill"></div></div>
       </div>
 
-      <div class="stat-row">
-        <div class="stat-header">
-          <span class="stat-name">Rapport</span>
-          <span id="rapport-value" class="stat-value">0</span>
+      <div class="gui-bar gui-bar--success" id="rapport-bar" style="--amount: 0;">
+        <div class="gui-bar__header">
+          <span class="gui-bar__label">Rapport</span>
+          <span class="gui-bar__value" id="rapport-value">0</span>
         </div>
-        <div class="rapport-bar-track">
-          <div class="rapport-center"></div>
-          <div id="rapport-fill" class="rapport-fill" style="left:50%;width:0%;background:var(--accent-green)"></div>
-        </div>
+        <div class="gui-bar__track"><div class="gui-bar__fill"></div></div>
       </div>
 
-      <div class="stat-row">
-        <div class="stat-header">
-          <span class="stat-name">Resources</span>
-          <span id="resources-value" class="stat-value">0</span>
+      <div class="gui-bar gui-bar--success gui-bar--segmented" id="resources-bar">
+        <div class="gui-bar__header">
+          <span class="gui-bar__label">Resources</span>
+          <span class="gui-bar__value" id="resources-value">0</span>
         </div>
-        <div id="consumables-row" class="consumables-row"></div>
+        <div class="gui-bar__segments" id="resources-segments"></div>
       </div>
-    </div>
+    </section>
 
-    <div class="divider"></div>
-
-    <div id="timeline-panel">
-      <div class="sidebar-label">Route</div>
-    </div>
+    <section class="gui-panel" id="timeline-panel">
+      <div class="gui-panel__header">
+        <div class="gui-panel__title">Route</div>
+      </div>
+      <div class="wp-timeline" id="timeline-body"></div>
+    </section>
   `;
 
   clockPanel = document.getElementById('clock-panel')!;
   clockReading = document.getElementById('clock-reading')!;
-  clockFill = document.getElementById('clock-fill')!;
+  clockBar = document.getElementById('clock-bar')!;
+  clockSegments = document.getElementById('clock-segments')!;
 
-  knowledgeFill = document.getElementById('knowledge-fill')!;
+  knowledgeBar = document.getElementById('knowledge-bar')!;
   knowledgeValue = document.getElementById('knowledge-value')!;
 
-  rapportFill = document.getElementById('rapport-fill')!;
+  rapportBar = document.getElementById('rapport-bar')!;
   rapportValue = document.getElementById('rapport-value')!;
 
-  consumablesRow = document.getElementById('consumables-row')!;
+  resourcesValue = document.getElementById('resources-value')!;
+  resourceSegments = document.getElementById('resources-segments')!;
 
-  timelinePanel = document.getElementById('timeline-panel')!;
+  timelineBody = document.getElementById('timeline-body')!;
 
-  // Seed the timeline with empty stops
+  // Seed segmented bars and timeline at their initial state.
+  renderSegmented(clockSegments, 0, totalStops > 0 ? 0 : 0, getStateClockMax());
+  renderSegmented(resourceSegments, 0, RESOURCE_SEGMENTS, RESOURCE_SEGMENTS);
   updateTimeline(0, totalStops, []);
+}
+
+function getStateClockMax(): number {
+  return 10;
 }
 
 // ─── Update Functions ─────────────────────────────────────────────────────────
 
-/** Updates all HUD values from current state. Rapport bar uses a center-origin design (green right of center = positive, red left = negative). */
+/** Updates all HUD values from current state. The clock and resources use
+ *  segmented bars (pip fill counts); knowledge and rapport use linear bars
+ *  (--amount scaleX fill). Accent roles convey urgency and direction. */
 export function updateStats(state: GameState): void {
   const { stats, clock } = state;
 
-  // Clock
+  // ─── Intrusion Clock ── segmented bar + urgency accent ───────────────────
   const clockPct = clock.max > 0 ? (clock.current / clock.max) * 100 : 0;
-  clockFill.style.width = `${clockPct}%`;
   clockReading.textContent = `${clock.current} / ${clock.max}`;
+  renderSegmented(clockSegments, clock.current, clock.max, clock.max);
 
-  clockFill.classList.remove('warn', 'danger');
-  clockReading.classList.remove('warn', 'danger');
-  clockPanel.classList.remove('warn', 'danger');
+  setBarUrgency(clockBar, clockPct);
+  setPanelUrgency(clockPanel, clockPct);
+  clockReading.dataset.level = urgencyLevel(clockPct);
 
-  if (clockPct >= 70) {
-    clockFill.classList.add('danger');
-    clockReading.classList.add('danger');
-    clockPanel.classList.add('danger');
-  } else if (clockPct >= 40) {
-    clockFill.classList.add('warn');
-    clockReading.classList.add('warn');
-    clockPanel.classList.add('warn');
-  }
-
-  // Knowledge — treat knowledgeGoodEndingThreshold as max for display (hardcoded to 10 for display)
-  const knowledgeMax = 10;
-  const knowledgePct = Math.min(100, (stats.knowledge / knowledgeMax) * 100);
-  knowledgeFill.style.width = `${knowledgePct}%`;
+  // ─── Knowledge ── linear bar (info/cyan) ─────────────────────────────────
+  const knowledgeFraction = Math.min(1, stats.knowledge / KNOWLEDGE_DISPLAY_MAX);
+  knowledgeBar.style.setProperty('--amount', String(knowledgeFraction));
   knowledgeValue.textContent = String(stats.knowledge);
 
-  // Rapport — center origin bar, range roughly -6 to +6
-  const rapportMax = 6;
-  const rapport = Math.max(-rapportMax, Math.min(rapportMax, stats.rapport));
-  rapportValue.textContent = rapport >= 0 ? `+${rapport}` : String(rapport);
+  // ─── Rapport ── linear bar, success (≥0) or danger (<0), fill = magnitude ─
+  const clamped = Math.max(-RAPPORT_DISPLAY_MAX, Math.min(RAPPORT_DISPLAY_MAX, stats.rapport));
+  rapportValue.textContent = clamped >= 0 ? `+${clamped}` : String(clamped);
+  const rapportFraction = Math.abs(clamped) / RAPPORT_DISPLAY_MAX;
+  rapportBar.style.setProperty('--amount', String(rapportFraction));
+  setRapportAccent(rapportBar, stats.rapport);
 
-  if (rapport >= 0) {
-    const pct = (rapport / rapportMax) * 50;
-    rapportFill.style.left = '50%';
-    rapportFill.style.width = `${pct}%`;
-    rapportFill.style.background = 'var(--accent-green)';
-  } else {
-    const pct = (Math.abs(rapport) / rapportMax) * 50;
-    rapportFill.style.left = `${50 - pct}%`;
-    rapportFill.style.width = `${pct}%`;
-    rapportFill.style.background = 'var(--accent-red)';
-  }
-
-  // Consumables — pips
-  const consumableMax = 8; // display cap
-  consumablesRow.innerHTML = '';
-  const shown = Math.min(consumableMax, Math.max(0, stats.consumables));
-  for (let i = 0; i < shown; i++) {
-    const pip = document.createElement('div');
-    pip.className = 'consumable-pip' + (i < stats.consumables ? ' filled' : '');
-    consumablesRow.appendChild(pip);
-  }
-  const resourcesValue = document.getElementById('resources-value');
-  if (resourcesValue) resourcesValue.textContent = String(stats.consumables);
+  // ─── Resources ── segmented bar (success/green) ──────────────────────────
+  const shown = Math.min(RESOURCE_SEGMENTS, Math.max(0, stats.consumables));
+  renderSegmented(resourceSegments, shown, RESOURCE_SEGMENTS, RESOURCE_SEGMENTS);
+  resourcesValue.textContent = String(stats.consumables);
 }
 
-/** Rebuilds the route timeline on every stop advance. Community names appear once assigned; earlier stops show as 'visited', current as active, future as placeholder. */
+/** Rebuilds the route timeline on every stop advance. Community names appear
+ *  once assigned; earlier stops show as visited, current as active, future as
+ *  placeholder. This is WP-specific composition rendered through tokens. */
 export function updateTimeline(
   currentStop: number,
   stops: number,
   communities: CommunityRunState[]
 ): void {
-  // Preserve label header
-  timelinePanel.innerHTML = '<div class="sidebar-label">Route</div>';
+  timelineBody.innerHTML = '';
 
   for (let i = 1; i <= stops; i++) {
     const stop = document.createElement('div');
-    stop.className = 'timeline-stop';
+    stop.className = 'wp-timeline__stop';
 
     if (i < currentStop) {
-      stop.classList.add('visited');
+      stop.classList.add('is-visited');
     } else if (i === currentStop) {
-      stop.classList.add('current');
+      stop.classList.add('is-current');
     } else {
-      stop.classList.add('upcoming');
+      stop.classList.add('is-upcoming');
     }
 
-    const dot = document.createElement('div');
-    dot.className = 'timeline-dot';
+    const dot = document.createElement('span');
+    dot.className = 'wp-timeline__dot';
 
-    const label = document.createElement('div');
-    label.className = 'timeline-label';
+    const label = document.createElement('span');
+    label.className = 'wp-timeline__label';
 
     const community = communities.find((c) => c.stop === i);
     if (community) {
@@ -197,6 +192,45 @@ export function updateTimeline(
 
     stop.appendChild(dot);
     stop.appendChild(label);
-    timelinePanel.appendChild(stop);
+    timelineBody.appendChild(stop);
   }
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Emits `total` pip elements into the container and marks the first `filled`
+ *  with .is-filled, matching the framework's segmented-bar contract. */
+function renderSegmented(container: HTMLElement, filled: number, total: number, _max: number): void {
+  container.innerHTML = '';
+  const count = Math.max(0, total);
+  for (let i = 0; i < count; i++) {
+    const pip = document.createElement('span');
+    pip.className = 'gui-bar__pip';
+    if (i < filled) pip.classList.add('is-filled');
+    container.appendChild(pip);
+  }
+}
+
+function urgencyLevel(pct: number): 'safe' | 'warn' | 'danger' {
+  if (pct >= 70) return 'danger';
+  if (pct >= 40) return 'warn';
+  return 'safe';
+}
+
+/** Swaps the bar's color modifier to convey clock urgency (success→warning→danger). */
+function setBarUrgency(bar: HTMLElement, pct: number): void {
+  bar.classList.remove('gui-bar--success', 'gui-bar--warning', 'gui-bar--danger');
+  bar.classList.add(`gui-bar--${urgencyLevel(pct)}`);
+}
+
+/** Swaps the clock panel's accent modifier to convey urgency. */
+function setPanelUrgency(panel: HTMLElement, pct: number): void {
+  panel.classList.remove('gui-panel--success', 'gui-panel--warning', 'gui-panel--danger');
+  panel.classList.add(`gui-panel--${urgencyLevel(pct)}`);
+}
+
+/** Sets the rapport bar accent: success for net-positive, danger for net-negative. */
+function setRapportAccent(bar: HTMLElement, rapport: number): void {
+  bar.classList.remove('gui-bar--success', 'gui-bar--danger');
+  bar.classList.add(rapport >= 0 ? 'gui-bar--success' : 'gui-bar--danger');
 }

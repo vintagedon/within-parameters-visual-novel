@@ -1,12 +1,28 @@
 /**
- * Screen overlays — title, save/load modal, ending screen, settings, reward overlay, comms interrupt.
+ * Screen overlays — title, save/load modal, ending screen, settings, reward
+ * overlay, comms interrupt.
+ *
  * All screens are built once in initScreens() and toggled via show/hide pairs.
- * The ending screen generates the epilogue text dynamically from run community states.
+ * The ending screen generates the epilogue text dynamically from run community
+ * states.
+ *
+ * Every interactive control is a GameUI factory (createButton, createSwitch,
+ * createToggle, createModal, createCard) and every container is a framework
+ * panel. The screen-overlay chrome (full-screen positioning) and the epilogue
+ * narrative are WP-specific composition expressed through GameUI tokens.
  *
  * @module ui/screens
  */
 
-import type { SaveSlot, PersistentData, GameState, CommunityRunState } from '../types/index';
+import type { SaveSlot, PersistentData, GameState, CommunityRunState, RewardOption } from "../types/index";
+import {
+  createButton,
+  createSwitch,
+  createToggle,
+  createModal,
+  createCard,
+  type ModalControl,
+} from "./gameui";
 
 // ─── Screen container refs ─────────────────────────────────────────────────────
 
@@ -32,40 +48,49 @@ export function initScreens(root: HTMLElement): void {
 
     <!-- Save / Load Screen -->
     <div id="save-load-screen" class="screen-overlay hidden">
-      <div class="modal-title" id="save-load-title">LOAD GAME</div>
-      <div class="slot-list" id="slot-list"></div>
-      <button class="modal-close" id="modal-close-btn">CANCEL</button>
+      <div class="gui-panel gui-panel--primary wp-save-load-panel">
+        <div class="gui-panel__header">
+          <div class="gui-panel__title" id="save-load-title">LOAD GAME</div>
+        </div>
+        <div class="slot-list" id="slot-list"></div>
+        <div class="gui-panel__footer" id="save-load-footer"></div>
+      </div>
     </div>
 
     <!-- Ending Screen -->
     <div id="ending-screen" class="screen-overlay hidden">
-      <div class="ending-type" id="ending-type-label"></div>
-      <div class="ending-title" id="ending-title"></div>
-      <div class="ending-epilogue" id="ending-epilogue"></div>
-      <div style="display:flex;gap:12px;">
-        <button class="ending-btn" id="ending-again-btn">NEW RUN</button>
-        <button class="ending-btn" id="ending-title-btn">TITLE</button>
+      <div class="gui-panel gui-panel--primary wp-ending-panel">
+        <div class="ending-type" id="ending-type-label"></div>
+        <div class="ending-title" id="ending-title"></div>
+        <div class="ending-epilogue" id="ending-epilogue"></div>
+        <div class="gui-panel__footer wp-ending-actions" id="ending-actions"></div>
       </div>
     </div>
 
     <!-- Settings Screen -->
     <div id="settings-screen" class="screen-overlay hidden">
-      <div class="settings-title">Settings</div>
-      <div id="settings-rows"></div>
-      <button class="modal-close" id="settings-close-btn" style="margin-top:24px">CLOSE</button>
+      <div class="gui-panel gui-panel--info wp-settings-panel">
+        <div class="gui-panel__header">
+          <div class="gui-panel__title">Settings</div>
+        </div>
+        <div class="wp-settings-rows" id="settings-rows"></div>
+        <div class="gui-panel__footer" id="settings-footer"></div>
+      </div>
     </div>
 
     <!-- Reward Overlay -->
     <div id="reward-overlay" class="hidden">
-      <div class="reward-title">SELECT YOUR REWARD</div>
-      <div class="reward-cards" id="reward-cards"></div>
+      <div class="gui-panel gui-panel--primary wp-reward-panel">
+        <div class="gui-panel__header">
+          <div class="gui-panel__title">Select Your Reward</div>
+        </div>
+        <div class="wp-reward-cards" id="reward-cards"></div>
+      </div>
     </div>
 
     <!-- Comms Overlay -->
     <div id="comms-overlay" class="hidden">
-      <div class="comms-header">⚡ INCOMING COMMS</div>
-      <div class="comms-text" id="comms-text"></div>
-      <div class="comms-dismiss" id="comms-dismiss">[ acknowledge ]</div>
+      <div class="gui-panel gui-panel--warning wp-comms-panel" id="comms-panel-body"></div>
     </div>
   `;
 
@@ -97,21 +122,38 @@ export function showTitleScreen(
   const menu = document.getElementById('title-menu')!;
   menu.innerHTML = '';
 
-  const buttons: Array<{ label: string; disabled?: boolean; onClick: () => void }> = [
-    { label: 'NEW GAME', onClick: callbacks.onNewGame },
-    { label: 'CONTINUE', disabled: !hasContinue, onClick: callbacks.onContinue },
-    { label: 'LOAD GAME', onClick: callbacks.onLoad },
-    { label: 'SETTINGS', onClick: callbacks.onSettings },
-  ];
+  const primary = createButton({
+    label: 'NEW GAME',
+    accent: 'primary',
+    variant: 'solid',
+    onClick: callbacks.onNewGame,
+  });
+  menu.appendChild(primary.el);
 
-  for (const btn of buttons) {
-    const el = document.createElement('button');
-    el.className = 'title-btn';
-    el.textContent = btn.label;
-    if (btn.disabled) el.disabled = true;
-    el.addEventListener('click', btn.onClick);
-    menu.appendChild(el);
-  }
+  const continueBtn = createButton({
+    label: 'CONTINUE',
+    accent: 'primary',
+    variant: 'solid',
+    disabled: !hasContinue,
+    onClick: callbacks.onContinue,
+  });
+  menu.appendChild(continueBtn.el);
+
+  const loadBtn = createButton({
+    label: 'LOAD GAME',
+    accent: 'primary',
+    variant: 'outline',
+    onClick: callbacks.onLoad,
+  });
+  menu.appendChild(loadBtn.el);
+
+  const settingsBtn = createButton({
+    label: 'SETTINGS',
+    accent: 'primary',
+    variant: 'ghost',
+    onClick: callbacks.onSettings,
+  });
+  menu.appendChild(settingsBtn.el);
 
   titleScreen.classList.remove('hidden');
 }
@@ -136,46 +178,125 @@ export function showSaveLoadScreen(
 
   // Autosave slot
   const autoSlot = slots.find((s) => s.id === 'auto');
-  appendSlotItem(slotList, 'AUTOSAVE', autoSlot, () => onSlotSelect('auto'));
+  appendSlotItem(slotList, 'AUTOSAVE', autoSlot, mode, () => {
+    confirmSlotAction(mode, 'AUTOSAVE', autoSlot, 'auto', onSlotSelect);
+  });
 
   // Manual slots 0-4
   for (let i = 0; i < 5; i++) {
     const slot = slots.find((s) => s.id === i);
-    appendSlotItem(slotList, `SLOT ${i + 1}`, slot, () => onSlotSelect(i));
+    const label = `SLOT ${i + 1}`;
+    const id = i;
+    appendSlotItem(slotList, label, slot, mode, () => {
+      confirmSlotAction(mode, label, slot, id, onSlotSelect);
+    });
   }
 
-  const closeBtn = document.getElementById('modal-close-btn')!;
-  closeBtn.onclick = onClose;
+  // Footer close action
+  const footer = document.getElementById('save-load-footer')!;
+  footer.innerHTML = '';
+  const closeBtn = createButton({
+    label: 'CANCEL',
+    accent: 'primary',
+    variant: 'ghost',
+    onClick: onClose,
+  });
+  footer.appendChild(closeBtn.el);
 
   saveLoadScreen.classList.remove('hidden');
 }
 
+/** Renders a single save slot as a GameUI panel with a gui-btn action. Empty
+ *  slots in load mode render their action disabled. */
 function appendSlotItem(
   container: HTMLElement,
   label: string,
   slot: SaveSlot | undefined,
+  mode: 'save' | 'load',
   onClick: () => void
 ): void {
-  const item = document.createElement('div');
-  item.className = 'slot-item' + (slot ? '' : ' empty');
-  item.addEventListener('click', onClick);
+  const panel = document.createElement('div');
+  const accent = slot ? 'success' : '';
+  panel.className = 'gui-panel wp-slot-panel' + (accent ? ` gui-panel--${accent}` : ' gui-panel--info');
 
-  const labelEl = document.createElement('div');
-  labelEl.className = 'slot-label';
-  labelEl.textContent = label;
+  const header = document.createElement('div');
+  header.className = 'gui-panel__header wp-slot-header';
+  const title = document.createElement('div');
+  title.className = 'gui-panel__title wp-slot-label';
+  title.textContent = label;
+  header.appendChild(title);
 
-  const sceneEl = document.createElement('div');
-  sceneEl.className = 'slot-scene';
-  sceneEl.textContent = slot ? slot.sceneLabel : '— empty —';
+  const body = document.createElement('div');
+  body.className = 'wp-slot-meta';
+  body.textContent = slot ? slot.sceneLabel : '— empty —';
 
-  const timeEl = document.createElement('div');
-  timeEl.className = 'slot-time';
-  timeEl.textContent = slot ? formatDate(slot.savedAt) : '';
+  const footer = document.createElement('div');
+  footer.className = 'gui-panel__footer wp-slot-footer';
 
-  item.appendChild(labelEl);
-  item.appendChild(sceneEl);
-  item.appendChild(timeEl);
-  container.appendChild(item);
+  const time = document.createElement('span');
+  time.className = 'wp-slot-time';
+  time.textContent = slot ? formatDate(slot.savedAt) : '';
+
+  const action = createButton({
+    label: mode === 'save' ? 'SAVE' : 'LOAD',
+    accent: slot ? 'primary' : 'primary',
+    variant: 'outline',
+    disabled: mode === 'load' && !slot,
+    onClick,
+  });
+
+  footer.appendChild(time);
+  footer.appendChild(action.el);
+
+  panel.appendChild(header);
+  panel.appendChild(body);
+  panel.appendChild(footer);
+  container.appendChild(panel);
+}
+
+/** Opens a danger confirm dialog before a destructive save/load action. Per the
+ *  spec, the overwrite-save and load-confirm flows use createModal with the
+ *  dialog + danger modifiers. Saving to an empty slot proceeds immediately. */
+function confirmSlotAction(
+  mode: 'save' | 'load',
+  label: string,
+  slot: SaveSlot | undefined,
+  slotId: number | 'auto',
+  onSlotSelect: (slotId: number | 'auto') => void
+): void {
+  // Saving into an empty slot is non-destructive; proceed immediately. Empty
+  // slots in load mode have a disabled action, so that path is unreachable.
+  if (mode === 'save' && !slot) {
+    onSlotSelect(slotId);
+    return;
+  }
+
+  const title = mode === 'save' ? `Overwrite ${label}?` : `Load ${label}?`;
+  const body = mode === 'save'
+    ? '<p>An existing save in this slot will be permanently replaced.</p>'
+    : '<p>Loading will replace your current run. Unsaved progress will be lost.</p>';
+
+  openDangerConfirm(title, body, () => onSlotSelect(slotId));
+}
+
+/** Builds, mounts, and opens a one-shot danger confirm dialog. */
+function openDangerConfirm(title: string, body: string, onConfirm: () => void): void {
+  const modal: ModalControl = createModal({
+    title,
+    body,
+    variant: 'dialog',
+    accent: 'danger',
+    buttons: [
+      { label: 'CANCEL', variant: 'ghost', closes: true },
+      { label: 'CONFIRM', accent: 'danger', closes: true, onClick: () => onConfirm() },
+    ],
+  });
+  document.body.appendChild(modal.el);
+  modal.onClose(() => {
+    // Tear down the one-shot dialog after it finishes.
+    modal.el.remove();
+  });
+  modal.open();
 }
 
 function formatDate(ts: number): string {
@@ -218,11 +339,22 @@ export function showEndingScreen(
 
   epilogueEl.innerHTML = buildEpilogue(endingType, state.communities);
 
-  const againBtn = document.getElementById('ending-again-btn')!;
-  const titleBtn = document.getElementById('ending-title-btn')!;
-
-  againBtn.onclick = callbacks.onNewGame;
-  titleBtn.onclick = callbacks.onTitle;
+  const actions = document.getElementById('ending-actions')!;
+  actions.innerHTML = '';
+  const againBtn = createButton({
+    label: 'NEW RUN',
+    accent: 'primary',
+    variant: 'solid',
+    onClick: callbacks.onNewGame,
+  });
+  const titleBtn = createButton({
+    label: 'TITLE',
+    accent: 'primary',
+    variant: 'outline',
+    onClick: callbacks.onTitle,
+  });
+  actions.appendChild(againBtn.el);
+  actions.appendChild(titleBtn.el);
 
   endingScreen.classList.remove('hidden');
 }
@@ -287,54 +419,35 @@ export function showSettings(
   const rows = document.getElementById('settings-rows')!;
   rows.innerHTML = '';
 
-  // Audio mute toggle
-  const muteRow = buildToggleRow(
-    'AUDIO',
-    persistent.audioMuted ? 'MUTED' : 'ON',
-    !persistent.audioMuted,
-    () => {
-      const newMuted = !persistent.audioMuted;
-      callbacks.onToggleMute(newMuted);
-      showSettings({ ...persistent, audioMuted: newMuted }, callbacks);
-    }
-  );
-  rows.appendChild(muteRow);
+  // Audio — sliding switch (on = audio enabled).
+  const audio = createSwitch({
+    label: 'AUDIO',
+    checked: !persistent.audioMuted,
+    accent: 'success',
+    onChange: (on) => callbacks.onToggleMute(!on),
+  });
+  rows.appendChild(audio.el);
 
-  // Cutscene toggle
-  const cutscenesRow = buildToggleRow(
-    'CUTSCENES',
-    persistent.cutscenesSetting === 'all' ? 'ON' : 'OFF',
-    persistent.cutscenesSetting === 'all',
-    () => {
-      const newSetting = persistent.cutscenesSetting === 'all' ? 'none' : 'all';
-      callbacks.onToggleCutscenes(newSetting);
-      showSettings({ ...persistent, cutscenesSetting: newSetting }, callbacks);
-    }
-  );
-  rows.appendChild(cutscenesRow);
+  // Cutscenes — compact toggle.
+  const cutscenes = createToggle({
+    label: 'CUTSCENES',
+    checked: persistent.cutscenesSetting === 'all',
+    accent: 'primary',
+    onChange: (on) => callbacks.onToggleCutscenes(on ? 'all' : 'none'),
+  });
+  rows.appendChild(cutscenes.el);
 
-  const closeBtn = document.getElementById('settings-close-btn')!;
-  closeBtn.onclick = callbacks.onClose;
+  const footer = document.getElementById('settings-footer')!;
+  footer.innerHTML = '';
+  const closeBtn = createButton({
+    label: 'CLOSE',
+    accent: 'primary',
+    variant: 'ghost',
+    onClick: callbacks.onClose,
+  });
+  footer.appendChild(closeBtn.el);
 
   settingsScreen.classList.remove('hidden');
-}
-
-function buildToggleRow(label: string, btnText: string, active: boolean, onClick: () => void): HTMLElement {
-  const row = document.createElement('div');
-  row.className = 'settings-row';
-
-  const labelEl = document.createElement('div');
-  labelEl.className = 'settings-label';
-  labelEl.textContent = label;
-
-  const btn = document.createElement('button');
-  btn.className = 'toggle-btn' + (active ? ' active' : '');
-  btn.textContent = btnText;
-  btn.addEventListener('click', onClick);
-
-  row.appendChild(labelEl);
-  row.appendChild(btn);
-  return row;
 }
 
 export function hideSettings(): void {
@@ -343,9 +456,20 @@ export function hideSettings(): void {
 
 // ─── Reward Overlay ───────────────────────────────────────────────────────────
 
-import type { RewardOption } from '../types/index';
+const REWARD_ACCENTS: Record<string, 'success' | 'info' | 'magic'> = {
+  'consumable': 'success',
+  'knowledge': 'info',
+  'clock-reduction': 'magic',
+};
 
-/** Presents the three reward cards after each event. Hides automatically when a card is selected. */
+const REWARD_TYPE_LABELS: Record<string, string> = {
+  'consumable': 'Resource',
+  'knowledge': 'Intelligence',
+  'clock-reduction': 'Clock Suppression',
+};
+
+/** Presents the three reward cards after each event. Each reward is a GameUI
+ *  card; selecting one hides the overlay and forwards the index. */
 export function showRewardOverlay(
   rewards: RewardOption[],
   onSelect: (index: number) => void
@@ -353,28 +477,20 @@ export function showRewardOverlay(
   const cards = document.getElementById('reward-cards')!;
   cards.innerHTML = '';
 
-  const typeLabels: Record<string, string> = {
-    'consumable': 'Resource',
-    'knowledge': 'Intelligence',
-    'clock-reduction': 'Clock Suppression',
-  };
-
   rewards.forEach((reward, i) => {
-    const card = document.createElement('div');
-    card.className = 'reward-card';
-
-    card.innerHTML = `
-      <div class="reward-card-type">${typeLabels[reward.type] ?? reward.type}</div>
-      <div class="reward-card-label">${reward.label}</div>
-      <div class="reward-card-desc">${reward.description}</div>
-    `;
-
-    card.addEventListener('click', () => {
-      hideRewardOverlay();
-      onSelect(i);
+    const accent = REWARD_ACCENTS[reward.type] ?? 'primary';
+    const card = createCard({
+      title: reward.label,
+      tag: { label: REWARD_TYPE_LABELS[reward.type] ?? reward.type, accent },
+      body: reward.description,
+      accent,
+      selectable: true,
+      onClick: () => {
+        hideRewardOverlay();
+        onSelect(i);
+      },
     });
-
-    cards.appendChild(card);
+    cards.appendChild(card.el);
   });
 
   rewardOverlay.classList.remove('hidden');
@@ -387,14 +503,36 @@ export function hideRewardOverlay(): void {
 // ─── Comms Overlay ────────────────────────────────────────────────────────────
 
 export function showCommsOverlay(text: string, onDismiss: () => void): void {
-  const commsText = document.getElementById('comms-text')!;
-  commsText.textContent = text;
+  const panel = document.getElementById('comms-panel-body')!;
+  panel.innerHTML = '';
 
-  const dismissEl = document.getElementById('comms-dismiss')!;
-  dismissEl.onclick = () => {
-    hideCommsOverlay();
-    onDismiss();
-  };
+  const header = document.createElement('div');
+  header.className = 'gui-panel__header';
+  const title = document.createElement('div');
+  title.className = 'gui-panel__title wp-comms-title';
+  title.textContent = '⚡ Incoming Comms';
+  header.appendChild(title);
+
+  const body = document.createElement('div');
+  body.className = 'wp-comms-text';
+  body.textContent = text;
+
+  const footer = document.createElement('div');
+  footer.className = 'gui-panel__footer';
+  const dismiss = createButton({
+    label: 'ACKNOWLEDGE',
+    accent: 'warning',
+    variant: 'outline',
+    onClick: () => {
+      hideCommsOverlay();
+      onDismiss();
+    },
+  });
+  footer.appendChild(dismiss.el);
+
+  panel.appendChild(header);
+  panel.appendChild(body);
+  panel.appendChild(footer);
 
   commsOverlay.classList.remove('hidden');
 }

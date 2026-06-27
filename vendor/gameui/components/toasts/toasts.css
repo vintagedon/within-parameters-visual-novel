@@ -1,0 +1,385 @@
+/* =============================================================================
+   GameUI Toasts (Display-Only)
+   -----------------------------------------------------------------------------
+   Extracted and sanitized from achievement-toast-notification-system-html5/.
+   The source pack ships a full JS factory (AchievementToastSystem class); this
+   spec extracts only the CSS structure and the toast DOM skeleton, renamed to
+   the gui- namespace. The factory (queueing, dedup, timers, ARIA live region
+   orchestration) lands in spec 03.
+
+   Source sanitization: zero external URLs were found in the pack (verified).
+   The source's 12 hardcoded-color SVG icons are NOT vendored; consumers fill
+   .gui-toast__icon with their own inline SVG, image, or glyph. The gallery
+   demo uses inline SVG with currentColor.
+
+   HTML (single toast):
+     <article class="gui-toast gui-toast--achievement" role="status">
+       <span class="gui-toast__icon" aria-hidden="true">🏆</span>
+       <div class="gui-toast__body">
+         <span class="gui-toast__kicker">Achievement</span>
+         <h3 class="gui-toast__title">First Blood</h3>
+         <p class="gui-toast__message">Defeat your first enemy.</p>
+         <div class="gui-toast__meta">
+           <span class="gui-toast__chip">+50 XP</span>
+         </div>
+       </div>
+       <div class="gui-toast__side">
+         <span class="gui-toast__count">x2</span>
+         <button class="gui-toast__close" aria-label="Dismiss">✕</button>
+       </div>
+     </article>
+
+   HTML (region — what a factory would emit; the gallery renders this statically):
+     <section class="gui-toast-region gui-toast-region--top-right" aria-live="polite"
+              aria-atomic="false">
+       <!-- toasts appended here -->
+     </section>
+   =============================================================================
+*/
+
+/* -----------------------------------------------------------------------------
+   §1. Region — fixed-position container the factory appends to
+   -------------------------------------------------------------------------
+   Display-only here: the gallery renders the region statically. The factory
+   in spec 03 toggles .gui-toast-region visibility and manages child focus.
+   Position is set by modifier class (top/bottom × left/right/center).
+   -------------------------------------------------------------------------- */
+
+.gui-toast-region {
+  position: fixed;
+  z-index: var(--gui-z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gui-space-sm);
+  width: min(380px, calc(100vw - 24px));
+  margin: var(--gui-space-md);
+  pointer-events: none;
+}
+
+.gui-toast-region > * {
+  pointer-events: auto;
+}
+
+.gui-toast-region--top-right {
+  top: 0;
+  right: 0;
+}
+.gui-toast-region--top-left {
+  top: 0;
+  left: 0;
+}
+.gui-toast-region--top-center {
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.gui-toast-region--bottom-right {
+  bottom: 0;
+  right: 0;
+}
+.gui-toast-region--bottom-left {
+  bottom: 0;
+  left: 0;
+}
+.gui-toast-region--bottom-center {
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* -----------------------------------------------------------------------------
+   §2. Toast anatomy
+   -------------------------------------------------------------------------
+   The toast is a 3-column grid: icon | body | side. The optional progress
+   bar spans all columns on its own row.
+   -------------------------------------------------------------------------- */
+
+.gui-toast {
+  --toast-accent: var(--gui-accent-primary);
+  --toast-accent-rgb: var(--gui-accent-primary-rgb);
+
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  gap: var(--gui-space-sm);
+  align-items: center;
+
+  padding: var(--gui-space-md);
+  border-radius: var(--gui-radius-md);
+  border: var(--gui-border-width) solid var(--gui-border);
+  /* 4px left accent stripe carries the type color. */
+  border-left: 4px solid var(--toast-accent);
+
+  /* Glow tint layered over the surface for type identification. */
+  background-color: var(--gui-surface-strong);
+  background-image: linear-gradient(
+    90deg,
+    rgba(var(--toast-accent-rgb), calc(var(--gui-glow-alpha) * 0.45)) 0%,
+    rgba(var(--toast-accent-rgb), 0) 48%
+  );
+  box-shadow: var(--gui-shadow-md);
+
+  font-family: var(--gui-font-body);
+  color: var(--gui-text);
+
+  animation: gui-toast-enter var(--gui-duration-md) var(--gui-ease-out);
+}
+
+.gui-toast.is-exit {
+  animation: gui-toast-exit var(--gui-duration-fast) var(--gui-ease-in) forwards;
+}
+
+/* Icon cell. */
+.gui-toast__icon {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--gui-radius-sm);
+  background: rgba(var(--toast-accent-rgb), 0.18);
+  border: var(--gui-border-width) solid rgba(var(--toast-accent-rgb), 0.5);
+  font-size: 1.5rem;
+  color: var(--toast-accent);
+}
+
+.gui-toast__icon svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Body cell. */
+.gui-toast__body {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gui-toast__kicker {
+  font-family: var(--gui-font-display);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--toast-accent);
+}
+
+.gui-toast__title {
+  margin: 0;
+  font-family: var(--gui-font-display);
+  font-size: var(--gui-font-size-md);
+  font-weight: 700;
+  color: var(--gui-text);
+  line-height: 1.25;
+}
+
+.gui-toast__message {
+  margin: 0;
+  font-size: var(--gui-font-size-sm);
+  color: var(--gui-text-muted);
+  line-height: 1.4;
+}
+
+.gui-toast__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.gui-toast__chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--gui-radius-pill);
+  border: var(--gui-border-width) solid rgba(var(--toast-accent-rgb), 0.5);
+  font-size: 0.6875rem;
+  color: var(--toast-accent);
+  background: rgba(var(--toast-accent-rgb), 0.12);
+}
+
+/* Side cell — merge count badge + dismiss button. */
+.gui-toast__side {
+  grid-column: 3;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--gui-space-xs);
+}
+
+.gui-toast__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: var(--gui-radius-pill);
+  background: var(--toast-accent);
+  color: var(--gui-text-on-accent);
+  font-family: var(--gui-font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.gui-toast__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--gui-radius-sm);
+  background: transparent;
+  color: var(--gui-text-muted);
+  font-family: var(--gui-font-body);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: color var(--gui-duration-fast) var(--gui-ease-out);
+}
+
+.gui-toast__close:hover {
+  color: var(--gui-text);
+}
+
+.gui-toast__close:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--toast-accent);
+}
+
+/* Progress bar — spans all columns on row 2. */
+.gui-toast__progress {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  height: 4px;
+  border-radius: var(--gui-radius-pill);
+  background: rgba(var(--toast-accent-rgb), 0.2);
+  overflow: hidden;
+}
+
+.gui-toast__progress-bar {
+  height: 100%;
+  width: 100%;
+  background: var(--toast-accent);
+  border-radius: var(--gui-radius-pill);
+  transition: width var(--gui-duration-md) var(--gui-ease-out);
+}
+
+/* -----------------------------------------------------------------------------
+   §3. Type modifiers — map the source pack's many type names to accent roles
+   -------------------------------------------------------------------------
+   The source ships 12+ types (achievement, quest, reward, save, warning,
+   level, secret, system, error, item, tip, info). We canonicalize to 6
+   modifiers tied to accent roles and alias the source names to them.
+   -------------------------------------------------------------------------- */
+
+.gui-toast--achievement,
+.gui-toast--primary {
+  --toast-accent: var(--gui-accent-primary);
+  --toast-accent-rgb: var(--gui-accent-primary-rgb);
+}
+
+.gui-toast--success,
+.gui-toast--reward,
+.gui-toast--save,
+.gui-toast--item {
+  --toast-accent: var(--gui-accent-success);
+  --toast-accent-rgb: var(--gui-accent-success-rgb);
+}
+
+.gui-toast--info,
+.gui-toast--quest,
+.gui-toast--tip {
+  --toast-accent: var(--gui-accent-info);
+  --toast-accent-rgb: var(--gui-accent-info-rgb);
+}
+
+.gui-toast--warning {
+  --toast-accent: var(--gui-accent-warning);
+  --toast-accent-rgb: var(--gui-accent-warning-rgb);
+}
+
+.gui-toast--error,
+.gui-toast--danger {
+  --toast-accent: var(--gui-accent-danger);
+  --toast-accent-rgb: var(--gui-accent-danger-rgb);
+}
+
+.gui-toast--magic,
+.gui-toast--level,
+.gui-toast--secret,
+.gui-toast--system {
+  --toast-accent: var(--gui-accent-magic);
+  --toast-accent-rgb: var(--gui-accent-magic-rgb);
+}
+
+/* -----------------------------------------------------------------------------
+   §4. Compact modifier — denser spacing for stacked notification streams
+   -------------------------------------------------------------------------- */
+
+.gui-toast--compact {
+  padding: var(--gui-space-sm) var(--gui-space-md);
+}
+
+.gui-toast--compact .gui-toast__icon {
+  width: 36px;
+  height: 36px;
+  font-size: 1.125rem;
+}
+
+.gui-toast--compact .gui-toast__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* -----------------------------------------------------------------------------
+   §5. Animations
+   -------------------------------------------------------------------------
+   Entry and exit only. Durations and easing come from the contract; the
+   prefers-reduced-motion block collapses them to 1ms.
+   -------------------------------------------------------------------------- */
+
+@keyframes gui-toast-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes gui-toast-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gui-toast,
+  .gui-toast.is-exit {
+    animation-duration: 1ms;
+  }
+
+  .gui-toast__progress-bar {
+    transition-duration: 1ms;
+  }
+}

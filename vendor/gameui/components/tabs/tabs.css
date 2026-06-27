@@ -1,0 +1,221 @@
+/* =============================================================================
+   GameUI Tabs
+   -----------------------------------------------------------------------------
+   New-construction factory component (charter §2 v1: three orientations, ARIA
+   tablist, full keyboard nav). The tabs factory (tabs.js) emits the DOM below
+   and wires Arrow/Home/End keyboard navigation per the WAI-ARIA tablist
+   authoring guide. Visual states go through the token contract.
+
+   HTML:
+     <div class="gui-tabs gui-tabs--top">
+       <div class="gui-tabs__list" role="tablist" aria-orientation="horizontal">
+         <button class="gui-tabs__tab gui-tabs__tab--primary is-active"
+                 role="tab" id="t1" aria-selected="true"
+                 aria-controls="t1-panel">Status</button>
+         <button class="gui-tabs__tab" role="tab" aria-selected="false">Map</button>
+       </div>
+       <div class="gui-tabs__panel" role="tabpanel" aria-labelledby="t1"
+            id="t1-panel"> ...panel content... </div>
+     </div>
+
+   Orientation modifiers: `--top` (default), `--left`, `--right`.
+   Accent modifiers: `--primary` through `--pink` tint the active tab marker.
+   =============================================================================
+*/
+
+/* -----------------------------------------------------------------------------
+   §1. Tabs container — top orientation is a vertical stack
+   -------------------------------------------------------------------------- */
+
+.gui-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gui-space-sm);
+}
+
+/* Side orientations turn the list+panels row into a horizontal grid. */
+.gui-tabs--left {
+  flex-direction: row;
+  gap: var(--gui-space-md);
+}
+.gui-tabs--right {
+  flex-direction: row-reverse;
+  gap: var(--gui-space-md);
+}
+
+/* -----------------------------------------------------------------------------
+   §2. Tab list
+   -------------------------------------------------------------------------- */
+
+.gui-tabs__list {
+  display: flex;
+  gap: var(--gui-space-xs);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.gui-tabs--left .gui-tabs__list,
+.gui-tabs--right .gui-tabs__list {
+  flex-direction: column;
+  width: auto;
+  min-width: 140px;
+  border-right: var(--gui-border-width) solid var(--gui-border);
+}
+.gui-tabs--right .gui-tabs__list {
+  border-right: none;
+  border-left: var(--gui-border-width) solid var(--gui-border);
+}
+
+.gui-tabs--left .gui-tabs__list {
+  border-bottom: none;
+}
+
+/* Underline rail for top orientation; side rail for vertical orientations. */
+.gui-tabs--top .gui-tabs__list {
+  border-bottom: var(--gui-border-width) solid var(--gui-border);
+}
+
+/* -----------------------------------------------------------------------------
+   §3. Tab button
+   -------------------------------------------------------------------------
+   Defaults to the neutral muted look. `.is-active` lifts it into the accent.
+   The active marker is a pseudo-element so orientation can rotate it without a
+   DOM change.
+   -------------------------------------------------------------------------- */
+
+.gui-tabs__tab {
+  --tab-accent: var(--gui-accent-primary);
+  --tab-accent-rgb: var(--gui-accent-primary-rgb);
+
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gui-space-sm);
+  margin: 0;
+  padding: var(--gui-space-sm) var(--gui-space-md);
+  border: none;
+  border-radius: var(--gui-radius-md) var(--gui-radius-md) 0 0;
+  background: transparent;
+  color: var(--gui-text-muted);
+  font-family: var(--gui-font-display);
+  font-size: var(--gui-font-size-md);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    color var(--gui-duration-fast) var(--gui-ease-out),
+    background-color var(--gui-duration-fast) var(--gui-ease-out);
+}
+
+.gui-tabs__tab--primary { --tab-accent: var(--gui-accent-primary); --tab-accent-rgb: var(--gui-accent-primary-rgb); }
+.gui-tabs__tab--success { --tab-accent: var(--gui-accent-success); --tab-accent-rgb: var(--gui-accent-success-rgb); }
+.gui-tabs__tab--warning { --tab-accent: var(--gui-accent-warning); --tab-accent-rgb: var(--gui-accent-warning-rgb); }
+.gui-tabs__tab--danger  { --tab-accent: var(--gui-accent-danger);  --tab-accent-rgb: var(--gui-accent-danger-rgb); }
+.gui-tabs__tab--info    { --tab-accent: var(--gui-accent-info);    --tab-accent-rgb: var(--gui-accent-info-rgb); }
+.gui-tabs__tab--magic   { --tab-accent: var(--gui-accent-magic);   --tab-accent-rgb: var(--gui-accent-magic-rgb); }
+.gui-tabs__tab--pink    { --tab-accent: var(--gui-accent-pink);    --tab-accent-rgb: var(--gui-accent-pink-rgb); }
+
+.gui-tabs__tab:hover {
+  color: var(--gui-text);
+  background: rgba(var(--tab-accent-rgb), 0.08);
+}
+
+/* Active marker: bottom bar for top, left bar for side orientations. */
+.gui-tabs__tab::after {
+  content: "";
+  position: absolute;
+  background: transparent;
+  transition: background-color var(--gui-duration-fast) var(--gui-ease-out);
+}
+
+.gui-tabs--top .gui-tabs__tab::after {
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: var(--gui-border-width-strong);
+}
+
+.gui-tabs--left .gui-tabs__tab::after,
+.gui-tabs--right .gui-tabs__tab::after {
+  top: 0;
+  bottom: 0;
+  width: var(--gui-border-width-strong);
+}
+.gui-tabs--left .gui-tabs__tab::after { right: -1px; }
+.gui-tabs--right .gui-tabs__tab::after { left: -1px; }
+
+/* Side-orientation tabs read as full-width blocks. */
+.gui-tabs--left .gui-tabs__tab,
+.gui-tabs--right .gui-tabs__tab {
+  justify-content: flex-start;
+  border-radius: var(--gui-radius-md);
+}
+
+.gui-tabs__tab.is-active,
+.gui-tabs__tab[aria-selected="true"] {
+  color: var(--tab-accent);
+  background: rgba(var(--tab-accent-rgb), 0.12);
+}
+
+.gui-tabs__tab.is-active::after,
+.gui-tabs__tab[aria-selected="true"]::after {
+  background: var(--tab-accent);
+  box-shadow: 0 0 var(--gui-glow-blur) rgba(var(--tab-accent-rgb), var(--gui-glow-alpha));
+}
+
+.gui-tabs__tab:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px var(--gui-surface-strong),
+    0 0 0 5px var(--tab-accent);
+}
+
+.gui-tabs__tab[disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Optional icon slot inside a tab label. */
+.gui-tabs__tab-icon {
+  font-size: 1.05em;
+  line-height: 1;
+}
+
+/* -----------------------------------------------------------------------------
+   §4. Tab panel
+   -------------------------------------------------------------------------- */
+
+.gui-tabs__panel {
+  display: none;
+  padding: var(--gui-space-md);
+  border-radius: var(--gui-radius-md);
+  background: var(--gui-surface);
+  border: var(--gui-border-width) solid var(--gui-border);
+  font-family: var(--gui-font-body);
+  color: var(--gui-text);
+  animation: gui-tab-panel-in var(--gui-duration-md) var(--gui-ease-out);
+}
+
+.gui-tabs__panel.is-active {
+  display: block;
+}
+
+.gui-tabs__panel:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--gui-surface-strong), 0 0 0 5px var(--gui-accent-primary);
+}
+
+@keyframes gui-tab-panel-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gui-tabs__tab,
+  .gui-tabs__panel {
+    transition-duration: 1ms;
+    animation-duration: 1ms;
+  }
+}

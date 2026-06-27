@@ -1,0 +1,367 @@
+/* =============================================================================
+   GameUI Settings Controls
+   -----------------------------------------------------------------------------
+   New-construction component family (charter §2 v1). Four interactive controls
+   for settings panels: a compact toggle, a sliding switch, a range slider, and
+   a select dropdown. Each wraps a real form control so ARIA and keyboard
+   behavior come from the platform; the factory (settings.js) layers state
+   hooks and the consumer-facing onChange surface.
+
+   Structure only. Every themeable property flows through var() against the
+   token contract; the accent role on a control is a class that maps to tokens
+   via the active preset.
+   =============================================================================
+
+   HTML (toggle — press to flip, role=switch):
+     <label class="gui-setting">
+       <span class="gui-setting__label">Music</span>
+       <button class="gui-toggle gui-toggle--primary is-on" role="switch"
+               aria-checked="true">ON</button>
+     </label>
+
+   HTML (switch — sliding track + knob):
+     <label class="gui-setting">
+       <span class="gui-setting__label">Subtitles</span>
+       <span class="gui-switch gui-switch--info is-on" role="switch"
+             aria-checked="true" tabindex="0">
+         <span class="gui-switch__track"><span class="gui-switch__knob"></span></span>
+       </span>
+     </label>
+
+   HTML (slider — wraps native input[type=range]):
+     <label class="gui-setting gui-setting--column">
+       <span class="gui-setting__header">
+         <span class="gui-setting__label">Volume</span>
+         <span class="gui-setting__value">72</span>
+       </span>
+       <input class="gui-slider gui-slider--magic" type="range" min="0" max="100"
+              value="72" />
+     </label>
+
+   HTML (select — wraps native select):
+     <label class="gui-setting">
+       <span class="gui-setting__label">Difficulty</span>
+       <select class="gui-select gui-select--warning">
+         <option>Easy</option><option>Normal</option><option>Hard</option>
+       </select>
+     </label>
+   =============================================================================
+*/
+
+/* -----------------------------------------------------------------------------
+   §1. Setting row wrapper
+   -------------------------------------------------------------------------- */
+
+.gui-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gui-space-md);
+  padding: var(--gui-space-sm) var(--gui-space-md);
+  border-radius: var(--gui-radius-md);
+  background: var(--gui-surface);
+  border: var(--gui-border-width) solid var(--gui-border);
+  font-family: var(--gui-font-body);
+  color: var(--gui-text);
+}
+
+/* Column variant stacks label/value over the control (slider, long rows). */
+.gui-setting--column {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.gui-setting__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gui-space-sm);
+}
+
+.gui-setting__label {
+  font-family: var(--gui-font-display);
+  font-size: var(--gui-font-size-md);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.gui-setting__value {
+  font-family: var(--gui-font-mono);
+  font-size: var(--gui-font-size-sm);
+  color: var(--gui-text-muted);
+  min-width: 2.5em;
+  text-align: right;
+}
+
+/* -----------------------------------------------------------------------------
+   §2. Toggle — compact press-to-flip button with role=switch
+   -------------------------------------------------------------------------- */
+
+.gui-toggle {
+  --set-accent: var(--gui-accent-primary);
+  --set-accent-rgb: var(--gui-accent-primary-rgb);
+
+  min-width: 64px;
+  padding: var(--gui-space-xs) var(--gui-space-md);
+  border-radius: var(--gui-radius-pill);
+  border: var(--gui-border-width-strong) solid var(--gui-border-strong);
+  background: var(--gui-surface-strong);
+  color: var(--gui-text-muted);
+  font-family: var(--gui-font-display);
+  font-size: var(--gui-font-size-sm);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition:
+    color var(--gui-duration-fast) var(--gui-ease-out),
+    border-color var(--gui-duration-fast) var(--gui-ease-out),
+    background-color var(--gui-duration-fast) var(--gui-ease-out),
+    box-shadow var(--gui-duration-fast) var(--gui-ease-out);
+}
+
+.gui-toggle--primary { --set-accent: var(--gui-accent-primary); --set-accent-rgb: var(--gui-accent-primary-rgb); }
+.gui-toggle--success { --set-accent: var(--gui-accent-success); --set-accent-rgb: var(--gui-accent-success-rgb); }
+.gui-toggle--warning { --set-accent: var(--gui-accent-warning); --set-accent-rgb: var(--gui-accent-warning-rgb); }
+.gui-toggle--danger  { --set-accent: var(--gui-accent-danger);  --set-accent-rgb: var(--gui-accent-danger-rgb); }
+.gui-toggle--info    { --set-accent: var(--gui-accent-info);    --set-accent-rgb: var(--gui-accent-info-rgb); }
+.gui-toggle--magic   { --set-accent: var(--gui-accent-magic);   --set-accent-rgb: var(--gui-accent-magic-rgb); }
+.gui-toggle--pink    { --set-accent: var(--gui-accent-pink);    --set-accent-rgb: var(--gui-accent-pink-rgb); }
+
+.gui-toggle.is-on {
+  background: var(--set-accent);
+  border-color: var(--set-accent);
+  color: var(--gui-text-on-accent);
+  box-shadow: 0 0 var(--gui-glow-blur) rgba(var(--set-accent-rgb), var(--gui-glow-alpha));
+}
+
+.gui-toggle:hover:not([disabled]) {
+  border-color: var(--set-accent);
+  color: var(--set-accent);
+}
+.gui-toggle.is-on:hover:not([disabled]) {
+  color: var(--gui-text-on-accent);
+}
+
+.gui-toggle:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px var(--gui-surface-strong),
+    0 0 0 5px var(--set-accent);
+}
+
+.gui-toggle[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* -----------------------------------------------------------------------------
+   §3. Switch — sliding track + knob
+   -------------------------------------------------------------------------- */
+
+.gui-switch {
+  --set-accent: var(--gui-accent-primary);
+  --set-accent-rgb: var(--gui-accent-primary-rgb);
+
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  outline: none;
+}
+
+.gui-switch--primary { --set-accent: var(--gui-accent-primary); --set-accent-rgb: var(--gui-accent-primary-rgb); }
+.gui-switch--success { --set-accent: var(--gui-accent-success); --set-accent-rgb: var(--gui-accent-success-rgb); }
+.gui-switch--warning { --set-accent: var(--gui-accent-warning); --set-accent-rgb: var(--gui-accent-warning-rgb); }
+.gui-switch--danger  { --set-accent: var(--gui-accent-danger);  --set-accent-rgb: var(--gui-accent-danger-rgb); }
+.gui-switch--info    { --set-accent: var(--gui-accent-info);    --set-accent-rgb: var(--gui-accent-info-rgb); }
+.gui-switch--magic   { --set-accent: var(--gui-accent-magic);   --set-accent-rgb: var(--gui-accent-magic-rgb); }
+.gui-switch--pink    { --set-accent: var(--gui-accent-pink);    --set-accent-rgb: var(--gui-accent-pink-rgb); }
+
+.gui-switch__track {
+  position: relative;
+  width: 48px;
+  height: 26px;
+  border-radius: var(--gui-radius-pill);
+  background: var(--gui-surface-strong);
+  border: var(--gui-border-width-strong) solid var(--gui-border-strong);
+  transition:
+    background-color var(--gui-duration-md) var(--gui-ease-out),
+    border-color var(--gui-duration-md) var(--gui-ease-out),
+    box-shadow var(--gui-duration-fast) var(--gui-ease-out);
+}
+
+.gui-switch__knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--gui-text-muted);
+  transition:
+    transform var(--gui-duration-md) var(--gui-ease-out),
+    background-color var(--gui-duration-md) var(--gui-ease-out);
+}
+
+.gui-switch.is-on .gui-switch__track {
+  background: rgba(var(--set-accent-rgb), 0.3);
+  border-color: var(--set-accent);
+  box-shadow: 0 0 var(--gui-glow-blur) rgba(var(--set-accent-rgb), var(--gui-glow-alpha));
+}
+
+.gui-switch.is-on .gui-switch__knob {
+  transform: translateX(22px);
+  background: var(--set-accent);
+}
+
+.gui-switch:focus-visible .gui-switch__track {
+  box-shadow:
+    0 0 0 3px var(--gui-surface-strong),
+    0 0 0 5px var(--set-accent);
+}
+
+.gui-switch.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* -----------------------------------------------------------------------------
+   §4. Slider — native input[type=range] restyled
+   -------------------------------------------------------------------------
+   Cross-browser styling needs both ::-webkit-slider-thumb and ::-moz-range-thumb.
+   The track is a background gradient driven by --slider-fill (0..1) so the
+   filled portion reads in the active accent.
+   -------------------------------------------------------------------------- */
+
+.gui-slider {
+  --set-accent: var(--gui-accent-primary);
+  --set-accent-rgb: var(--gui-accent-primary-rgb);
+  --slider-fill: 0.5;
+
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  margin: 0;
+  padding: 0;
+  border-radius: var(--gui-radius-pill);
+  background: linear-gradient(
+    to right,
+    var(--set-accent) 0%,
+    var(--set-accent) calc(var(--slider-fill) * 100%),
+    var(--gui-surface-strong) calc(var(--slider-fill) * 100%),
+    var(--gui-surface-strong) 100%
+  );
+  border: var(--gui-border-width) solid var(--gui-border-strong);
+  cursor: pointer;
+  outline: none;
+}
+
+.gui-slider--primary { --set-accent: var(--gui-accent-primary); --set-accent-rgb: var(--gui-accent-primary-rgb); }
+.gui-slider--success { --set-accent: var(--gui-accent-success); --set-accent-rgb: var(--gui-accent-success-rgb); }
+.gui-slider--warning { --set-accent: var(--gui-accent-warning); --set-accent-rgb: var(--gui-accent-warning-rgb); }
+.gui-slider--danger  { --set-accent: var(--gui-accent-danger);  --set-accent-rgb: var(--gui-accent-danger-rgb); }
+.gui-slider--info    { --set-accent: var(--gui-accent-info);    --set-accent-rgb: var(--gui-accent-info-rgb); }
+.gui-slider--magic   { --set-accent: var(--gui-accent-magic);   --set-accent-rgb: var(--gui-accent-magic-rgb); }
+.gui-slider--pink    { --set-accent: var(--gui-accent-pink);    --set-accent-rgb: var(--gui-accent-pink-rgb); }
+
+.gui-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--set-accent);
+  border: var(--gui-border-width-strong) solid var(--gui-surface-strong);
+  box-shadow: 0 0 var(--gui-glow-blur) rgba(var(--set-accent-rgb), var(--gui-glow-alpha));
+  transition: transform var(--gui-duration-fast) var(--gui-ease-out);
+}
+
+.gui-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.12);
+}
+
+.gui-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--set-accent);
+  border: var(--gui-border-width-strong) solid var(--gui-surface-strong);
+  box-shadow: 0 0 var(--gui-glow-blur) rgba(var(--set-accent-rgb), var(--gui-glow-alpha));
+}
+
+.gui-slider:focus-visible {
+  box-shadow: 0 0 0 3px var(--gui-surface-strong), 0 0 0 5px var(--set-accent);
+}
+
+.gui-slider[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* -----------------------------------------------------------------------------
+   §5. Select — native select restyled
+   -------------------------------------------------------------------------
+   Native <option> list rendering is OS-controlled; the closed control is
+   restyled and the dropdown arrow is layered via background-image.
+   -------------------------------------------------------------------------- */
+
+.gui-select {
+  --set-accent: var(--gui-accent-primary);
+  --set-accent-rgb: var(--gui-accent-primary-rgb);
+
+  -webkit-appearance: none;
+  appearance: none;
+  min-width: 140px;
+  padding: var(--gui-space-xs) var(--gui-space-lg) var(--gui-space-xs) var(--gui-space-md);
+  border-radius: var(--gui-radius-md);
+  border: var(--gui-border-width-strong) solid var(--gui-border-strong);
+  background-color: var(--gui-surface-strong);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--set-accent) 50%),
+    linear-gradient(135deg, var(--set-accent) 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) calc(50% - 2px),
+    calc(100% - 13px) calc(50% - 2px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  color: var(--gui-text);
+  font-family: var(--gui-font-display);
+  font-size: var(--gui-font-size-md);
+  cursor: pointer;
+  transition:
+    border-color var(--gui-duration-fast) var(--gui-ease-out),
+    box-shadow var(--gui-duration-fast) var(--gui-ease-out);
+}
+
+.gui-select--primary { --set-accent: var(--gui-accent-primary); --set-accent-rgb: var(--gui-accent-primary-rgb); }
+.gui-select--success { --set-accent: var(--gui-accent-success); --set-accent-rgb: var(--gui-accent-success-rgb); }
+.gui-select--warning { --set-accent: var(--gui-accent-warning); --set-accent-rgb: var(--gui-accent-warning-rgb); }
+.gui-select--danger  { --set-accent: var(--gui-accent-danger);  --set-accent-rgb: var(--gui-accent-danger-rgb); }
+.gui-select--info    { --set-accent: var(--gui-accent-info);    --set-accent-rgb: var(--gui-accent-info-rgb); }
+.gui-select--magic   { --set-accent: var(--gui-accent-magic);   --set-accent-rgb: var(--gui-accent-magic-rgb); }
+.gui-select--pink    { --set-accent: var(--gui-accent-pink);    --set-accent-rgb: var(--gui-accent-pink-rgb); }
+
+.gui-select:hover:not([disabled]) {
+  border-color: var(--set-accent);
+  box-shadow: 0 0 var(--gui-glow-blur) rgba(var(--set-accent-rgb), var(--gui-glow-alpha));
+}
+
+.gui-select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--gui-surface-strong), 0 0 0 5px var(--set-accent);
+}
+
+.gui-select[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gui-toggle,
+  .gui-switch__track,
+  .gui-switch__knob,
+  .gui-slider::-webkit-slider-thumb {
+    transition-duration: 1ms;
+  }
+}

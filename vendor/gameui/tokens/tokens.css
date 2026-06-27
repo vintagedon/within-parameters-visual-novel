@@ -1,0 +1,218 @@
+/* =============================================================================
+   GameUI Token Contract
+   -----------------------------------------------------------------------------
+   This file is the contract between component structure and theme skin. Every
+   semantic custom property the components consume is declared here with a
+   structural fallback default. A theme preset (themes/*.css) overrides these
+   values; it never declares new properties and never introduces selectors
+   beyond `:root`.
+
+   Consuming component CSS references these tokens via var() only. A component
+   never hardcodes a skin value (palette color, font family, glow color, border
+   radius). Switching a game between neon and dark fantasy is a one-line swap
+   of the preset <link> in the host document.
+
+   Authoring a new preset: copy themes/neon.css, replace every right-hand-side
+   value, keep the RGB triplets in sync with their hex counterparts.
+   =============================================================================
+*/
+
+:root {
+  /* ===========================================================================
+     §1. Surface and text roles
+     -------------------------------------------------------------------------
+     Page chrome, panel surfaces, and text contrast. These carry no accent;
+     accent roles live in §3.
+     ===========================================================================*/
+
+  /* App-level background behind any UI layer. Usually a dark base. */
+  --gui-bg: #020617;
+  /* Default panel surface. Slightly lifted from --gui-bg. */
+  --gui-surface: #0f172a;
+  /* Elevated surface: modals, dropdowns, hover-popovers. */
+  --gui-surface-strong: #1e293b;
+  /* Default 1px border on panels, dividers, inputs. */
+  --gui-border: #1e293b;
+  /* Emphasized border for active/selected states. */
+  --gui-border-strong: #334155;
+
+  /* Primary body text. */
+  --gui-text: #e5e7eb;
+  /* Secondary/muted text: labels, captions, meta. */
+  --gui-text-muted: #94a3b8;
+  /* Text rendered on top of an accent fill (button labels, chip text). */
+  --gui-text-on-accent: #020617;
+
+  /* ===========================================================================
+     §2. Accent roles
+     -------------------------------------------------------------------------
+     Six semantic accent roles. The neon preset maps them to the six-color
+     neon palette; the dark-fantasy preset maps them to gold, hp, mana, xp,
+     etc. Components reference the role; the preset decides the hue.
+
+     Each accent has both a hex token and an RGB-triplet token. Components use
+     the triplet form (rgba(var(--gui-accent-primary-rgb), 0.5)) for any
+     partially-transparent variant (glows, gradients, fills). Keep the triplet
+     in sync with the hex when authoring a preset.
+     ===========================================================================*/
+
+  /* Primary: main CTA color, default panel glow, focused outline. */
+  --gui-accent-primary: #38bdf8;
+  --gui-accent-primary-rgb: 56, 189, 248;
+
+  /* Success: confirmations, positive state, "safe" actions. */
+  --gui-accent-success: #22c55e;
+  --gui-accent-success-rgb: 34, 197, 94;
+
+  /* Warning: caution, attention, non-blocking alerts. */
+  --gui-accent-warning: #facc15;
+  --gui-accent-warning-rgb: 250, 204, 21;
+
+  /* Danger: destructive actions, errors, critical health. */
+  --gui-accent-danger: #ef4444;
+  --gui-accent-danger-rgb: 239, 68, 68;
+
+  /* Info: neutral notifications, mana-type indicators, hints. */
+  --gui-accent-info: #22d3ee;
+  --gui-accent-info-rgb: 34, 211, 238;
+
+  /* Magic: special/rare state, XP, achievements, purple-axis accents. */
+  --gui-accent-magic: #a855f7;
+  --gui-accent-magic-rgb: 168, 85, 247;
+
+  /* Pink: dialogue, social, secondary-accent role used by pill and panel
+     variants. Maps to neon-pink; dark-fantasy uses a muted rose. */
+  --gui-accent-pink: #f472b6;
+  --gui-accent-pink-rgb: 244, 114, 182;
+
+  /* ===========================================================================
+     §3. Typography roles
+     -------------------------------------------------------------------------
+     Font stacks only. Weight, size, line-height belong to component structure
+     (they are not skin). A preset that needs different display/body fonts
+     overrides these (and @font-face declarations live in the preset file).
+     ===========================================================================*/
+
+  /* Display font: headings, panel titles, UI labels. */
+  --gui-font-display: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  /* Body font: paragraph text, table content, descriptions. */
+  --gui-font-body: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  /* Monospace font: numeric readouts, code-ish labels (debug overlays). */
+  --gui-font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* Base type scale. Components multiply these via calc() or rem. */
+  --gui-font-size-sm: 0.8125rem;   /* 13px */
+  --gui-font-size-md: 0.9375rem;   /* 15px */
+  --gui-font-size-lg: 1.125rem;    /* 18px */
+  --gui-font-size-xl: 1.5rem;      /* 24px */
+
+  /* ===========================================================================
+     §4. Border roles
+     -------------------------------------------------------------------------
+     Radius scale (skin: themes round more or less) and widths (structure:
+     components choose which scale token to apply).
+     ===========================================================================*/
+
+  --gui-radius-sm: 6px;
+  --gui-radius-md: 10px;
+  --gui-radius-lg: 15px;
+  /* Pill: fully rounded. Use for buttons, chips, segments. */
+  --gui-radius-pill: 999px;
+
+  --gui-border-width: 1px;
+  --gui-border-width-strong: 2px;
+
+  /* ===========================================================================
+     §5. Glow roles
+     -------------------------------------------------------------------------
+     Neon glow is a skin property; dark-fantasy uses less glow and more
+     texture. Components reference --gui-glow-accent and the active accent's
+     RGB triplet, so a preset can dial intensity up or down without touching
+     component CSS.
+     ===========================================================================*/
+
+  /* Glow blur radius applied to focused/hovered interactive elements. */
+  --gui-glow-blur: 10px;
+  /* Glow spread. Negative inset pulls glow inward; positive pushes out. */
+  --gui-glow-spread: 0px;
+  /* Accent glow alpha (0–1). Neon runs ~0.55; dark-fantasy runs ~0.35. */
+  --gui-glow-alpha: 0.55;
+
+  /* ===========================================================================
+     §6. Spacing scale (optional)
+     -------------------------------------------------------------------------
+     Components may use these for consistent rhythm, but ad-hoc spacing is
+     permitted when layout demands it. These are defaults; presets rarely
+     override them.
+     ===========================================================================*/
+
+  --gui-space-xs: 4px;
+  --gui-space-sm: 8px;
+  --gui-space-md: 16px;
+  --gui-space-lg: 24px;
+  --gui-space-xl: 40px;
+
+  /* ===========================================================================
+     §7. Shadow and depth
+     ===========================================================================*/
+
+  /* Subtle drop shadow for floating chrome (toasts, dropdowns). */
+  --gui-shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.35);
+  /* Default elevation for modals and overlays. */
+  --gui-shadow-md: 0 12px 32px rgba(0, 0, 0, 0.45);
+  /* Maximum elevation; rarely used. */
+  --gui-shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.55);
+
+  /* ===========================================================================
+     §8. Motion
+     -------------------------------------------------------------------------
+     Durations and easing curves for state transitions and animations.
+     Components choose the slot; presets may tighten or loosen the feel.
+     ===========================================================================*/
+
+  /* Immediate feedback: button press, focus ring. */
+  --gui-duration-fast: 80ms;
+  /* Default transition: hover state, tab switch. */
+  --gui-duration-md: 200ms;
+  /* Long transition: modal entry, toast slide-in. */
+  --gui-duration-slow: 320ms;
+
+  --gui-ease-out: cubic-bezier(0.2, 0.9, 0.2, 1);
+  --gui-ease-in: ease-in;
+  --gui-ease-in-out: ease-in-out;
+
+  /* ===========================================================================
+     §9. Z-index scale
+     -------------------------------------------------------------------------
+     Single shared scale so consumers composing the framework into a larger
+     UI stack do not collide. Components stay within these slots.
+     ===========================================================================*/
+
+  --gui-z-base: 1;
+  --gui-z-sticky: 10;
+  --gui-z-overlay: 1000;
+  --gui-z-modal: 2000;
+  --gui-z-toast: 3000;
+
+  /* ===========================================================================
+     §10. Component asset hooks
+     -------------------------------------------------------------------------
+     Skin-level image references. A component never hardcodes a URL; it
+     references these tokens via var(). The structural default is `none`
+     (no image); a preset that ships skin assets (dark-fantasy panel
+     textures, RPG stat orbs) overrides these at :root with url() values
+     resolved relative to the preset file.
+
+     Neon runs image-free; dark-fantasy wires panel-bg, ornate-border,
+     health-orb, and mana-orb to the assets in themes/dark-fantasy-assets/.
+     ===========================================================================*/
+
+  /* Panel background texture (panel chrome). */
+  --gui-panel-bg-image: none;
+  /* Decorative border treatment layered over the panel chrome. */
+  --gui-panel-border-image: none;
+  /* Stat-display orb icons. */
+  --gui-stat-orb-health-image: none;
+  --gui-stat-orb-mana-image: none;
+  --gui-stat-orb-xp-image: none;
+}

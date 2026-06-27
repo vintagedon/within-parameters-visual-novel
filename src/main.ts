@@ -166,6 +166,43 @@ async function boot(): Promise<void> {
 
   // Resume audio after first gesture
   document.addEventListener('click', Audio.resumeAfterGesture, { once: true });
+
+  // Dev-only hooks for the Playwright screenshot harness. These trigger migrated
+  // UI surfaces that are otherwise balance-gated or deep in run flow — the comms
+  // interrupt (needs a clock state unreachable in short runs), the ending shell
+  // (the natural run flow stalls at the approach-event reward, an engine edge
+  // case outside this presentation spec's scope), and a seeded autosave (so the
+  // save/load confirm is reachable without a completed run). DEV-gated: stripped
+  // from production builds, and they only drive presentation overlays and real
+  // save-manager calls — no engine mechanics.
+  const devEnv = (import.meta as { env?: { DEV?: boolean } }).env;
+  if (devEnv?.DEV) {
+    const sampleCommunities = [
+      { community: { name: 'Georgetown Hydro' }, state: 'helped', stop: 1 },
+      { community: { name: 'Foggy Bottom Relay' }, state: 'helped', stop: 2 },
+      { community: { name: 'Silver Spring Junction' }, state: 'harmed', stop: 3 },
+    ] as unknown as GameState['communities'];
+    (window as unknown as {
+      __wp?: {
+        triggerComms: () => void;
+        triggerEnding: () => void;
+        seedAutosave: () => void;
+      };
+    }).__wp = {
+      triggerComms: () => {
+        showCommsOverlay("CHEN: Clock is climbing. What's your status?", () => {});
+      },
+      triggerEnding: () => {
+        showEndingScreen('correction', { communities: sampleCommunities } as unknown as GameState, {
+          onNewGame: () => {},
+          onTitle: () => {},
+        });
+      },
+      seedAutosave: () => {
+        autosave(initNewGame(config, 1), 'scene-discovery-01', 'discovery');
+      },
+    };
+  }
 }
 
 // ─── Game Start ───────────────────────────────────────────────────────────────
@@ -333,7 +370,7 @@ function runDialogueSequence(
 boot().catch((err) => {
   console.error('[main] Boot failed:', err);
   document.body.innerHTML = `
-    <div style="color:#ff3b30;font-family:monospace;padding:40px">
+    <div style="color:var(--gui-accent-danger,#ff3b30);font-family:var(--gui-font-mono,monospace);padding:40px">
       <h2>BOOT FAILURE</h2>
       <pre>${String(err)}</pre>
     </div>
