@@ -236,7 +236,7 @@ export const TRAIT_EPILOGUE: Record<PositiveTraitId | NegativeTraitId, string> =
   N4: 'Distracted: found documents offered nothing usable.',
   N5: 'Lone Wolf: you started with nothing. You earned everything.',
   N6: 'Fragile Kit: the fix demanded more than most could carry.',
-  N7: 'Exhausted: the clock was never on your side. Every stop cost maximum time.',
+  N7: 'Exhausted: the clock was never on your side. Every stop carried a heightened risk of the clock ticking twice.',
   N8: 'Stubborn: the choices were made for you at the communities.',
 };
 

@@ -391,7 +391,7 @@ function appendSlotItem(
 
   const action = createButton({
     label: mode === 'save' ? 'SAVE' : 'LOAD',
-    accent: slot ? 'primary' : 'primary',
+    accent: 'primary',
     variant: 'outline',
     disabled: mode === 'load' && !slot,
     onClick,

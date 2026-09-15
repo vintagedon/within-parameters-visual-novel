@@ -38,7 +38,9 @@ npm run test:screens:check     # regression check against committed .sha1 sideca
 /opt/agents/venv/bin/python tests/capture.py --check
 ```
 
-The harness starts the dev server itself (via `node node_modules/vite/bin/vite.js`; the `.bin/vite` symlink lacks the exec bit on this host), so no manual `npm run dev` is required. Exit code is non-zero on any failure: a missing framework component, a console error, a non-origin request, or (in `--check`) a baseline regression.
+**Harness environment limitation:** this harness is an ML01 estate tool. It depends on the ML01 shared venv at `/opt/agents/venv` (hardcoded interpreter path) and on whatever Playwright version that venv carries — the Playwright version is not pinned or declared anywhere in this repository. Runs on other hosts require adapting the interpreter path and providing a Playwright install themselves.
+
+The harness starts the dev server itself (via `node node_modules/vite/bin/vite.js`; the `.bin/vite` symlink lacks the exec bit on this host), so no manual `npm run dev` is required. Exit code is non-zero on any failure: a missing framework component, a console error, a non-origin request, a declared screen the walk never reached, or (in `--check`) a baseline regression.
 
 ## Harness Configuration
 
@@ -47,7 +49,9 @@ The Playwright configuration is inline in `capture.py` (no separate `playwright.
 - **Browser:** `chromium`, `headless=True`
 - **Viewport:** 1440 × 900
 - **Dev server:** isolated OS-allocated port, started and torn down per run
-- **Baselines:** eight PNGs under `baseline/`, with `.sha1` sidecars for regression
+- **Baselines:** ten PNGs under `baseline/`, with `.sha1` sidecars for regression
+
+Check mode is read-only with respect to `baseline/`: candidate screenshots stay in memory and are compared against the committed sidecars, so a failing check leaves the approved PNGs and sidecars byte-identical. Every screen declared in `SCREENS` is required in both modes; a declared screen the walk never reached is a failure that names the missing step.
 
 ## Screens Captured
 
@@ -55,12 +59,14 @@ The Playwright configuration is inline in `capture.py` (no separate `playwright.
 |------|----------|-------------|
 | title | `01-title.png` | Boot |
 | settings | `04-settings.png` | SETTINGS from title |
-| save-load-confirm | `05-save-load-confirm.png` | LOAD GAME → occupied slot (autosave seeded via dev hook) |
-| lore-card | `02-lore-card.png` | NEW GAME (dossier-absent run start) |
+| dossier | `09-dossier.png` | NEW GAME → chargen dossier |
+| dossier-reroll | `10-dossier-reroll.png` | REROLL on the dossier |
+| lore-card | `02-lore-card.png` | DEPLOY on the dossier → lore card (the dossier is traversed on every run start) |
 | hud-midrun | `03-hud-midrun.png` | Walk to the discovery scene |
 | comms-interrupt | `07-comms-interrupt.png` | Dev hook (comms is balance-gated; unreachable in short runs) |
 | reward-overlay | `06-reward-overlay.png` | Walk to stop 1's reward |
 | ending | `08-ending.png` | Dev hook (natural run flow stalls at the approach-event reward) |
+| save-load-confirm | `05-save-load-confirm.png` | LOAD GAME → occupied slot (autosave seeded via dev hook) |
 
 ### Dev-only hooks
 

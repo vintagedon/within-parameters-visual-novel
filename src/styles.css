@@ -9,8 +9,10 @@
    - per-component layout composition (slot rows, reward grid, settings stack)
 
    Every color, font, radius, spacing, and motion value flows through a GameUI
-   token (var(--gui-*)). There are no raw hex/px literals: a preset swap reaches
-   WP too. Buttons, panels, stat bars, modals, settings controls, and cards are
+   token (var(--gui-*)), except the small set of owned --wp-* values declared
+   in the token block below for sizes and geometry the framework does not
+   define. There are no raw hex/px literals: a preset swap reaches WP too.
+   Buttons, panels, stat bars, modals, settings controls, and cards are
    framework components and are NOT re-styled here.
    ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -25,6 +27,11 @@
   --wp-portrait-width: 120px;
   --wp-portrait-frame-width: 100px;
   --wp-portrait-frame-height: 130px;
+  /* Owned display scale for the ending grade glyph. The framework defines
+     font sizes only through --gui-font-size-{sm,md,lg,xl}; the grade needs a
+     larger owned value rather than a reference to a token no shipped
+     stylesheet defines. */
+  --wp-score-grade-size: 3rem;
 }
 
 /* ─── Reset ──────────────────────────────────────────────────────────────── */
@@ -578,7 +585,7 @@ body {
 
 .wp-score-grade {
   font-family: var(--gui-font-display);
-  font-size: var(--gui-font-size-xxl, 3rem);
+  font-size: var(--wp-score-grade-size);
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0.05em;
