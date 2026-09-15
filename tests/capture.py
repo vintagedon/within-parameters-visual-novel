@@ -335,10 +335,21 @@ def capture_ending(page: Page, captured: set[str], errors: list[str]):
     """Capture the ending screen via the dev hook, which composes the migrated
     ending panel + buttons with a representative complete run state. Spec 03
     adds the score breakdown (grade, components, reroll penalty, epilogue lines)
-    below the narrative epilogue, so the grade element is asserted here too."""
+    below the narrative epilogue, so the grade element is asserted here too.
+
+    The panel exceeds the harness viewport at 1440x900; since the overlay
+    scroll repair (spec 03a gate A1.2) the ending overlay is a scroll
+    container, and the driver scrolls it to the bottom before capturing so
+    the baseline shows the score breakdown and the action row rather than a
+    clipped top."""
     page.evaluate("window.__wp && window.__wp.triggerEnding()")
     page.wait_for_selector("#ending-screen:not(.hidden)", timeout=5000)
     page.wait_for_timeout(500)
+    page.evaluate(
+        "() => { const o = document.getElementById('ending-screen');"
+        " o.scrollTo(0, o.scrollHeight); }"
+    )
+    page.wait_for_timeout(300)
     # Spec 03: the score breakdown must render (grade + reroll penalty line).
     if page.locator("#ending-score .wp-score-grade").count() == 0:
         errors.append("ending: score breakdown grade missing")
