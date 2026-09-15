@@ -200,6 +200,7 @@ async function boot(): Promise<void> {
         triggerEnding: () => void;
         seedAutosave: () => void;
         setClock: (current: number) => void;
+        setKnowledge: (knowledge: number) => void;
       };
     }).__wp = {
       triggerComms: () => {
@@ -234,13 +235,18 @@ async function boot(): Promise<void> {
       seedAutosave: () => {
         autosave(initNewGame(config, 1), 'scene-discovery-01', 'discovery');
       },
-      // Presentation probe: re-render the HUD through the real updateStats
-      // path with a clock override, so urgency-accent behavior is verifiable
-      // at clock values a short walk never reaches.
+      // Presentation probes: re-render the HUD through the real refreshHud
+      // path with a clock or knowledge override, so urgency accents and the
+      // threshold display are verifiable at values a short walk never reaches.
       setClock: (current: number) => {
         const s = runner?.getState();
         if (!s) return;
-        updateStats({ ...s, clock: { ...s.clock, current } });
+        refreshHud({ ...s, clock: { ...s.clock, current } });
+      },
+      setKnowledge: (knowledge: number) => {
+        const s = runner?.getState();
+        if (!s) return;
+        refreshHud({ ...s, stats: { ...s.stats, knowledge } });
       },
     };
   }
@@ -260,6 +266,14 @@ function effectiveConfigFromState(state: GameState): GameConfig {
     return buildEffectiveConfig(config, p.positiveTrait, p.negativeTrait);
   }
   return config;
+}
+
+/** Single HUD refresh path: stats against the run's effective knowledge
+ *  threshold (from the committed protagonist's configuration — Clear-Headed
+ *  lowers it), plus the journey timeline. */
+function refreshHud(state: GameState): void {
+  updateStats(state, effectiveConfigFromState(state).knowledgeThreshold);
+  updateTimeline(state.currentStop, config.journeyStops, state.communities);
 }
 
 function startNewGame(): void {
@@ -309,8 +323,7 @@ function buildRunnerCallbacks(): SceneRunnerCallbacks {
       }
 
       // Update HUD
-      updateStats(currentState);
-      updateTimeline(currentState.currentStop, config.journeyStops, currentState.communities);
+      refreshHud(currentState);
 
       // Run dialogue sequence
       if (scene.dialogue.length === 0) {
@@ -322,8 +335,7 @@ function buildRunnerCallbacks(): SceneRunnerCallbacks {
     },
 
     onStateUpdate(currentState) {
-      updateStats(currentState);
-      updateTimeline(currentState.currentStop, config.journeyStops, currentState.communities);
+      refreshHud(currentState);
     },
 
     onRewardChoice(rewards: RewardOption[], onSelect: (index: number) => void) {

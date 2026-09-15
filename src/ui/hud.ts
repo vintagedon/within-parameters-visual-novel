@@ -18,7 +18,6 @@ import type { GameState, CommunityRunState, GameConfig } from "../types/index";
 
 // ─── Display constants ────────────────────────────────────────────────────────
 
-const KNOWLEDGE_DISPLAY_MAX = 10;
 const RAPPORT_DISPLAY_MAX = 6;
 const RESOURCE_SEGMENTS = 8;
 
@@ -62,7 +61,7 @@ export function initHUD(sidebar: HTMLElement, config: GameConfig): void {
       <div class="gui-bar gui-bar--info" id="knowledge-bar" style="--amount: 0;">
         <div class="gui-bar__header">
           <span class="gui-bar__label">Knowledge</span>
-          <span class="gui-bar__value" id="knowledge-value">0</span>
+          <span class="gui-bar__value" id="knowledge-value">0 / ${config.knowledgeThreshold}</span>
         </div>
         <div class="gui-bar__track"><div class="gui-bar__fill"></div></div>
       </div>
@@ -118,8 +117,13 @@ export function initHUD(sidebar: HTMLElement, config: GameConfig): void {
 
 /** Updates all HUD values from current state. The clock and resources use
  *  segmented bars (pip fill counts); knowledge and rapport use linear bars
- *  (--amount scaleX fill). Accent roles convey urgency and direction. */
-export function updateStats(state: GameState): void {
+ *  (--amount scaleX fill). Accent roles convey urgency and direction.
+ *
+ *  The knowledge bar scales against the run's effective correction threshold
+ *  (trait-adjusted, passed in by the caller): the bar fills exactly when the
+ *  threshold is met, and the readout carries the threshold so the target is
+ *  visible on the bar. */
+export function updateStats(state: GameState, knowledgeThreshold: number): void {
   const { stats, clock } = state;
 
   // ─── Intrusion Clock ── segmented bar + urgency accent ───────────────────
@@ -131,10 +135,10 @@ export function updateStats(state: GameState): void {
   setPanelUrgency(clockPanel, clockPct);
   clockReading.dataset.level = urgencyLevel(clockPct);
 
-  // ─── Knowledge ── linear bar (info/cyan) ─────────────────────────────────
-  const knowledgeFraction = Math.min(1, stats.knowledge / KNOWLEDGE_DISPLAY_MAX);
+  // ─── Knowledge ── linear bar (info/cyan), scaled to the threshold ────────
+  const knowledgeFraction = Math.min(1, stats.knowledge / knowledgeThreshold);
   knowledgeBar.style.setProperty('--amount', String(knowledgeFraction));
-  knowledgeValue.textContent = String(stats.knowledge);
+  knowledgeValue.textContent = `${stats.knowledge} / ${knowledgeThreshold}`;
 
   // ─── Rapport ── linear bar, success (≥0) or danger (<0), fill = magnitude ─
   const clamped = Math.max(-RAPPORT_DISPLAY_MAX, Math.min(RAPPORT_DISPLAY_MAX, stats.rapport));
