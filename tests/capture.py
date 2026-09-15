@@ -18,6 +18,12 @@ Usage
 The harness starts the Vite dev server itself on an isolated port, so no manual
 `npm run dev` is required. Playwright runs under Chromium headless only.
 
+Check mode is read-only with respect to tests/baseline/: candidate screenshots
+stay in memory and are compared against the committed sidecars, so a failing
+check cannot damage the approved artifacts it guards. Every screen declared in
+SCREENS is required in BOTH modes; a declared screen the walk never reached is
+a failure that names the missing step.
+
 Step structure
 --------------
 SCREENS is an ordered list of (step, filename) pairs. The walk captures each in
@@ -166,13 +172,16 @@ def assert_framework(page: Page, step: str, errors: list[str]):
 
 
 def capture(page: Page, filename: str, errors: list[str]):
-    """Screenshot the current viewport to the baseline dir and record its sha1."""
-    BASELINE_DIR.mkdir(parents=True, exist_ok=True)
-    shot = BASELINE_DIR / filename
-    page.screenshot(path=str(shot), animations="disabled")
-    digest = sha1_of(shot)
+    """Screenshot the current viewport and record or compare its sha1.
+
+    Capture mode writes the approved PNG plus its .sha1 sidecar into the
+    baseline dir. Check mode never touches the baseline dir: the candidate
+    stays in memory (screenshot bytes) and is hashed against the committed
+    sidecar, so both pass and failure leave the approved artifacts
+    byte-identical."""
     sidecar = BASELINE_DIR / f"{filename}.sha1"
     if CHECK_MODE:
+        digest = hashlib.sha1(page.screenshot(animations="disabled")).hexdigest()
         if not sidecar.exists():
             errors.append(f"{filename}: no baseline .sha1")
             print(f"    NO BASELINE  {filename}")
@@ -182,16 +191,11 @@ def capture(page: Page, filename: str, errors: list[str]):
         else:
             print(f"    ok           {filename}")
     else:
-        sidecar.write_text(f"{digest}\n")
+        BASELINE_DIR.mkdir(parents=True, exist_ok=True)
+        shot_bytes = page.screenshot(animations="disabled")
+        (BASELINE_DIR / filename).write_bytes(shot_bytes)
+        sidecar.write_text(f"{hashlib.sha1(shot_bytes).hexdigest()}\n")
         print(f"    captured     {filename}")
-
-
-def sha1_of(path: Path) -> str:
-    h = hashlib.sha1()
-    with path.open("rb") as fh:
-        for chunk in iter(lambda: fh.read(65536), b""):
-            h.update(chunk)
-    return h.hexdigest()
 
 
 # =============================================================================
@@ -454,9 +458,10 @@ def main() -> int:
 
             browser.close()
 
-        # Report any screens that were never reached.
+        # Report any screens that were never reached. Required in both modes:
+        # a check run that skips a declared screen is a failure, not a pass.
         for step, filename in SCREENS:
-            if step not in captured and not CHECK_MODE:
+            if step not in captured:
                 errors.append(f"screen not captured: {step}")
                 print(f"    MISSING      {filename}")
     finally:
@@ -485,7 +490,7 @@ def main() -> int:
     # Coverage check.
     expected = {step for step, _ in SCREENS}
     missing = expected - captured
-    if missing and not CHECK_MODE:
+    if missing:
         print(f"\nCOVERAGE: missing screens: {sorted(missing)}")
 
     if errors:
