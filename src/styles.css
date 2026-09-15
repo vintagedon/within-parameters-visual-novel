@@ -376,6 +376,13 @@ body {
 
 /* ─── Full-screen overlay screens (positioning only) ─────────────────────── */
 
+/* Every full-screen overlay shares this rule, so overflow safety is a
+   property of the overlay class, not of any one panel. `safe center` keeps
+   content vertically centered while it fits and falls back to start
+   alignment once it exceeds the stage, so the top stays visible; the
+   overlay itself is the scroll container (html/body clip overflow).
+   Children keep their natural height: a too-tall panel scrolls instead of
+   being squashed. Keyed to content height, never to a viewport breakpoint. */
 .screen-overlay {
   position: fixed;
   inset: 0;
@@ -383,10 +390,15 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: safe center;
   z-index: var(--gui-z-overlay);
   gap: var(--gui-space-lg);
   padding: var(--gui-space-lg);
+  overflow-y: auto;
+}
+
+.screen-overlay > * {
+  flex-shrink: 0;
 }
 
 .screen-overlay.hidden { display: none; }
