@@ -14,7 +14,7 @@
  * @module ui/hud
  */
 
-import type { GameState, CommunityRunState } from "../types/index";
+import type { GameState, CommunityRunState, GameConfig } from "../types/index";
 
 // ─── Display constants ────────────────────────────────────────────────────────
 
@@ -44,14 +44,14 @@ let totalStops = 6;
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
-export function initHUD(sidebar: HTMLElement, journeyStops: number): void {
-  totalStops = journeyStops;
+export function initHUD(sidebar: HTMLElement, config: GameConfig): void {
+  totalStops = config.journeyStops;
 
   sidebar.innerHTML = `
     <section class="gui-panel gui-panel--success wp-clock-panel" id="clock-panel">
       <div class="gui-panel__header">
         <div class="gui-panel__title">Intrusion Clock</div>
-        <div class="wp-clock-reading" id="clock-reading">0 / 10</div>
+        <div class="wp-clock-reading" id="clock-reading">0 / ${config.clockMax}</div>
       </div>
       <div class="gui-bar gui-bar--success gui-bar--segmented" id="clock-bar">
         <div class="gui-bar__segments" id="clock-segments"></div>
@@ -109,13 +109,9 @@ export function initHUD(sidebar: HTMLElement, journeyStops: number): void {
   timelineBody = document.getElementById('timeline-body')!;
 
   // Seed segmented bars and timeline at their initial state.
-  renderSegmented(clockSegments, 0, totalStops > 0 ? 0 : 0, getStateClockMax());
-  renderSegmented(resourceSegments, 0, RESOURCE_SEGMENTS, RESOURCE_SEGMENTS);
+  renderSegmented(clockSegments, 0, config.clockMax);
+  renderSegmented(resourceSegments, 0, RESOURCE_SEGMENTS);
   updateTimeline(0, totalStops, []);
-}
-
-function getStateClockMax(): number {
-  return 10;
 }
 
 // ─── Update Functions ─────────────────────────────────────────────────────────
@@ -129,7 +125,7 @@ export function updateStats(state: GameState): void {
   // ─── Intrusion Clock ── segmented bar + urgency accent ───────────────────
   const clockPct = clock.max > 0 ? (clock.current / clock.max) * 100 : 0;
   clockReading.textContent = `${clock.current} / ${clock.max}`;
-  renderSegmented(clockSegments, clock.current, clock.max, clock.max);
+  renderSegmented(clockSegments, clock.current, clock.max);
 
   setBarUrgency(clockBar, clockPct);
   setPanelUrgency(clockPanel, clockPct);
@@ -149,7 +145,7 @@ export function updateStats(state: GameState): void {
 
   // ─── Resources ── segmented bar (success/green) ──────────────────────────
   const shown = Math.min(RESOURCE_SEGMENTS, Math.max(0, stats.consumables));
-  renderSegmented(resourceSegments, shown, RESOURCE_SEGMENTS, RESOURCE_SEGMENTS);
+  renderSegmented(resourceSegments, shown, RESOURCE_SEGMENTS);
   resourcesValue.textContent = String(stats.consumables);
 }
 
@@ -200,7 +196,7 @@ export function updateTimeline(
 
 /** Emits `total` pip elements into the container and marks the first `filled`
  *  with .is-filled, matching the framework's segmented-bar contract. */
-function renderSegmented(container: HTMLElement, filled: number, total: number, _max: number): void {
+function renderSegmented(container: HTMLElement, filled: number, total: number): void {
   container.innerHTML = '';
   const count = Math.max(0, total);
   for (let i = 0; i < count; i++) {
@@ -217,16 +213,29 @@ function urgencyLevel(pct: number): 'safe' | 'warn' | 'danger' {
   return 'safe';
 }
 
+/** Framework accent for each local urgency level. The framework defines
+ *  success/warning/danger; the local safe/warn vocabulary feeds the readout's
+ *  data-level attribute only. Accents are mapped explicitly — an interpolated
+ *  --safe/--warn matches no framework class, so sub-70% states would silently
+ *  lose their intended color and the dead class names would accumulate. */
+const URGENCY_ACCENT: Record<'safe' | 'warn' | 'danger', 'success' | 'warning' | 'danger'> = {
+  safe: 'success',
+  warn: 'warning',
+  danger: 'danger',
+};
+
 /** Swaps the bar's color modifier to convey clock urgency (success→warning→danger). */
 function setBarUrgency(bar: HTMLElement, pct: number): void {
+  const accent = URGENCY_ACCENT[urgencyLevel(pct)];
   bar.classList.remove('gui-bar--success', 'gui-bar--warning', 'gui-bar--danger');
-  bar.classList.add(`gui-bar--${urgencyLevel(pct)}`);
+  bar.classList.add(`gui-bar--${accent}`);
 }
 
 /** Swaps the clock panel's accent modifier to convey urgency. */
 function setPanelUrgency(panel: HTMLElement, pct: number): void {
+  const accent = URGENCY_ACCENT[urgencyLevel(pct)];
   panel.classList.remove('gui-panel--success', 'gui-panel--warning', 'gui-panel--danger');
-  panel.classList.add(`gui-panel--${urgencyLevel(pct)}`);
+  panel.classList.add(`gui-panel--${accent}`);
 }
 
 /** Sets the rapport bar accent: success for net-positive, danger for net-negative. */

@@ -134,7 +134,7 @@ async function boot(): Promise<void> {
   initDialogue(layout.bottomBar, config);
 
   // Init HUD (hidden until game starts)
-  initHUD(layout.sidebar, config.journeyStops);
+  initHUD(layout.sidebar, config);
 
   // Show title screen
   Audio.playBGM('bgm-title', false);
@@ -199,6 +199,7 @@ async function boot(): Promise<void> {
         triggerComms: () => void;
         triggerEnding: () => void;
         seedAutosave: () => void;
+        setClock: (current: number) => void;
       };
     }).__wp = {
       triggerComms: () => {
@@ -232,6 +233,14 @@ async function boot(): Promise<void> {
       },
       seedAutosave: () => {
         autosave(initNewGame(config, 1), 'scene-discovery-01', 'discovery');
+      },
+      // Presentation probe: re-render the HUD through the real updateStats
+      // path with a clock override, so urgency-accent behavior is verifiable
+      // at clock values a short walk never reaches.
+      setClock: (current: number) => {
+        const s = runner?.getState();
+        if (!s) return;
+        updateStats({ ...s, clock: { ...s.clock, current } });
       },
     };
   }
