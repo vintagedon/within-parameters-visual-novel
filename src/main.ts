@@ -427,8 +427,15 @@ function runDialogueSequence(
   if (lineIndex >= scene.dialogue.length) {
     // All lines done — show choices or complete scene
     if (scene.choices && scene.choices.length > 0) {
-      const currentState = runner?.getState() ?? state;
-      renderChoices(scene.choices, currentState, (choiceIndex) => {
+      // Runner-resolved views: effective costs, gates, and trait restrictions.
+      // Falls back to plain labels only when no runner exists (not reachable
+      // in normal play; keeps the function total).
+      const views = runner?.getChoiceViews(scene) ?? scene.choices.map((c, i) => ({
+        index: i,
+        label: c.label,
+        enabled: true,
+      }));
+      renderChoices(views, (choiceIndex) => {
         runner?.selectChoice(scene, choiceIndex);
       });
     } else {
