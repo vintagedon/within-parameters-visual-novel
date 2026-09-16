@@ -220,20 +220,32 @@ export function showDossierScreen(
   body.innerHTML = '';
   footer.innerHTML = '';
 
-  // Identity row: portrait block (placeholder color, no image load → no 404) + name/callsign
+  // Identity row: portrait (resolved image, colored block fallback) + name/callsign
   const identity = document.createElement('div');
   identity.className = 'wp-dossier-identity';
 
   const portrait = document.createElement('div');
   portrait.className = 'wp-dossier-portrait';
-  portrait.style.background = view.portraitPlaceholderColor;
   const initials = view.fullName
     .split(' ')
     .map((w) => w[0] ?? '')
     .join('')
     .slice(0, 2)
     .toUpperCase();
-  portrait.textContent = initials;
+
+  // Attempt the resolved portrait image; fall back to the placeholder-color
+  // block with initials only if the file is missing.
+  const portraitImg = document.createElement('img');
+  portraitImg.alt = view.fullName;
+  portraitImg.onload = () => {
+    portrait.style.background = '';
+    portrait.appendChild(portraitImg);
+  };
+  portraitImg.onerror = () => {
+    portrait.textContent = initials;
+  };
+  portraitImg.src = `/assets/portraits/${view.portraitKey}.png`;
+  portrait.style.background = view.portraitPlaceholderColor;
 
   const namehead = document.createElement('div');
   namehead.className = 'wp-dossier-namehead';
@@ -504,8 +516,10 @@ export function showEndingScreen(
   typeLabel.textContent = ENDING_SUBTITLES[endingType] ?? '';
   titleEl.textContent = ENDING_TITLES[endingType] ?? 'THE END';
 
-  // Pre-existing rapport-modified community narrative epilogue (stays above the breakdown).
-  epilogueEl.innerHTML = buildEpilogue(endingType, state.communities);
+  // Rapport-modified community narrative epilogue (stays above the
+  // breakdown). The ending is the persisted outcome's, never recomputed.
+  const persistedEnding = state.outcome?.ending ?? endingType;
+  epilogueEl.innerHTML = buildEpilogue(persistedEnding, state);
 
   // Score breakdown (additive): grade, final score, component rows, reroll
   // penalty line (only when rerollCount > 0), backstory epilogue line, and the
@@ -600,47 +614,68 @@ function buildScoreBreakdownHtml(
   `;
 }
 
-/** Generates epilogue HTML from the run's community outcome data. Named communities appear as styled spans. Three branches: clock-failure, destruction, correction. */
-function buildEpilogue(
-  endingType: string,
-  communities: CommunityRunState[]
+/**
+ * Generates the rapport-modified epilogue from the run's community outcome
+ * data (M3 section 6): base text, one inserted line per visited community
+ * keyed to helped / ignored / harmed, then the closing. Clock-failure carries
+ * no community modifiers. The ending comes from the persisted outcome — this
+ * path never recomputes one. Exported for the live-path checks (pure string
+ * assembly, no DOM).
+ */
+export function buildEpilogue(
+  endingType: 'clock-failure' | 'destruction' | 'correction',
+  state: GameState
 ): string {
-  const helped = communities.filter((c) => c.state === 'helped');
-  const harmed = communities.filter((c) => c.state === 'harmed');
-  const ignored = communities.filter((c) => c.state === 'ignored');
-
+  const ending = state.outcome?.ending ?? endingType;
+  const communities = state.communities;
   const communitySpan = (name: string) =>
-    `<span class="ending-community">${name}</span>`;
+    `<span class="ending-community">${escapeHtml(name)}</span>`;
+  const desc = (d: string) => escapeHtml(stripLeadingArticle(d));
 
-  if (endingType === 'clock-failure') {
-    const losses = communities.map((c) => communitySpan(c.community.name)).join(', ') || 'the settlements along your route';
-    return `<p>The intrusion clock ran out. The archive AI's salvage protocol accelerated beyond containment, stripping infrastructure from ${losses} before any intervention could be mounted. You never made it to the facility.</p><p>The grid went dark in segments. People adapted — they always do. But they would have adapted differently if you'd arrived in time.</p>`;
+  if (ending === 'clock-failure') {
+    return `<p>The intrusion clock ran out. The archive's salvage protocol completed its current cycle before you reached the facility. You heard the grid failures over comms as you walked. Station after station going dark. Jay stopped transmitting after the third one. There was nothing left to correct by the time you arrived.</p>`;
   }
 
-  if (endingType === 'destruction') {
-    let text = `<p>You reached the facility. You found the archive. What you brought with you wasn't enough to correct it — only to destroy it.</p>`;
-    if (harmed.length > 0) {
-      text += `<p>The route cost you: ${harmed.map((c) => communitySpan(c.community.name)).join(', ')} were worse off for your passing. That sat with you as you made the call.</p>`;
+  if (ending === 'destruction') {
+    let text =
+      `<p>The archive core went offline. The salvage signal stopped. The relay network stabilized within hours, but the nodes that had already been stripped were gone. Rebuilding would take years, and some communities wouldn't survive the gap.</p>`;
+    for (const c of communities) {
+      const name = communitySpan(c.community.name);
+      if (c.state === 'helped') {
+        text += `<p>${name}'s ${desc(c.community.description)} held. The relay work you did on your way through gave them enough redundancy to survive the transition.</p>`;
+      } else if (c.state === 'harmed') {
+        text += `<p>${name} collapsed three days after you passed through. The ${desc(c.community.description)} lost its backup systems. By the time repair crews arrived, the population had already relocated.</p>`;
+      } else {
+        text += `<p>${name} managed. Barely. The ${desc(c.community.description)} rationed through the worst of it, but the damage will take months to repair.</p>`;
+      }
     }
-    if (helped.length > 0) {
-      text += `<p>${helped.map((c) => communitySpan(c.community.name)).join(' and ')} had reason to remember you differently. It was something.</p>`;
-    }
-    text += `<p>The archive's micro-reactor was breached. The core failed. No more salvage signal. No more cannibalized relays. The grid stabilized — or will, eventually, in the segments that still had power to stabilize.</p>`;
+    text += `<p>You filed the report. Dispatch acknowledged. Supervisor Torres asked if there was anything else at the facility worth salvaging. You told him there had been.</p>`;
+    text += `<p>The archive's knowledge, seven years of preserved research and documentation, was destroyed with it. You know what was in there now. You couldn't save it. You filed that in the report too.</p>`;
     return text;
   }
 
   // Correction
-  let text = `<p>You reached the facility with enough documentation to remap the archive's operational scope. The AI accepted the correction — not because it understood, but because the new parameters were valid within its framework. It resumed its original function: preserve and index. It stopped cannibalizing the relay network because the relay network was now within its definition of "infrastructure to protect."</p>`;
-  if (helped.length > 0) {
-    text += `<p>${helped.map((c) => communitySpan(c.community.name)).join(', ')} — the communities that gave you something along the way — received the first clean relay connections in three years. The archive's grid access was re-scoped to serve the network it had been dismantling.</p>`;
+  let text =
+    `<p>The archive updated its topology map and revised its operational parameters. The salvage operations ceased within the hour. Maintenance drones that had been stripping infrastructure reversed course, carrying components back toward their points of origin. Not all of them. Not enough. But some.</p>`;
+  text += `<p>The archive began routing its processing capacity toward the network it now recognized as its actual responsibility: the relay grid that forty thousand people depended on.</p>`;
+  for (const c of communities) {
+    const name = communitySpan(c.community.name);
+    if (c.state === 'helped') {
+      text += `<p>${name}'s ${desc(c.community.description)} was already stable when the archive's repair drones arrived. The bypass work you did held. They were the first to receive archive-indexed maintenance documentation, the kind of technical knowledge that hadn't existed underground since the collapse.</p>`;
+    } else if (c.state === 'harmed') {
+      text += `<p>${name} was too far gone. The ${desc(c.community.description)} had already failed by the time the archive's priorities shifted. The repair drones bypassed the empty corridors. Some corrections come too late.</p>`;
+    } else {
+      text += `<p>${name} received archive repair assistance within the week. The ${desc(c.community.description)} was restored to pre-salvage capacity. They asked dispatch who authorized the investigation. Nobody had a satisfying answer.</p>`;
+    }
   }
-  if (harmed.length > 0) {
-    text += `<p>${harmed.map((c) => communitySpan(c.community.name)).join(' and ')} didn't benefit from your choices on the way in. The route matters. You knew that now in a way the briefing hadn't conveyed.</p>`;
-  }
-  if (ignored.length > 0 && helped.length === 0) {
-    text += `<p>The communities along your route got a working relay network. Whether they knew who to thank was less clear.</p>`;
-  }
+  text += `<p>You filed the report. Dispatch acknowledged. Jay met you at the monitoring station with two cups of whatever they were calling coffee this week. 'So,' he said. 'Tuesday.' You drank the coffee. It was terrible. It was the best coffee you'd ever had.</p>`;
   return text;
+}
+
+/** Drops a leading indefinite article so descriptions interpolate cleanly
+ *  into sentences that carry their own article. */
+function stripLeadingArticle(d: string): string {
+  return d.replace(/^(a|an)\s+/i, '');
 }
 
 export function hideEndingScreen(): void {

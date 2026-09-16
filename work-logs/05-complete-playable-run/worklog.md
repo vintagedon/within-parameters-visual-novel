@@ -282,3 +282,54 @@ widening).
 - Browser smoke (dev server, seeded, no dev hooks): full passage through
   comms interrupts with zero console errors.
 
+## Gate 4.6 — Scenes, NPCs, and rapport-modified epilogues
+
+**Commit:** (recorded at closeout)
+
+**Changes:**
+
+- `data/scenes.json` expanded: the Torres authorization beat (Beat 2A,
+  "Cleared. Log it when you're done."), the corrected discovery text (five
+  stops plus fixed facility entry; the six-stop text is gone), an expanded
+  facility entry and archive-core confrontation in the archive's "system
+  update" voice (including the M3 847-node discrepancy dialogue on the
+  correction path), and the three ending scenes with M3-flavored moments.
+  The dialogue-embedded "CHEN:" prefixes are dropped now that the speaker
+  bar carries names.
+- `data/characters.json`: the six-NPC roster per M3 (Jay Chen, Torres,
+  Aguilar, Dex, Sato, Archive AI) plus the generic engineer, with M3
+  expressions and name colors, and the M3 portrait manifest keys. The
+  archive renders no portrait (a voice on a terminal).
+- `assets/portraits/`: ten missing placeholders generated with the
+  established `simulation/generate_placeholders.py` (which skips existing
+  files): protagonist-female, protagonist-male, supervisor x2, aguilar x2,
+  dex x2, sato x2. Manifest CSV refreshed: 32 placeholder, 4 replaced
+  (audio), 2 missing (sfx-click, sfx-alert — enumerated for gate 4.8).
+- `src/ui/screens.ts`: `buildEpilogue` now assembles the M3 epilogues:
+  base, one line per visited community keyed to helped/ignored/harmed
+  (leading article stripped from descriptions for interpolation), then the
+  closing; clock-failure carries no community modifiers; the ending is
+  read from the persisted outcome. The dossier renders the resolved
+  portrait image (initials block only as a missing-file fallback).
+- `src/main.ts`: internal-monologue headers show the generated
+  protagonist's first name (comms keep RELAY-7; the dialogue bar shows no
+  protagonist portrait — frozen boundaries respected).
+- `src/ui/dialogue.ts`: the archive speaker hides the portrait area.
+- `scripts/run-mutation-checks.mjs`: scratch copies now include vendor/.
+
+**Verification evidence:**
+
+- Live-path checks: 23/23. 4.6 additions: helped-heavy vs harmed-heavy
+  correction runs produce epilogues whose five community lines all differ
+  (programmatic, not by eye); clock-failure shows no community names; the
+  persisted destruction outcome wins over a contradictory passed type;
+  scene/beat coverage includes authorization, discovery, facility, and all
+  three endings; no scene or event text states six stops; all six NPCs
+  exist with M3 expressions and colors; every referenced speaker resolves.
+- Browser checks (dev server, seeded, no dev hooks): the dossier renders
+  the resolved portrait image; the protagonist header equals the dossier's
+  first name and differs between two rolls; comms exchanges show RELAY-7;
+  zero console errors.
+- `npm run audit:events` still exact; mutation checks still discriminate;
+  `tsc --noEmit` clean.
+

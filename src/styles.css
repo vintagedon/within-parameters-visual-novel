@@ -714,6 +714,14 @@ body {
   font-weight: 700;
   color: var(--gui-text-muted);
   letter-spacing: 0.05em;
+  overflow: hidden;
+}
+
+.wp-dossier-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .wp-dossier-namehead {

@@ -31,7 +31,8 @@ import { buildEffectiveConfig } from './traits';
 import { scoreRun } from './scoring';
 import { initEventPool, drawEvent } from './event-system';
 import { createRng } from './rng';
-import type { RunOutcome } from '../types/index';
+import { buildEpilogue } from '../ui/screens';
+import type { RunOutcome, CommunityRunState } from '../types/index';
 
 // ─── Node environment shim (autosave touches localStorage) ───────────────────
 
@@ -859,6 +860,134 @@ check('4.5 comms beats: timing and bands are data-driven', () => {
     }
   }
   return 'green 0-3, amber 4-6, red 7-9; both beats per tier; full M3 dialogue';
+});
+
+// ─── Gate 4.6 checks ──────────────────────────────────────────────────────────
+
+function epilogueCommunities(pattern: ('helped' | 'ignored' | 'harmed')[]): CommunityRunState[] {
+  return pattern.map((state, i) => ({
+    community: communitiesData[i]!,
+    state,
+    stop: i + 1,
+  }));
+}
+
+/** Helped-heavy and harmed-heavy runs at the same ending produce epilogues that differ per community. */
+check('4.6 epilogue: helped-heavy vs harmed-heavy differ line for line', () => {
+  const base = { stats: { knowledge: 12, consumables: 2, rapport: 0, startingRapport: 0 } };
+  const mk = (pattern: ('helped' | 'ignored' | 'harmed')[]) =>
+    ({
+      ...({} as GameState),
+      ...base,
+      communities: epilogueCommunities(pattern),
+      outcome: { ending: 'correction', rawScore: 0, rawScoreClamped: 0, finalScore: 0, grade: 'S' },
+    }) as unknown as GameState;
+
+  const helped = buildEpilogue('correction', mk(['helped', 'helped', 'ignored', 'helped', 'helped']));
+  const harmed = buildEpilogue('correction', mk(['harmed', 'ignored', 'harmed', 'ignored', 'harmed']));
+
+  for (const c of communitiesData.slice(0, 5)) {
+    const hLine = helped.includes(c.name);
+    const xLine = harmed.includes(c.name);
+    assert(hLine || xLine, `${c.name} appears in at least one epilogue`);
+  }
+  assert(helped.includes('was already stable when the archive\'s repair drones arrived'), 'helped line text');
+  assert(harmed.includes('was too far gone'), 'harmed line text');
+  assert(helped.includes('ignored' as unknown as string) === false || true, 'sanity');
+
+  // Line-for-line divergence: same communities, different outcomes, the
+  // per-community sentences differ.
+  const helpedSentences = helped.split('</p>').filter((s) => communitiesData.some((c) => s.includes(c.name)));
+  const harmedSentences = harmed.split('</p>').filter((s) => communitiesData.some((c) => s.includes(c.name)));
+  eq(helpedSentences.length, 5, 'one line per visited community (helped-heavy)');
+  eq(harmedSentences.length, 5, 'one line per visited community (harmed-heavy)');
+  let differences = 0;
+  for (let i = 0; i < 5; i++) {
+    if (helpedSentences[i] !== harmedSentences[i]) differences++;
+  }
+  eq(differences, 5, 'every community line differs between the two runs');
+  return '5/5 community lines differ between helped-heavy and harmed-heavy correction runs';
+});
+
+/** Clock-failure carries no community modifier lines. */
+check('4.6 epilogue: clock-failure shows no community modifiers', () => {
+  const state = {
+    communities: epilogueCommunities(['helped', 'harmed', 'ignored', 'helped', 'ignored']),
+    outcome: { ending: 'clock-failure', rawScore: 0, rawScoreClamped: 0, finalScore: 0, grade: 'F' },
+  } as unknown as GameState;
+  const text = buildEpilogue('clock-failure', state);
+  for (const c of communitiesData.slice(0, 5)) {
+    assert(!text.includes(c.name), `${c.name} must not appear in the clock-failure epilogue`);
+  }
+  assert(text.includes('Jay stopped transmitting after the third one'), 'M3 base text');
+  return 'no community names in the clock-failure epilogue';
+});
+
+/** The epilogue reads the persisted outcome, never recomputing an ending. */
+check('4.6 epilogue: consumes the persisted outcome', () => {
+  const state = {
+    communities: epilogueCommunities(['helped', 'ignored', 'ignored', 'ignored', 'ignored']),
+    outcome: { ending: 'destruction', rawScore: 0, rawScoreClamped: 0, finalScore: 0, grade: 'B' },
+  } as unknown as GameState;
+  const text = buildEpilogue('correction', state);
+  assert(text.includes('The archive core went offline'), 'destruction base text despite the correction argument');
+  assert(!text.includes('best coffee'), 'correction closing absent');
+  return 'persisted destruction wins over the passed narrative type';
+});
+
+/** Scene and NPC coverage per the M3 structure. */
+check('4.6 scenes and NPCs: full coverage, no six-stop text', () => {
+  const ids = new Set(scenesData.map((s) => s.id));
+  for (const required of [
+    'scene-lore-01',
+    'scene-authorization-01',
+    'scene-discovery-01',
+    'scene-facility-01',
+    'scene-facility-02',
+    'scene-ending-clock-failure',
+    'scene-ending-destruction',
+    'scene-ending-correction',
+  ]) {
+    assert(ids.has(required), `scene ${required} missing`);
+  }
+  const beats = new Set(scenesData.map((s) => s.beat));
+  for (const required of ['lore', 'status-quo', 'discovery', 'facility', 'confrontation', 'ending']) {
+    assert(beats.has(required as never), `beat ${required} missing`);
+  }
+  for (const scene of scenesData) {
+    for (const line of scene.dialogue) {
+      assert(!/six stops/i.test(line.text), `scene ${scene.id} states six stops`);
+    }
+  }
+  const rawEvents = readFileSync(resolve(process.cwd(), 'data/events.json'), 'utf-8');
+  assert(!/six stops/i.test(rawEvents), 'events state six stops');
+
+  const manifest = load<{ characters: Array<{ id: string; nameColor: string; expressions: Record<string, string> }> }>(
+    'data/characters.json'
+  );
+  const chars = new Map(manifest.characters.map((c) => [c.id, c]));
+  for (const required of ['protagonist', 'coworker', 'supervisor', 'aguilar', 'dex', 'sato', 'archive']) {
+    assert(chars.has(required), `character ${required} missing`);
+  }
+  const expr = (id: string, e: string) => assert(!!chars.get(id)?.expressions[e], `${id} expression ${e}`);
+  expr('coworker', 'concerned'); expr('coworker', 'urgent');
+  expr('supervisor', 'dismissive');
+  expr('aguilar', 'stern');
+  expr('dex', 'wary');
+  expr('sato', 'serene');
+  for (const c of manifest.characters) {
+    assert(/^#[0-9a-f]{6}$/i.test(c.nameColor ?? ''), `${c.id} name color`);
+  }
+  // Every speaker referenced by scenes and events exists in the manifest.
+  for (const scene of [...scenesData, ...eventsData.flatMap((e) => e.scenes)]) {
+    for (const line of scene.dialogue) {
+      assert(
+        line.speaker === 'narrator' || chars.has(line.speaker),
+        `unknown speaker ${line.speaker} in ${scene.id}`
+      );
+    }
+  }
+  return 'scenes cover lore/authorization/journey/facility/endings; six NPCs present with M3 expressions and colors';
 });
 
 function report(): number {

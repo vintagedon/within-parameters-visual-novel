@@ -71,6 +71,7 @@ for (const mutation of MUTATIONS) {
   try {
     cpSync(join(root, 'src'), join(tmpDir, 'src'), { recursive: true });
     cpSync(join(root, 'data'), join(tmpDir, 'data'), { recursive: true });
+    cpSync(join(root, 'vendor'), join(tmpDir, 'vendor'), { recursive: true });
 
     const target = join(tmpDir, mutation.file);
     const original = readFileSync(target, 'utf-8');

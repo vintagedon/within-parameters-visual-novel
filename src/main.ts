@@ -480,7 +480,18 @@ function runDialogueSequence(
   }
 
   const line = scene.dialogue[lineIndex]!;
-  const character = characterMap.get(line.speaker) ?? null;
+  let character = characterMap.get(line.speaker) ?? null;
+
+  // Internal-monologue headers carry the generated protagonist's first name
+  // (character-generation.md: headers are "[First]:"). Comms channels keep
+  // the RELAY-7 callsign, and the dialogue bar shows no protagonist portrait
+  // (updatePortrait), so this is the only protagonist-name surface here.
+  if (line.speaker === 'protagonist' && state.protagonist.name) {
+    const first = state.protagonist.name.split(' ')[0] ?? null;
+    if (first && character) {
+      character = { ...character, name: first };
+    }
+  }
 
   // Handle per-line triggers
   if (line.background) setBackground(line.background);

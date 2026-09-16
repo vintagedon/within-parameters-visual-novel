@@ -111,7 +111,15 @@ function updatePortrait(
   character: Character | null,
   portraitColors: Map<string, string>
 ): void {
-  if (!character || character.id === 'narrator' || character.id === 'protagonist') {
+  // The protagonist never renders a portrait in the dialogue bar (engine
+  // contract), the narrator has none, and the archive is a voice on a
+  // terminal rather than a face.
+  if (
+    !character ||
+    character.id === 'narrator' ||
+    character.id === 'protagonist' ||
+    character.id === 'archive'
+  ) {
     portraitArea.classList.add('hidden');
     return;
   }
