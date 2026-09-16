@@ -27,6 +27,14 @@ import {
   buildSceneRegistry,
   type SceneRunnerCallbacks,
 } from './engine/scene-runner';
+import { buildEffectiveConfig } from './engine/traits';
+import {
+  generateProtagonist,
+  buildDossierView,
+  parseProtagonistPool,
+  type ProtagonistPool,
+} from './engine/chargen';
+import { createRng } from './engine/rng';
 import {
   autosave,
   saveToSlot,
@@ -64,6 +72,8 @@ import {
   hideSettings,
   showRewardOverlay,
   showCommsOverlay,
+  showDossierScreen,
+  hideDossierScreen,
 } from './ui/screens';
 
 // Audio
@@ -75,6 +85,7 @@ let manifest: CharacterManifest;
 let scenesData: Scene[];
 let eventsData: EventDef[];
 let communitiesData: Community[];
+let pool: ProtagonistPool;
 
 let runner: SceneRunner | null = null;
 
@@ -94,13 +105,14 @@ async function boot(): Promise<void> {
   initScreens(document.body);
 
   // Load all data files in parallel
-  [config, manifest, scenesData, eventsData, { communities: communitiesData }] =
+  [config, manifest, scenesData, eventsData, { communities: communitiesData }, pool] =
     await Promise.all([
       fetch('/data/config.json').then((r) => r.json()) as Promise<GameConfig>,
       fetch('/data/characters.json').then((r) => r.json()) as Promise<CharacterManifest>,
       fetch('/data/scenes.json').then((r) => r.json()).then((d) => d.scenes) as Promise<Scene[]>,
       fetch('/data/events.json').then((r) => r.json()).then((d) => d.events) as Promise<EventDef[]>,
       fetch('/data/communities.json').then((r) => r.json()) as Promise<{ communities: Community[] }>,
+      fetch('/data/protagonist-pool.json').then((r) => r.json()).then(parseProtagonistPool) as Promise<ProtagonistPool>,
     ]);
 
   // Register backgrounds for layout crossfade
@@ -122,7 +134,7 @@ async function boot(): Promise<void> {
   initDialogue(layout.bottomBar, config);
 
   // Init HUD (hidden until game starts)
-  initHUD(layout.sidebar, config.journeyStops);
+  initHUD(layout.sidebar, config);
 
   // Show title screen
   Audio.playBGM('bgm-title', false);
@@ -166,9 +178,103 @@ async function boot(): Promise<void> {
 
   // Resume audio after first gesture
   document.addEventListener('click', Audio.resumeAfterGesture, { once: true });
+
+  // Dev-only hooks for the Playwright screenshot harness. These trigger migrated
+  // UI surfaces that are otherwise balance-gated or deep in run flow — the comms
+  // interrupt (needs a clock state unreachable in short runs), the ending shell
+  // (the natural run flow stalls at the approach-event reward, an engine edge
+  // case outside this presentation spec's scope), and a seeded autosave (so the
+  // save/load confirm is reachable without a completed run). DEV-gated: stripped
+  // from production builds, and they only drive presentation overlays and real
+  // save-manager calls — no engine mechanics.
+  const devEnv = (import.meta as { env?: { DEV?: boolean } }).env;
+  if (devEnv?.DEV) {
+    const sampleCommunities = [
+      { community: { name: 'Georgetown Hydro' }, state: 'helped', stop: 1 },
+      { community: { name: 'Foggy Bottom Relay' }, state: 'helped', stop: 2 },
+      { community: { name: 'Silver Spring Junction' }, state: 'harmed', stop: 3 },
+    ] as unknown as GameState['communities'];
+    (window as unknown as {
+      __wp?: {
+        triggerComms: () => void;
+        triggerEnding: () => void;
+        seedAutosave: () => void;
+        setClock: (current: number) => void;
+        setKnowledge: (knowledge: number) => void;
+      };
+    }).__wp = {
+      triggerComms: () => {
+        showCommsOverlay("CHEN: Clock is climbing. What's your status?", () => {});
+      },
+      triggerEnding: () => {
+        // Build a representative complete run state (committed protagonist,
+        // rerollCount=1 so the penalty line shows, final stats, and an outcome)
+        // so the new score breakdown — grade, components, reroll penalty, and
+        // backstory + trait lines — renders for capture.
+        const r = createRng(1337);
+        const protagonist = generateProtagonist(pool, r);
+        const effConfig = buildEffectiveConfig(
+          config,
+          protagonist.positiveTrait!,
+          protagonist.negativeTrait!
+        );
+        const hookState: GameState = {
+          ...initNewGame(effConfig, 1),
+          protagonist,
+          rerollCount: 1,
+          stats: { knowledge: 13, consumables: 4, rapport: 2, startingRapport: 0 },
+          communities: sampleCommunities,
+          clock: { current: 4, max: config.clockMax },
+          alive: true,
+        };
+        showEndingScreen('correction', hookState, { config: effConfig, pool }, {
+          onNewGame: () => {},
+          onTitle: () => {},
+        });
+      },
+      seedAutosave: () => {
+        autosave(initNewGame(config, 1), 'scene-discovery-01', 'discovery');
+      },
+      // Presentation probes: re-render the HUD through the real refreshHud
+      // path with a clock or knowledge override, so urgency accents and the
+      // threshold display are verifiable at values a short walk never reaches.
+      setClock: (current: number) => {
+        const s = runner?.getState();
+        if (!s) return;
+        refreshHud({ ...s, clock: { ...s.clock, current } });
+      },
+      setKnowledge: (knowledge: number) => {
+        const s = runner?.getState();
+        if (!s) return;
+        refreshHud({ ...s, stats: { ...s.stats, knowledge } });
+      },
+    };
+  }
 }
 
 // ─── Game Start ───────────────────────────────────────────────────────────────
+
+/**
+ * Re-derives the effective (trait-modified) config from a committed protagonist.
+ * Reproduces exactly what the runner's deployProtagonist() computed at run start,
+ * so a loaded save resumes with the same effective config and the ending-screen
+ * breakdown matches the run's recorded outcome.
+ */
+function effectiveConfigFromState(state: GameState): GameConfig {
+  const p = state.protagonist;
+  if (p.positiveTrait && p.negativeTrait) {
+    return buildEffectiveConfig(config, p.positiveTrait, p.negativeTrait);
+  }
+  return config;
+}
+
+/** Single HUD refresh path: stats against the run's effective knowledge
+ *  threshold (from the committed protagonist's configuration — Clear-Headed
+ *  lowers it), plus the journey timeline. */
+function refreshHud(state: GameState): void {
+  updateStats(state, effectiveConfigFromState(state).knowledgeThreshold);
+  updateTimeline(state.currentStop, config.journeyStops, state.communities);
+}
 
 function startNewGame(): void {
   const persistent = loadPersistentData();
@@ -176,15 +282,32 @@ function startNewGame(): void {
   savePersistentData(persistent);
 
   const state = initNewGame(config, persistent.runsStarted);
-  startGameFromState(state);
+  const registry = buildSceneRegistry(scenesData, eventsData);
+  clearDialogue();
+  // New game: supply the chargen pool + a seeded RNG so the runner can roll a
+  // protagonist and show the dossier before the lore card. The Playwright harness
+  // sets window.__wpSeed for deterministic captures; in normal play it is unset,
+  // so the seed is time+random (truly random per run). No-op in production.
+  const harnessSeed = (window as unknown as { __wpSeed?: number }).__wpSeed;
+  const seed = harnessSeed ?? ((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0);
+  runner = new SceneRunner(state, config, registry, communitiesData, buildRunnerCallbacks(), {
+    pool,
+    rng: createRng(seed),
+  });
+  runner.beginNewRun();
 }
 
+/** Resume path for CONTINUE/LOAD — does NOT regenerate the protagonist. */
 function startGameFromState(state: GameState): void {
   clearDialogue();
-
   const registry = buildSceneRegistry(scenesData, eventsData);
+  const effConfig = effectiveConfigFromState(state);
+  runner = new SceneRunner(state, effConfig, registry, communitiesData, buildRunnerCallbacks());
+  runner.start();
+}
 
-  const callbacks: SceneRunnerCallbacks = {
+function buildRunnerCallbacks(): SceneRunnerCallbacks {
+  return {
     onSceneStart(scene, currentState) {
       // Background
       setBackground(scene.background);
@@ -200,8 +323,7 @@ function startGameFromState(state: GameState): void {
       }
 
       // Update HUD
-      updateStats(currentState);
-      updateTimeline(currentState.currentStop, config.journeyStops, currentState.communities);
+      refreshHud(currentState);
 
       // Run dialogue sequence
       if (scene.dialogue.length === 0) {
@@ -213,12 +335,20 @@ function startGameFromState(state: GameState): void {
     },
 
     onStateUpdate(currentState) {
-      updateStats(currentState);
-      updateTimeline(currentState.currentStop, config.journeyStops, currentState.communities);
+      refreshHud(currentState);
     },
 
     onRewardChoice(rewards: RewardOption[], onSelect: (index: number) => void) {
       showRewardOverlay(rewards, onSelect);
+    },
+
+    onDossier(candidate, rerollCount, actions) {
+      const view = buildDossierView(candidate, pool, config, portraitColors, rerollCount);
+      showDossierScreen(view, { onDeploy: actions.deploy, onReroll: actions.reroll });
+    },
+
+    onDossierHide() {
+      hideDossierScreen();
     },
 
     onEnding(endingType, currentState) {
@@ -234,41 +364,47 @@ function startGameFromState(state: GameState): void {
 
       Audio.playBGM('bgm-ending');
 
-      showEndingScreen(endingType, currentState, {
-        onNewGame: () => {
-          hideEndingScreen();
-          startNewGame();
-        },
-        onTitle: () => {
-          hideEndingScreen();
-          runner = null;
-          Audio.playBGM('bgm-title', false);
-          setFullScreen();
-          showTitleScreen(hasAutosave(), {
-            onNewGame: () => {
-              hideTitleScreen();
-              startNewGame();
-            },
-            onContinue: () => {
-              const s = loadFromSlot('auto');
-              if (s) { hideTitleScreen(); startGameFromState(s); }
-            },
-            onLoad: () => {
-              showSaveLoadScreen('load', getSlotSummaries(), (slotId) => {
-                const s = loadFromSlot(slotId);
-                if (s) { hideSaveLoadScreen(); hideTitleScreen(); startGameFromState(s); }
-              }, hideSaveLoadScreen);
-            },
-            onSettings: () => {
-              showSettings(loadPersistentData(), {
-                onToggleMute: (m) => { Audio.setMuted(m); savePersistentData({ ...loadPersistentData(), audioMuted: m }); },
-                onToggleCutscenes: (s) => { savePersistentData({ ...loadPersistentData(), cutscenesSetting: s }); },
-                onClose: hideSettings,
-              });
-            },
-          });
-        },
-      });
+      // Pass the effective config so the breakdown matches the run's outcome.
+      showEndingScreen(
+        endingType,
+        currentState,
+        { config: effectiveConfigFromState(currentState), pool },
+        {
+          onNewGame: () => {
+            hideEndingScreen();
+            startNewGame();
+          },
+          onTitle: () => {
+            hideEndingScreen();
+            runner = null;
+            Audio.playBGM('bgm-title', false);
+            setFullScreen();
+            showTitleScreen(hasAutosave(), {
+              onNewGame: () => {
+                hideTitleScreen();
+                startNewGame();
+              },
+              onContinue: () => {
+                const s = loadFromSlot('auto');
+                if (s) { hideTitleScreen(); startGameFromState(s); }
+              },
+              onLoad: () => {
+                showSaveLoadScreen('load', getSlotSummaries(), (slotId) => {
+                  const s = loadFromSlot(slotId);
+                  if (s) { hideSaveLoadScreen(); hideTitleScreen(); startGameFromState(s); }
+                }, hideSaveLoadScreen);
+              },
+              onSettings: () => {
+                showSettings(loadPersistentData(), {
+                  onToggleMute: (m) => { Audio.setMuted(m); savePersistentData({ ...loadPersistentData(), audioMuted: m }); },
+                  onToggleCutscenes: (s) => { savePersistentData({ ...loadPersistentData(), cutscenesSetting: s }); },
+                  onClose: hideSettings,
+                });
+              },
+            });
+          },
+        }
+      );
     },
 
     onCommsInterrupt(currentState, onContinue) {
@@ -279,16 +415,6 @@ function startGameFromState(state: GameState): void {
       showCommsOverlay(msg, onContinue);
     },
   };
-
-  runner = new SceneRunner(
-    state,
-    config,
-    registry,
-    communitiesData,
-    callbacks
-  );
-
-  runner.start();
 }
 
 // ─── Dialogue Sequencer ───────────────────────────────────────────────────────
@@ -333,7 +459,7 @@ function runDialogueSequence(
 boot().catch((err) => {
   console.error('[main] Boot failed:', err);
   document.body.innerHTML = `
-    <div style="color:#ff3b30;font-family:monospace;padding:40px">
+    <div style="color:var(--gui-accent-danger,#ff3b30);font-family:var(--gui-font-mono,monospace);padding:40px">
       <h2>BOOT FAILURE</h2>
       <pre>${String(err)}</pre>
     </div>

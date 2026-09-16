@@ -1,0 +1,232 @@
+/* =============================================================================
+   GameUI Layout
+   -----------------------------------------------------------------------------
+   New-construction family (charter §2 v1). Two structural primitives:
+     1. Two-pane shell — side panel + main viewport; the session container.
+     2. Flyout drawer  — overlay panel for settings, inventory, etc.
+
+   Both use ARIA landmarks (complementary, main, dialog) and respond to the
+   keyboard. The layout.js factory wires the drawer's show/hide/toggle and
+   Escape-to-close; the shell is structural and accepts any content.
+   =============================================================================
+
+   HTML (shell — side width via --gui-shell-side-width):
+     <div class="gui-shell gui-shell--left" style="--gui-shell-side-width: 320px">
+       <header class="gui-shell__header" role="banner"> ...top bar... </header>
+       <aside class="gui-shell__side" role="complementary"> ...side panel... </aside>
+       <main class="gui-shell__main" role="main"> ...viewport... </main>
+     </div>
+
+   HTML (drawer):
+     <aside class="gui-drawer gui-drawer--right" aria-hidden="true" role="dialog"
+            aria-modal="false" aria-labelledby="d-title">
+       <div class="gui-drawer__backdrop" data-close></div>
+       <div class="gui-drawer__panel">
+         <header class="gui-drawer__header">
+           <h2 class="gui-drawer__title" id="d-title">Settings</h2>
+           <button class="gui-drawer__close" data-close aria-label="Close">✕</button>
+         </header>
+         <div class="gui-drawer__body"> ...content... </div>
+       </div>
+     </aside>
+   =============================================================================
+*/
+
+/* -----------------------------------------------------------------------------
+   §1. Two-pane shell
+   ------------------------------------------------------------------------- */
+
+.gui-shell {
+  --gui-shell-side-width: 320px;
+
+  display: grid;
+  grid-template-columns: var(--gui-shell-side-width) 1fr;
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    "header header"
+    "side   main";
+  gap: var(--gui-space-md);
+  min-height: 100%;
+  width: 100%;
+}
+
+/* Right-side variant flips the columns. */
+.gui-shell--right {
+  grid-template-columns: 1fr var(--gui-shell-side-width);
+  grid-template-areas:
+    "header header"
+    "main   side";
+}
+
+.gui-shell__header {
+  grid-area: header;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gui-space-md);
+  padding: var(--gui-space-md) var(--gui-space-lg);
+  border-radius: var(--gui-radius-md);
+  background: var(--gui-surface);
+  border: var(--gui-border-width) solid var(--gui-border);
+}
+
+.gui-shell__side {
+  grid-area: side;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gui-space-md);
+  min-height: 0;
+}
+
+.gui-shell__main {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gui-space-md);
+  min-height: 0;
+}
+
+@media (max-width: 900px) {
+  .gui-shell,
+  .gui-shell--right {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "header"
+      "side"
+      "main";
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   §2. Flyout drawer
+   -------------------------------------------------------------------------
+   Non-modal by default (aria-modal=false): the drawer overlays the viewport
+   but does not trap focus the way a modal does. Escape closes it; the factory
+   restores focus to the opener on close.
+   -------------------------------------------------------------------------- */
+
+.gui-drawer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--gui-z-overlay);
+  pointer-events: none;
+}
+
+.gui-drawer.is-open {
+  pointer-events: auto;
+}
+
+.gui-drawer__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transition: opacity var(--gui-duration-md) var(--gui-ease-out);
+}
+
+.gui-drawer.is-open .gui-drawer__backdrop {
+  opacity: 1;
+}
+
+.gui-drawer__panel {
+  --drawer-accent: var(--gui-accent-primary);
+  --drawer-accent-rgb: var(--gui-accent-primary-rgb);
+
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: min(380px, 90vw);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gui-space-md);
+  padding: var(--gui-space-md);
+  background-color: var(--gui-surface-strong);
+  border: var(--gui-border-width-strong) solid var(--drawer-accent);
+  box-shadow:
+    0 0 var(--gui-glow-blur) rgba(var(--drawer-accent-rgb), calc(var(--gui-glow-alpha) * 0.5)),
+    var(--gui-shadow-lg);
+  overflow: auto;
+  transition: transform var(--gui-duration-md) var(--gui-ease-out);
+}
+
+/* Accent modifiers tint the panel border + glow. */
+.gui-drawer--primary .gui-drawer__panel { --drawer-accent: var(--gui-accent-primary); --drawer-accent-rgb: var(--gui-accent-primary-rgb); }
+.gui-drawer--success .gui-drawer__panel { --drawer-accent: var(--gui-accent-success); --drawer-accent-rgb: var(--gui-accent-success-rgb); }
+.gui-drawer--warning .gui-drawer__panel { --drawer-accent: var(--gui-accent-warning); --drawer-accent-rgb: var(--gui-accent-warning-rgb); }
+.gui-drawer--danger  .gui-drawer__panel { --drawer-accent: var(--gui-accent-danger);  --drawer-accent-rgb: var(--gui-accent-danger-rgb); }
+.gui-drawer--info    .gui-drawer__panel { --drawer-accent: var(--gui-accent-info);    --drawer-accent-rgb: var(--gui-accent-info-rgb); }
+.gui-drawer--magic   .gui-drawer__panel { --drawer-accent: var(--gui-accent-magic);   --drawer-accent-rgb: var(--gui-accent-magic-rgb); }
+.gui-drawer--pink    .gui-drawer__panel { --drawer-accent: var(--gui-accent-pink);    --drawer-accent-rgb: var(--gui-accent-pink-rgb); }
+
+/* Slide direction per side. Closed state translates the panel off-screen. */
+.gui-drawer--left .gui-drawer__panel {
+  left: 0;
+  transform: translateX(-100%);
+}
+.gui-drawer--right .gui-drawer__panel {
+  right: 0;
+  transform: translateX(100%);
+}
+
+.gui-drawer.is-open.gui-drawer--left .gui-drawer__panel,
+.gui-drawer.is-open.gui-drawer--right .gui-drawer__panel {
+  transform: translateX(0);
+}
+
+.gui-drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gui-space-md);
+}
+
+.gui-drawer__title {
+  margin: 0;
+  font-family: var(--gui-font-display);
+  font-size: var(--gui-font-size-lg);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--gui-text);
+  text-transform: uppercase;
+}
+
+.gui-drawer__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: var(--gui-border-width) solid var(--gui-border-strong);
+  border-radius: var(--gui-radius-sm);
+  background: transparent;
+  color: var(--gui-text-muted);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: color var(--gui-duration-fast) var(--gui-ease-out);
+}
+
+.gui-drawer__close:hover {
+  color: var(--gui-accent-danger);
+}
+
+.gui-drawer__close:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--gui-surface-strong), 0 0 0 5px var(--drawer-accent);
+}
+
+.gui-drawer__body {
+  flex: 1 1 auto;
+  font-family: var(--gui-font-body);
+  color: var(--gui-text);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gui-space-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gui-drawer__panel,
+  .gui-drawer__backdrop {
+    transition-duration: 1ms;
+  }
+}

@@ -1,0 +1,197 @@
+/* =============================================================================
+   GameUI Metrics
+   -----------------------------------------------------------------------------
+   New-construction family (charter §2 v1). Three performance/telemetry
+   readouts that never touch navigator.gpu or assume a WebGPU context:
+     1. FPS sparkline   — samples requestAnimationFrame in its own loop and
+                          draws a rolling line to a <canvas>.
+     2. Frame-time card — min / max / current frame time in ms.
+     3. Stat rows       — numeric rows that accept a consumer-provided series.
+
+   The metrics.js factory owns the rAF sampling and the canvas draw. Consumers
+   call start()/stop(); the metric does not integrate with any render loop.
+   =============================================================================
+
+   HTML (emitted by the factory):
+     <div class="gui-metric gui-fps">
+       <canvas class="gui-fps__canvas" width="200" height="48"></canvas>
+       <div class="gui-fps__readout"><span class="gui-fps__value">60</span> fps</div>
+     </div>
+
+     <div class="gui-metric gui-frame-time">
+       <span class="gui-frame-time__label">Frame</span>
+       <span class="gui-frame-time__cur">16.6</span> ms
+       <span class="gui-frame-time__stat">min 14.2 / max 22.1</span>
+     </div>
+
+     <div class="gui-metric gui-stat-row">
+       <span class="gui-stat-row__label">Draw calls</span>
+       <span class="gui-stat-row__value">1 204</span>
+     </div>
+   =============================================================================
+*/
+
+/* -----------------------------------------------------------------------------
+   §1. Metric shell — shared panel-style frame
+   -------------------------------------------------------------------------- */
+
+.gui-metric {
+  --metric-accent: var(--gui-accent-primary);
+  --metric-accent-rgb: var(--gui-accent-primary-rgb);
+
+  display: flex;
+  align-items: center;
+  gap: var(--gui-space-sm);
+  padding: var(--gui-space-sm) var(--gui-space-md);
+  border-radius: var(--gui-radius-md);
+  background: var(--gui-surface);
+  border: var(--gui-border-width) solid var(--gui-border);
+  font-family: var(--gui-font-mono);
+  font-size: var(--gui-font-size-sm);
+  color: var(--gui-text);
+}
+
+.gui-metric--primary { --metric-accent: var(--gui-accent-primary); --metric-accent-rgb: var(--gui-accent-primary-rgb); }
+.gui-metric--success { --metric-accent: var(--gui-accent-success); --metric-accent-rgb: var(--gui-accent-success-rgb); }
+.gui-metric--warning { --metric-accent: var(--gui-accent-warning); --metric-accent-rgb: var(--gui-accent-warning-rgb); }
+.gui-metric--danger  { --metric-accent: var(--gui-accent-danger);  --metric-accent-rgb: var(--gui-accent-danger-rgb); }
+.gui-metric--info    { --metric-accent: var(--gui-accent-info);    --metric-accent-rgb: var(--gui-accent-info-rgb); }
+.gui-metric--magic   { --metric-accent: var(--gui-accent-magic);   --metric-accent-rgb: var(--gui-accent-magic-rgb); }
+.gui-metric--pink    { --metric-accent: var(--gui-accent-pink);    --metric-accent-rgb: var(--gui-accent-pink-rgb); }
+
+/* -----------------------------------------------------------------------------
+   §2. FPS sparkline
+   -------------------------------------------------------------------------- */
+
+.gui-fps {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--gui-space-xs);
+  min-width: 200px;
+}
+
+.gui-fps__canvas {
+  display: block;
+  width: 100%;
+  height: 48px;
+  border-radius: var(--gui-radius-sm);
+  background: var(--gui-bg);
+  border: var(--gui-border-width) solid var(--gui-border);
+}
+
+.gui-fps__readout {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--gui-space-sm);
+  font-size: var(--gui-font-size-sm);
+  color: var(--gui-text-muted);
+}
+
+.gui-fps__value {
+  font-family: var(--gui-font-mono);
+  font-size: var(--gui-font-size-lg);
+  font-weight: 700;
+  color: var(--metric-accent);
+}
+
+/* -----------------------------------------------------------------------------
+   §3. Frame-time readout
+   -------------------------------------------------------------------------- */
+
+.gui-frame-time {
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.gui-frame-time__label {
+  font-family: var(--gui-font-display);
+  font-size: var(--gui-font-size-sm);
+  color: var(--gui-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.gui-frame-time__cur {
+  font-size: var(--gui-font-size-lg);
+  font-weight: 700;
+  color: var(--metric-accent);
+}
+
+.gui-frame-time__unit {
+  color: var(--gui-text-muted);
+  font-size: var(--gui-font-size-sm);
+}
+
+.gui-frame-time__stat {
+  width: 100%;
+  color: var(--gui-text-muted);
+  font-size: 0.75rem;
+}
+
+.gui-frame-time__stat .gui-frame-time__min { color: var(--gui-accent-success); }
+.gui-frame-time__stat .gui-frame-time__max { color: var(--gui-accent-danger); }
+
+/* -----------------------------------------------------------------------------
+   §4. Numeric stat row (consumer-provided series)
+   -------------------------------------------------------------------------
+   A row holds label : value unit, plus an optional mini canvas sparkline of
+   the series the consumer has pushed via set().
+   -------------------------------------------------------------------------- */
+
+.gui-stat-row {
+  justify-content: space-between;
+  gap: var(--gui-space-md);
+}
+
+.gui-stat-row__label {
+  font-family: var(--gui-font-display);
+  font-size: var(--gui-font-size-sm);
+  color: var(--gui-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.gui-stat-row__main {
+  display: flex;
+  align-items: center;
+  gap: var(--gui-space-sm);
+}
+
+.gui-stat-row__value {
+  font-size: var(--gui-font-size-md);
+  font-weight: 700;
+  color: var(--gui-text);
+  min-width: 3em;
+  text-align: right;
+}
+
+.gui-stat-row__unit {
+  color: var(--gui-text-muted);
+  font-size: var(--gui-font-size-sm);
+}
+
+.gui-stat-row__spark {
+  width: 64px;
+  height: 18px;
+  border-radius: var(--gui-radius-sm);
+  background: var(--gui-bg);
+  border: var(--gui-border-width) solid var(--gui-border);
+}
+
+/* A vertical stack of stat rows for a telemetry panel. */
+.gui-stat-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gui-space-xs);
+}
+
+.gui-stat-panel__title {
+  margin: 0 0 var(--gui-space-xs);
+  font-family: var(--gui-font-display);
+  font-size: var(--gui-font-size-md);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--gui-text);
+  text-transform: uppercase;
+}

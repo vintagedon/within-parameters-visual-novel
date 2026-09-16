@@ -1,0 +1,85 @@
+/* =============================================================================
+   GameUI Neon Preset
+   -----------------------------------------------------------------------------
+   Six-color neon on a dark base. Sourced from the neon-ui-mega-bundle palette:
+   blue (#38bdf8), green (#22c55e), yellow (#facc15), red (#ef4444),
+   pink (#f472b6), purple (#a855f7), plus cyan (#22d3ee) for the info role.
+   Base is #020617 (Tailwind slate-950); panel surface is #0f172a (slate-900).
+
+   This file populates every token in tokens/tokens.css. It declares no new
+   properties and introduces no selectors outside :root. To switch a host
+   document from neon to dark fantasy, swap this <link> for dark-fantasy.css.
+   =============================================================================
+*/
+
+:root {
+  /* §1. Surface and text — neon runs high-contrast dark. */
+  --gui-bg: #020617;
+  --gui-surface: #0f172a;
+  --gui-surface-strong: #1e293b;
+  --gui-border: #1e293b;
+  --gui-border-strong: #334155;
+  --gui-text: #e5e7eb;
+  --gui-text-muted: #94a3b8;
+  --gui-text-on-accent: #020617;
+
+  /* §2. Accents — canonical six-color neon palette + cyan info role.
+     Each RGB triplet matches its hex; keep them in sync when editing. */
+  --gui-accent-primary: #38bdf8;
+  --gui-accent-primary-rgb: 56, 189, 248;
+
+  --gui-accent-success: #22c55e;
+  --gui-accent-success-rgb: 34, 197, 94;
+
+  --gui-accent-warning: #facc15;
+  --gui-accent-warning-rgb: 250, 204, 21;
+
+  --gui-accent-danger: #ef4444;
+  --gui-accent-danger-rgb: 239, 68, 68;
+
+  --gui-accent-info: #22d3ee;
+  --gui-accent-info-rgb: 34, 211, 238;
+
+  --gui-accent-magic: #a855f7;
+  --gui-accent-magic-rgb: 168, 85, 247;
+
+  --gui-accent-pink: #f472b6;
+  --gui-accent-pink-rgb: 244, 114, 182;
+
+  /* §3. Typography — system stack. Neon preset has no display-font
+     personality; it inherits the OS UI font. */
+  --gui-font-display: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --gui-font-body: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --gui-font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* §4. Borders — neon is moderately rounded. */
+  --gui-radius-sm: 6px;
+  --gui-radius-md: 10px;
+  --gui-radius-lg: 15px;
+  --gui-radius-pill: 999px;
+
+  /* §5. Glow — neon's signature. Bright blur, high alpha. */
+  --gui-glow-blur: 10px;
+  --gui-glow-spread: 0px;
+  --gui-glow-alpha: 0.55;
+
+  /* §6. Spacing — inherited from contract defaults. */
+  --gui-space-xs: 4px;
+  --gui-space-sm: 8px;
+  --gui-space-md: 16px;
+  --gui-space-lg: 24px;
+  --gui-space-xl: 40px;
+
+  /* §7. Shadow — neon shadows are deep and slightly bluish. */
+  --gui-shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.45);
+  --gui-shadow-md: 0 12px 32px rgba(0, 0, 0, 0.55);
+  --gui-shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.65);
+
+  /* §8. Motion — snappy, slightly bouncy. */
+  --gui-duration-fast: 80ms;
+  --gui-duration-md: 200ms;
+  --gui-duration-slow: 320ms;
+  --gui-ease-out: cubic-bezier(0.2, 0.9, 0.2, 1);
+  --gui-ease-in: ease-in;
+  --gui-ease-in-out: ease-in-out;
+}

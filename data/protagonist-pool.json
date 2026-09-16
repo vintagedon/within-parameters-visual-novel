@@ -1,0 +1,94 @@
+{
+  "_comment": "Protagonist generation pool (spec A2). Name pools, surnames, stations, backstory flavor/epilogue text, and the name-index -> portrait-key map. Backstory text uses controlled {slots} resolved at render time: {name}/{Name}, {pronoun}/{Pronoun} (subject: she/he), {pronoun_obj}/{Pronoun_obj} (her/him), {pronoun_poss}/{Pronoun_poss} (her/his), {station}/{Station}. Subject pronouns are only used in modal/past constructions so she/he both agree.",
+  "names": {
+    "poolA": ["Mara", "Kira", "Dani", "Joss", "Reese", "Tamsin", "Asha", "Lena"],
+    "poolB": ["Cole", "Reza", "Hale", "Niko", "Dex", "Marsh", "Joaquin", "Samir"],
+    "surnames": ["Vasquez", "Osei", "Novak", "Tran", "Aguilar", "Marsh", "Reeves", "Kato", "Adeyemi", "Volkov"]
+  },
+  "stations": [
+    "Deepwell Station",
+    "Foggy Bottom Relay",
+    "Silver Spring Junction",
+    "Georgetown Hydro",
+    "Ninth Street Substation",
+    "Rhode Island Junction"
+  ],
+  "backstories": [
+    {
+      "id": "bs-water-systems",
+      "title": "Water Systems Transfer",
+      "flavor": "Former water reclamation tech. Transferred to relay work after {station}'s filtration cascade three years ago. Knows pressure differentials and pump architecture better than most engineers. Took the relay cert because standing around watching gauges wasn't cutting it anymore.",
+      "epilogue": {
+        "correction": "The filtration knowledge from {station} paid off twice today.",
+        "destruction": "Another cascade. This time, {pronoun} couldn't stop it at the source."
+      }
+    },
+    {
+      "id": "bs-tunnel-surveyor",
+      "title": "Tunnel Surveyor",
+      "flavor": "Former tunnel surveyor for the eastern expansion project. Mapped twelve kilometers of unmaintained corridor before the project was shelved. Reassigned to relay maintenance because the corps needed bodies and {pronoun} already knew the tunnels.",
+      "epilogue": {
+        "correction": "Twelve kilometers of survey work and it led here. Worth it.",
+        "destruction": "The maps were right. The destination was wrong."
+      }
+    },
+    {
+      "id": "bs-apprentice-legacy",
+      "title": "Apprentice Legacy",
+      "flavor": "Apprentice-trained under RELAY-4, the last tech who tried to trace the infrastructure failures to their source. RELAY-4 went into the eastern maintenance network nine months ago and didn't come back. Dispatch listed it as a structural collapse. The relay corps doesn't talk about it.",
+      "epilogue": {
+        "correction": "RELAY-4 would have done the same thing. Maybe {pronoun} tried.",
+        "destruction": "Now {pronoun} knew what stopped RELAY-4."
+      }
+    },
+    {
+      "id": "bs-station-born",
+      "title": "Station-Born",
+      "flavor": "Born at {station}. {Name} left to join the relay corps at seventeen because the station walls were closing in. {Station} is still home. The people there still wave when {pronoun} passes through on rotation.",
+      "epilogue": {
+        "correction": "{Station}'s lights are still on. That's what matters.",
+        "destruction": "{Station} is dark. {Pronoun} could see it from here."
+      }
+    },
+    {
+      "id": "bs-infrastructure-lineage",
+      "title": "Infrastructure Lineage",
+      "flavor": "Third generation infrastructure. Grandmother was a power systems engineer before the collapse. The diagnostic tools in the kit are inherited. The instinct for tracing faults through complex systems might be too.",
+      "epilogue": {
+        "correction": "Three generations of keeping the lights on. Still holding.",
+        "destruction": "Grandmother built things that lasted. This wasn't one of them."
+      }
+    },
+    {
+      "id": "bs-walk-in",
+      "title": "Walk-In",
+      "flavor": "Walked in from the southern tunnel network three years ago. No station of origin on file. The relay corps took {pronoun_obj} because {pronoun} could already read a schematic and the corps doesn't ask questions. Dispatch suspects {pronoun} came from somewhere that doesn't exist anymore.",
+      "epilogue": {
+        "correction": "{Pronoun} came from a place that died. This one didn't have to.",
+        "destruction": "{Pronoun} came from a place that died. This one did too."
+      }
+    }
+  ],
+  "portraitKeys": {
+    "female": [
+      "protagonist-female",
+      "protagonist-female",
+      "protagonist-female",
+      "protagonist-female",
+      "protagonist-female",
+      "protagonist-female",
+      "protagonist-female",
+      "protagonist-female"
+    ],
+    "male": [
+      "protagonist-male",
+      "protagonist-male",
+      "protagonist-male",
+      "protagonist-male",
+      "protagonist-male",
+      "protagonist-male",
+      "protagonist-male",
+      "protagonist-male"
+    ]
+  }
+}

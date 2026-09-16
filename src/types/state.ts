@@ -80,6 +80,11 @@ export interface ProtagonistIdentity {
   positiveTrait: PositiveTraitId | null;
   /** Rolled negative trait; null until A2 assigns one. */
   negativeTrait: NegativeTraitId | null;
+  /**
+   * Rolled home station (spec A2). Stable per run: resolves the {station}
+   * slot in backstory flavor and epilogue text. Null until chargen assigns one.
+   */
+  station: string | null;
 }
 
 // ─── Player stats & clock ─────────────────────────────────────────────────────

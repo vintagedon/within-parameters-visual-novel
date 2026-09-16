@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "replay": "node scripts/run-replay.mjs 5000",
     "replay:fast": "node scripts/run-replay.mjs 2000",
-    "replay:full": "node scripts/run-replay.mjs 10000"
+    "replay:full": "node scripts/run-replay.mjs 10000",
+    "test:screens": "/opt/agents/venv/bin/python tests/capture.py",
+    "test:screens:check": "/opt/agents/venv/bin/python tests/capture.py --check"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",

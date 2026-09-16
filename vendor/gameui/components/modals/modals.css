@@ -1,0 +1,243 @@
+/* =============================================================================
+   GameUI Modals and Dialogs (Chrome Only)
+   -----------------------------------------------------------------------------
+   Extracted and sanitized from neon-ui-mega-bundle/panels-and-windows/. The
+   source pack's .overlay-demo/.overlay-window pattern is generalized here as
+   .gui-modal with role=dialog and ARIA scaffolding for the factory wiring
+   that lands in spec 03 (focus management, Esc-to-close, backdrop click).
+
+   This file ships chrome only. There is no JavaScript: no open/close, no
+   focus trap, no animation orchestration. The gallery renders one open
+   modal statically; spec 03 wires the .is-open class toggle and behavior.
+
+   HTML (modal):
+     <div class="gui-modal is-open" role="dialog" aria-modal="true"
+          aria-labelledby="purchase-title">
+       <div class="gui-modal__backdrop" data-close></div>
+       <div class="gui-modal__dialog">
+         <div class="gui-modal__header">
+           <h2 class="gui-modal__title" id="purchase-title">Confirm Purchase</h2>
+           <button class="gui-modal__close" aria-label="Close dialog" data-close>✕</button>
+         </div>
+         <div class="gui-modal__body">
+           <p>Spend 50 gold on this item?</p>
+         </div>
+         <div class="gui-modal__footer">
+           <button class="gui-btn gui-btn--ghost" data-close>Cancel</button>
+           <button class="gui-btn gui-btn--success">Confirm</button>
+         </div>
+       </div>
+     </div>
+
+   HTML (alert variant — color modifier, smaller dialog):
+     <div class="gui-modal is-open gui-modal--dialog gui-modal--danger" role="alertdialog"
+          aria-modal="true" aria-labelledby="alert-title" aria-describedby="alert-body">
+       ... same anatomy ...
+     </div>
+   =============================================================================
+*/
+
+/* -----------------------------------------------------------------------------
+   §1. Backdrop and visibility
+   -------------------------------------------------------------------------
+   The modal is hidden by default; .is-open reveals it. The factory in spec
+   03 toggles .is-open. The backdrop and dialog are siblings inside .gui-modal
+   so the consumer can place the backdrop click handler on its own element.
+   -------------------------------------------------------------------------- */
+
+.gui-modal {
+  position: fixed;
+  inset: 0;
+  z-index: var(--gui-z-modal);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: var(--gui-space-lg);
+}
+
+.gui-modal.is-open {
+  display: flex;
+  animation: gui-modal-fade var(--gui-duration-md) var(--gui-ease-out);
+}
+
+.gui-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(2px);
+}
+
+/* -----------------------------------------------------------------------------
+   §2. Dialog window
+   -------------------------------------------------------------------------
+   Mirrors .gui-panel chrome for visual consistency. Color modifiers tint
+   the border and glow to convey severity (success/warning/danger) without
+   altering structure.
+   -------------------------------------------------------------------------- */
+
+.gui-modal__dialog {
+  --modal-accent: var(--gui-accent-primary);
+  --modal-accent-rgb: var(--gui-accent-primary-rgb);
+
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  width: min(520px, 100%);
+  max-height: calc(100vh - 2 * var(--gui-space-lg));
+  overflow: auto;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--gui-space-md);
+  padding: var(--gui-space-lg);
+  border-radius: var(--gui-radius-lg);
+  border: var(--gui-border-width-strong) solid var(--modal-accent);
+
+  background-color: var(--gui-surface-strong);
+  background-image: var(--gui-panel-bg-image);
+  background-size: cover;
+
+  box-shadow:
+    0 0 var(--gui-glow-blur) rgba(var(--modal-accent-rgb), calc(var(--gui-glow-alpha) * 0.7)),
+    var(--gui-shadow-lg);
+
+  animation: gui-modal-pop var(--gui-duration-md) var(--gui-ease-out);
+}
+
+/* Color modifiers carry severity. */
+.gui-modal--success {
+  --modal-accent: var(--gui-accent-success);
+  --modal-accent-rgb: var(--gui-accent-success-rgb);
+}
+.gui-modal--warning {
+  --modal-accent: var(--gui-accent-warning);
+  --modal-accent-rgb: var(--gui-accent-warning-rgb);
+}
+.gui-modal--danger {
+  --modal-accent: var(--gui-accent-danger);
+  --modal-accent-rgb: var(--gui-accent-danger-rgb);
+}
+.gui-modal--magic {
+  --modal-accent: var(--gui-accent-magic);
+  --modal-accent-rgb: var(--gui-accent-magic-rgb);
+}
+
+/* Dialog variant: smaller, tighter padding — used for confirm/alert flows. */
+.gui-modal--dialog .gui-modal__dialog,
+.gui-modal.gui-modal--dialog {
+  width: min(420px, 100%);
+}
+
+.gui-modal--dialog .gui-modal__dialog {
+  padding: var(--gui-space-md);
+}
+
+/* -----------------------------------------------------------------------------
+   §3. Dialog anatomy
+   -------------------------------------------------------------------------- */
+
+.gui-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gui-space-md);
+}
+
+.gui-modal__title {
+  margin: 0;
+  font-family: var(--gui-font-display);
+  font-size: var(--gui-font-size-xl);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--gui-text);
+  text-transform: uppercase;
+}
+
+.gui-modal__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: var(--gui-border-width) solid var(--gui-border-strong);
+  border-radius: var(--gui-radius-sm);
+  background: transparent;
+  color: var(--gui-text-muted);
+  font-family: var(--gui-font-body);
+  font-size: 1rem;
+  cursor: pointer;
+  transition:
+    color var(--gui-duration-fast) var(--gui-ease-out),
+    border-color var(--gui-duration-fast) var(--gui-ease-out),
+    box-shadow var(--gui-duration-fast) var(--gui-ease-out);
+}
+
+.gui-modal__close:hover {
+  color: var(--gui-accent-danger);
+  border-color: var(--gui-accent-danger);
+  box-shadow: 0 0 var(--gui-glow-blur) rgba(var(--gui-accent-danger-rgb), var(--gui-glow-alpha));
+}
+
+.gui-modal__close:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px var(--gui-surface-strong),
+    0 0 0 5px var(--modal-accent);
+}
+
+.gui-modal__body {
+  font-family: var(--gui-font-body);
+  font-size: var(--gui-font-size-md);
+  color: var(--gui-text);
+  line-height: 1.5;
+}
+
+.gui-modal__body p {
+  margin: 0 0 var(--gui-space-sm);
+}
+
+.gui-modal__body p:last-child {
+  margin-bottom: 0;
+}
+
+.gui-modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--gui-space-sm);
+}
+
+/* -----------------------------------------------------------------------------
+   §4. Animations
+   -------------------------------------------------------------------------
+   Entrance only. Exit animation is the factory's job (spec 03) because it
+   requires a close handler to hold .is-open long enough to play.
+   -------------------------------------------------------------------------- */
+
+@keyframes gui-modal-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes gui-modal-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gui-modal.is-open,
+  .gui-modal__dialog {
+    animation-duration: 1ms;
+  }
+}

@@ -1,0 +1,286 @@
+/* =============================================================================
+   GameUI Stat Displays
+   -----------------------------------------------------------------------------
+   Extracted and sanitized from ui-theme-dark-fantasy/ (orb-icon bar pattern,
+   HP/mana/XP roles) and neon-ui-mega-bundle/ui-sliders-and-bars/ (segmented
+   and dual-bar patterns, the --amount scaleX fill technique).
+
+   Three variants ship in this file:
+     1. Linear stat bar  — .gui-bar with --amount (0..1) driving scaleX fill
+     2. Segmented stat bar — .gui-bar--segmented with N pip elements; consumer
+        marks the first M with .is-filled
+     3. Orb-icon stat bar — .gui-bar--has-orb prepends a circular icon. The
+        icon comes from --gui-stat-orb-*-image (dark-fantasy wires real webp
+        orbs; neon falls back to a CSS-only colored badge).
+
+   HTML (linear):
+     <div class="gui-bar gui-bar--hp" style="--amount: 0.78;">
+       <div class="gui-bar__header">
+         <span class="gui-bar__label">Health</span>
+         <span class="gui-bar__value">78 / 100</span>
+       </div>
+       <div class="gui-bar__track">
+         <div class="gui-bar__fill"></div>
+       </div>
+     </div>
+
+   HTML (orb-icon):
+     <div class="gui-bar gui-bar--hp gui-bar--has-orb" style="--amount: 0.78;">
+       <span class="gui-bar__orb" role="img" aria-label="Health"></span>
+       <div class="gui-bar__main">
+         <div class="gui-bar__header"> ... </div>
+         <div class="gui-bar__track"> <div class="gui-bar__fill"></div> </div>
+       </div>
+     </div>
+
+   HTML (segmented):
+     <div class="gui-bar gui-bar--xp gui-bar--segmented">
+       <div class="gui-bar__header">
+         <span class="gui-bar__label">Skill Slots</span>
+         <span class="gui-bar__value">5 / 8</span>
+       </div>
+       <div class="gui-bar__segments">
+         <span class="gui-bar__pip is-filled"></span>
+         <span class="gui-bar__pip is-filled"></span>
+         <span class="gui-bar__pip is-filled"></span>
+         <span class="gui-bar__pip is-filled"></span>
+         <span class="gui-bar__pip is-filled"></span>
+         <span class="gui-bar__pip"></span>
+         <span class="gui-bar__pip"></span>
+         <span class="gui-bar__pip"></span>
+       </div>
+     </div>
+   =============================================================================
+*/
+
+/* -----------------------------------------------------------------------------
+   §1. Base stat bar
+   -------------------------------------------------------------------------
+   The wrapper carries the --amount custom property (0..1) that drives the
+   fill's scaleX transform. The color modifier classes set the local
+   --bar-accent / --bar-accent-rgb vars consumed by the fill.
+   -------------------------------------------------------------------------- */
+
+.gui-bar {
+  /* Local accent vars default to primary; modifier classes override. */
+  --bar-accent: var(--gui-accent-primary);
+  --bar-accent-rgb: var(--gui-accent-primary-rgb);
+  /* Fill ratio in 0..1. Default 1 (full) so an unset bar still shows. */
+  --amount: 1;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--gui-space-xs);
+  font-family: var(--gui-font-body);
+}
+
+.gui-bar__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--gui-space-sm);
+}
+
+.gui-bar__label {
+  font-size: var(--gui-font-size-sm);
+  font-weight: 600;
+  color: var(--gui-text);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.gui-bar__value {
+  font-family: var(--gui-font-mono);
+  font-size: var(--gui-font-size-sm);
+  color: var(--gui-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.gui-bar__track {
+  position: relative;
+  overflow: hidden;
+  height: 14px;
+  border-radius: var(--gui-radius-pill);
+  background: var(--gui-surface-strong);
+  border: var(--gui-border-width) solid var(--gui-border-strong);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.gui-bar__fill {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--gui-radius-pill);
+  background-image: linear-gradient(
+    90deg,
+    rgba(var(--bar-accent-rgb), 1),
+    rgba(var(--bar-accent-rgb), 0.7)
+  );
+  box-shadow: 0 0 var(--gui-glow-blur) rgba(var(--bar-accent-rgb), var(--gui-glow-alpha));
+  /* scaleX keeps repaints off the main thread when --amount animates; the
+     wrapper carries the value so consumers update one property. */
+  transform-origin: left center;
+  transform: scaleX(var(--amount));
+  transition: transform var(--gui-duration-md) var(--gui-ease-out);
+}
+
+/* -----------------------------------------------------------------------------
+   §2. Color modifiers — five roles matching the source-pack bar families
+   -------------------------------------------------------------------------
+   neon-ui-mega-bundle shipped hp/shield/xp/loading/energy; we map them to
+   danger/success/magic/warning/info respectively.
+   -------------------------------------------------------------------------- */
+
+.gui-bar--hp,
+.gui-bar--danger {
+  --bar-accent: var(--gui-accent-danger);
+  --bar-accent-rgb: var(--gui-accent-danger-rgb);
+}
+.gui-bar--shield,
+.gui-bar--success {
+  --bar-accent: var(--gui-accent-success);
+  --bar-accent-rgb: var(--gui-accent-success-rgb);
+}
+.gui-bar--xp,
+.gui-bar--magic {
+  --bar-accent: var(--gui-accent-magic);
+  --bar-accent-rgb: var(--gui-accent-magic-rgb);
+}
+.gui-bar--load,
+.gui-bar--warning {
+  --bar-accent: var(--gui-accent-warning);
+  --bar-accent-rgb: var(--gui-accent-warning-rgb);
+}
+.gui-bar--energy,
+.gui-bar--info {
+  --bar-accent: var(--gui-accent-info);
+  --bar-accent-rgb: var(--gui-accent-info-rgb);
+}
+.gui-bar--mana {
+  --bar-accent: var(--gui-accent-info);
+  --bar-accent-rgb: var(--gui-accent-info-rgb);
+}
+
+/* -----------------------------------------------------------------------------
+   §3. Orb-icon variant
+   -------------------------------------------------------------------------
+   Adds a 48×48 circular icon to the left of the bar. The icon comes from
+   the --gui-stat-orb-*-image token (wired by the dark-fantasy preset to a
+   real webp asset; neon leaves it as `none` and the CSS renders a colored
+   disc instead). The orb's accent is set per-role via the .gui-bar--*
+   modifier already applied to the wrapper.
+   -------------------------------------------------------------------------- */
+
+.gui-bar--has-orb {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--gui-space-md);
+}
+
+.gui-bar__main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gui-space-xs);
+}
+
+.gui-bar__orb {
+  flex: 0 0 auto;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: rgba(var(--bar-accent-rgb), 0.25);
+  background-image: var(--gui-stat-orb-health-image);
+  background-size: cover;
+  background-position: center;
+  border: var(--gui-border-width-strong) solid var(--bar-accent);
+  box-shadow:
+    0 0 var(--gui-glow-blur) rgba(var(--bar-accent-rgb), var(--gui-glow-alpha)),
+    inset 0 0 12px rgba(0, 0, 0, 0.4);
+}
+
+/* Per-role orb images: when the wrapper modifier matches a role with its own
+   orb asset, swap the background-image. The dark-fantasy preset ships
+   health-orb and mana-orb; XP stays CSS-only via the fallback chain. */
+.gui-bar--hp .gui-bar__orb {
+  background-image: var(--gui-stat-orb-health-image);
+}
+.gui-bar--mana .gui-bar__orb {
+  background-image: var(--gui-stat-orb-mana-image);
+}
+.gui-bar--xp .gui-bar__orb {
+  background-image: var(--gui-stat-orb-xp-image);
+}
+
+/* CSS-only orb label, shown only when no image resolved. Renders the role's
+   uppercase initial centered in the disc. The .gui-bar__orb already has its
+   background set; this pseudo-element layers text on top and is hidden
+   automatically when an image is present (background-image != none check is
+   not possible in pure CSS, so we use the .gui-bar--has-orb--text modifier
+   on the consumer side to opt in). */
+.gui-bar__orb--text::after {
+  content: attr(data-label);
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  font-family: var(--gui-font-display);
+  font-weight: 700;
+  font-size: var(--gui-font-size-sm);
+  color: var(--bar-accent);
+  text-transform: uppercase;
+}
+
+.gui-bar__orb {
+  position: relative;
+}
+
+/* -----------------------------------------------------------------------------
+   §4. Segmented variant
+   -------------------------------------------------------------------------
+   The consumer emits N .gui-bar__pip elements and adds .is-filled to the
+   first M. CSS sizes the pips evenly via flex and styles filled vs empty.
+   -------------------------------------------------------------------------- */
+
+.gui-bar--segmented .gui-bar__track {
+  display: none;
+}
+
+.gui-bar__segments {
+  display: flex;
+  gap: 4px;
+  height: 14px;
+}
+
+.gui-bar__pip {
+  flex: 1 1 0;
+  border-radius: var(--gui-radius-sm);
+  background: var(--gui-surface-strong);
+  border: var(--gui-border-width) solid var(--gui-border-strong);
+  transition:
+    background-color var(--gui-duration-md) var(--gui-ease-out),
+    border-color var(--gui-duration-md) var(--gui-ease-out),
+    box-shadow var(--gui-duration-md) var(--gui-ease-out);
+}
+
+.gui-bar__pip.is-filled {
+  background: rgba(var(--bar-accent-rgb), 0.85);
+  border-color: var(--bar-accent);
+  box-shadow: 0 0 6px rgba(var(--bar-accent-rgb), var(--gui-glow-alpha));
+}
+
+/* -----------------------------------------------------------------------------
+   §5. Dual bar — two stacked bars sharing a header (e.g. HP + Shield)
+   -------------------------------------------------------------------------
+   The consumer nests two .gui-bar elements inside .gui-bar-group; the group
+   applies vertical spacing. Each child bar carries its own --amount and
+   color modifier independently.
+   -------------------------------------------------------------------------- */
+
+.gui-bar-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gui-space-sm);
+}

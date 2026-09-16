@@ -1,0 +1,217 @@
+/* =============================================================================
+   GameUI Panels
+   -----------------------------------------------------------------------------
+   Extracted and sanitized from neon-ui-mega-bundle/panels-and-windows/ and
+   ui-theme-dark-fantasy/. The neon source supplies the panel-header/body/
+   footer structure and the color-modifier vocabulary; the dark-fantasy source
+   supplies the textured background and box-shadow border treatment. Both are
+   unified under .gui-panel and switched by preset.
+
+   HTML:
+     <div class="gui-panel gui-panel--primary">
+       <div class="gui-panel__header">
+         <div class="gui-panel__title">Character Status</div>
+         <div class="gui-panel__dots">
+           <span class="gui-panel__dot gui-panel__dot--danger"></span>
+           <span class="gui-panel__dot gui-panel__dot--warning"></span>
+           <span class="gui-panel__dot gui-panel__dot--success"></span>
+         </div>
+       </div>
+       <div class="gui-panel__subtitle">Level 12 · Sorcerer</div>
+       <div class="gui-panel__body"> ...panel content... </div>
+       <div class="gui-panel__footer">
+         <span class="gui-panel__chip">Save</span>
+         <span class="gui-panel__chip gui-panel__chip--solid">Exit</span>
+       </div>
+     </div>
+   =============================================================================
+*/
+
+/* -----------------------------------------------------------------------------
+   §1. Base panel chrome
+   -------------------------------------------------------------------------
+   The default panel has a neutral border. A color modifier class adds the
+   accent border + glow. The structural default --gui-panel-bg-image is none
+   (neon); dark-fantasy overrides it with a url() to a texture asset.
+   -------------------------------------------------------------------------- */
+
+.gui-panel {
+  /* Local accent vars default to the surface role; color modifiers override. */
+  --panel-accent: var(--gui-border-strong);
+  --panel-accent-rgb: 51, 65, 85;
+
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gui-space-md);
+
+  padding: var(--gui-space-lg);
+  border-radius: var(--gui-radius-lg);
+  border: var(--gui-border-width-strong) solid var(--panel-accent);
+
+  /* Surface fills behind any optional background image. */
+  background-color: var(--gui-surface);
+  background-image: var(--gui-panel-bg-image);
+  background-size: cover;
+  background-position: center;
+
+  /* Outer accent glow tuned by the preset's --gui-glow-blur/alpha. */
+  box-shadow:
+    0 0 var(--gui-glow-blur) rgba(var(--panel-accent-rgb), calc(var(--gui-glow-alpha) * 0.6)),
+    var(--gui-shadow-md);
+}
+
+/* Inner accent ring — subtle inset that reads as the panel "frame" without
+   competing with the outer glow. Pseudo-element keeps DOM clean. */
+.gui-panel::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border: var(--gui-border-width) solid rgba(var(--panel-accent-rgb), 0.25);
+  border-radius: calc(var(--gui-radius-lg) - 4px);
+  pointer-events: none;
+}
+
+/* -----------------------------------------------------------------------------
+   §2. Color modifiers — five accent roles map to source-pack panel variants
+   -------------------------------------------------------------------------
+   neon-ui-mega-bundle shipped main/settings/shop/dialogue/warning; we map
+   those to the primary/magic/success/pink/warning roles respectively. The
+   component treats them identically: they only swap the local accent vars.
+   -------------------------------------------------------------------------- */
+
+.gui-panel--primary {
+  --panel-accent: var(--gui-accent-primary);
+  --panel-accent-rgb: var(--gui-accent-primary-rgb);
+}
+.gui-panel--magic {
+  --panel-accent: var(--gui-accent-magic);
+  --panel-accent-rgb: var(--gui-accent-magic-rgb);
+}
+.gui-panel--success {
+  --panel-accent: var(--gui-accent-success);
+  --panel-accent-rgb: var(--gui-accent-success-rgb);
+}
+.gui-panel--pink {
+  --panel-accent: var(--gui-accent-pink);
+  --panel-accent-rgb: var(--gui-accent-pink-rgb);
+}
+.gui-panel--warning {
+  --panel-accent: var(--gui-accent-warning);
+  --panel-accent-rgb: var(--gui-accent-warning-rgb);
+}
+.gui-panel--danger {
+  --panel-accent: var(--gui-accent-danger);
+  --panel-accent-rgb: var(--gui-accent-danger-rgb);
+}
+.gui-panel--info {
+  --panel-accent: var(--gui-accent-info);
+  --panel-accent-rgb: var(--gui-accent-info-rgb);
+}
+
+/* -----------------------------------------------------------------------------
+   §3. Panel anatomy
+   -------------------------------------------------------------------------- */
+
+.gui-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gui-space-md);
+}
+
+.gui-panel__title {
+  font-family: var(--gui-font-display);
+  font-size: var(--gui-font-size-lg);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--gui-text);
+  text-transform: uppercase;
+}
+
+.gui-panel__subtitle {
+  margin-top: calc(var(--gui-space-sm) * -1);
+  font-family: var(--gui-font-body);
+  font-size: var(--gui-font-size-sm);
+  color: var(--gui-text-muted);
+}
+
+.gui-panel__body {
+  font-family: var(--gui-font-body);
+  font-size: var(--gui-font-size-md);
+  color: var(--gui-text);
+  line-height: 1.5;
+}
+
+.gui-panel__body p {
+  margin: 0 0 var(--gui-space-sm);
+}
+
+.gui-panel__body p:last-child {
+  margin-bottom: 0;
+}
+
+.gui-panel__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--gui-space-sm);
+  margin-top: auto;
+  padding-top: var(--gui-space-sm);
+  border-top: var(--gui-border-width) solid var(--gui-border);
+}
+
+/* -----------------------------------------------------------------------------
+   §4. Status dots — optional decorative indicators in the panel header
+   -------------------------------------------------------------------------- */
+
+.gui-panel__dots {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.gui-panel__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--gui-text-muted);
+}
+
+.gui-panel__dot--danger {
+  background: var(--gui-accent-danger);
+  box-shadow: 0 0 6px rgba(var(--gui-accent-danger-rgb), var(--gui-glow-alpha));
+}
+.gui-panel__dot--warning {
+  background: var(--gui-accent-warning);
+  box-shadow: 0 0 6px rgba(var(--gui-accent-warning-rgb), var(--gui-glow-alpha));
+}
+.gui-panel__dot--success {
+  background: var(--gui-accent-success);
+  box-shadow: 0 0 6px rgba(var(--gui-accent-success-rgb), var(--gui-glow-alpha));
+}
+
+/* -----------------------------------------------------------------------------
+   §5. Chips — small footer/header action labels
+   -------------------------------------------------------------------------
+   Chips mirror the .chip class from neon-ui-mega-bundle. They are not
+   interactive on their own; pair with <button class="gui-btn"> when an
+   action is needed. The solid modifier is the filled variant.
+   -------------------------------------------------------------------------- */
+
+.gui-panel__chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: var(--gui-radius-pill);
+  border: var(--gui-border-width) solid var(--panel-accent);
+  font-family: var(--gui-font-display);
+  font-size: var(--gui-font-size-sm);
+  color: var(--panel-accent);
+  background: transparent;
+}
+
+.gui-panel__chip--solid {
+  background: var(--panel-accent);
+  color: var(--gui-text-on-accent);
+}

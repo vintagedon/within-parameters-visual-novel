@@ -1,0 +1,269 @@
+/* =============================================================================
+   GameUI Buttons
+   -----------------------------------------------------------------------------
+   Extracted and sanitized from neon-ui-mega-bundle/buttons/. The source pack
+   ships zero external dependencies and zero binary assets; only class names
+   were renamed to the gui- namespace and color literals were promoted to
+   accent-role tokens.
+
+   Composition model: every visual variant is two classes. The base .gui-btn
+   resets the native <button> and supplies typography, padding, transitions,
+   and the focus-visible ring. A variant class then supplies color (one of
+   the seven accent roles) and optionally a style modifier (solid, outline,
+   ghost, pill). Status variants ship as self-contained presets.
+
+   HTML:
+     <button class="gui-btn gui-btn--primary">Label</button>
+     <button class="gui-btn gui-btn--success gui-btn--outline">Confirm</button>
+     <button class="gui-btn gui-btn--pill gui-btn--magic">Buy</button>
+     <button class="gui-btn gui-btn--icon gui-btn--warning">
+       <span class="gui-btn__icon">▶</span><span>Play</span>
+     </button>
+     <button class="gui-btn gui-btn--square gui-btn--primary" aria-label="Settings">⚙</button>
+     <button class="gui-btn gui-btn--tab is-active">Tab one</button>
+     <button class="gui-btn gui-btn--status-success">Saved</button>
+   =============================================================================
+*/
+
+/* -----------------------------------------------------------------------------
+   §1. Base reset
+   -------------------------------------------------------------------------- */
+
+.gui-btn {
+  /* Local accent vars default to primary; color modifier classes override. */
+  --btn-accent: var(--gui-accent-primary);
+  --btn-accent-rgb: var(--gui-accent-primary-rgb);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--gui-space-sm);
+  box-sizing: border-box;
+
+  margin: 0;
+  border: var(--gui-border-width-strong) solid transparent;
+  padding: var(--gui-space-sm) 14px;
+  border-radius: var(--gui-radius-pill);
+
+  font-family: var(--gui-font-display);
+  font-size: var(--gui-font-size-md);
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--gui-text);
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+
+  background: transparent;
+  cursor: pointer;
+  transition:
+    transform var(--gui-duration-fast) var(--gui-ease-out),
+    box-shadow var(--gui-duration-fast) var(--gui-ease-out),
+    background-color var(--gui-duration-fast) var(--gui-ease-out),
+    border-color var(--gui-duration-fast) var(--gui-ease-out),
+    color var(--gui-duration-fast) var(--gui-ease-out);
+}
+
+.gui-btn:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px var(--gui-surface-strong),
+    0 0 0 5px rgba(var(--btn-accent-rgb), 0.9),
+    0 0 var(--gui-glow-blur) rgba(var(--btn-accent-rgb), var(--gui-glow-alpha));
+}
+
+.gui-btn:hover:not([disabled]) {
+  box-shadow: 0 0 var(--gui-glow-blur) rgba(var(--btn-accent-rgb), var(--gui-glow-alpha));
+}
+
+.gui-btn:active:not([disabled]) {
+  transform: translateY(1px) scale(0.97);
+}
+
+.gui-btn[disabled],
+.gui-btn.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* -----------------------------------------------------------------------------
+   §2. Color modifiers — set the local --btn-accent vars
+   -------------------------------------------------------------------------- */
+
+.gui-btn--primary {
+  --btn-accent: var(--gui-accent-primary);
+  --btn-accent-rgb: var(--gui-accent-primary-rgb);
+}
+.gui-btn--success {
+  --btn-accent: var(--gui-accent-success);
+  --btn-accent-rgb: var(--gui-accent-success-rgb);
+}
+.gui-btn--warning {
+  --btn-accent: var(--gui-accent-warning);
+  --btn-accent-rgb: var(--gui-accent-warning-rgb);
+}
+.gui-btn--danger {
+  --btn-accent: var(--gui-accent-danger);
+  --btn-accent-rgb: var(--gui-accent-danger-rgb);
+}
+.gui-btn--info {
+  --btn-accent: var(--gui-accent-info);
+  --btn-accent-rgb: var(--gui-accent-info-rgb);
+}
+.gui-btn--magic {
+  --btn-accent: var(--gui-accent-magic);
+  --btn-accent-rgb: var(--gui-accent-magic-rgb);
+}
+.gui-btn--pink {
+  --btn-accent: var(--gui-accent-pink);
+  --btn-accent-rgb: var(--gui-accent-pink-rgb);
+}
+
+/* -----------------------------------------------------------------------------
+   §3. Style modifiers — solid is the default
+   -------------------------------------------------------------------------- */
+
+/* Solid: filled with the accent; label uses the on-accent contrast color. */
+.gui-btn--solid,
+.gui-btn:not(.gui-btn--outline):not(.gui-btn--ghost):not(.gui-btn--pill):not(.gui-btn--status-success):not(.gui-btn--status-warning):not(.gui-btn--status-danger):not(.gui-btn--tab) {
+  background-color: var(--btn-accent);
+  border-color: var(--btn-accent);
+  color: var(--gui-text-on-accent);
+}
+
+.gui-btn--solid:hover:not([disabled]),
+.gui-btn:not(.gui-btn--outline):not(.gui-btn--ghost):not(.gui-btn--pill):not(.gui-btn--status-success):not(.gui-btn--status-warning):not(.gui-btn--status-danger):not(.gui-btn--tab):hover:not([disabled]) {
+  background-color: rgba(var(--btn-accent-rgb), 0.85);
+}
+
+/* Outline: transparent fill, accent border + label. */
+.gui-btn--outline {
+  background: transparent;
+  border-color: var(--btn-accent);
+  color: var(--btn-accent);
+}
+
+.gui-btn--outline:hover:not([disabled]) {
+  background-color: rgba(var(--btn-accent-rgb), 0.12);
+}
+
+/* Ghost: minimal, low-contrast. Used for tertiary actions and dense rows. */
+.gui-btn--ghost {
+  border-color: var(--gui-border-strong);
+  color: var(--gui-text-muted);
+}
+
+.gui-btn--ghost:hover:not([disabled]) {
+  color: var(--btn-accent);
+  border-color: var(--btn-accent);
+}
+
+/* -----------------------------------------------------------------------------
+   §4. Shape modifiers
+   -------------------------------------------------------------------------- */
+
+/* Pill: gradient fill with a soft outer glow. Always paired with a color. */
+.gui-btn--pill {
+  border: none;
+  border-radius: var(--gui-radius-pill);
+  padding: 10px 22px;
+  background-image: linear-gradient(
+    100deg,
+    rgba(var(--btn-accent-rgb), 0.95),
+    rgba(var(--btn-accent-rgb), 0.65)
+  );
+  color: var(--gui-text-on-accent);
+  box-shadow: 0 0 var(--gui-glow-blur) rgba(var(--btn-accent-rgb), var(--gui-glow-alpha));
+}
+
+.gui-btn--pill:hover:not([disabled]) {
+  background-image: linear-gradient(
+    100deg,
+    rgba(var(--btn-accent-rgb), 1),
+    rgba(var(--btn-accent-rgb), 0.8)
+  );
+}
+
+/* Square: fixed 44×44 hit target for icon-only buttons. */
+.gui-btn--square {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: var(--gui-radius-md);
+  font-size: 1.2rem;
+}
+
+/* -----------------------------------------------------------------------------
+   §5. Layout modifier — icon + label
+   -------------------------------------------------------------------------- */
+
+.gui-btn--icon {
+  border-color: var(--btn-accent);
+  color: var(--btn-accent);
+}
+
+.gui-btn__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25em;
+  height: 1.25em;
+  font-size: 1.05em;
+  line-height: 1;
+}
+
+/* -----------------------------------------------------------------------------
+   §6. Tab variant
+   -------------------------------------------------------------------------- */
+
+.gui-btn--tab {
+  background: transparent;
+  border: none;
+  border-bottom: var(--gui-border-width-strong) solid transparent;
+  border-radius: 0;
+  padding: var(--gui-space-sm) var(--gui-space-md);
+  color: var(--gui-text-muted);
+}
+
+.gui-btn--tab:hover:not([disabled]) {
+  color: var(--gui-text);
+  box-shadow: none;
+}
+
+.gui-btn--tab.is-active,
+.gui-btn--tab[aria-selected="true"] {
+  color: var(--btn-accent);
+  border-bottom-color: var(--btn-accent);
+}
+
+/* -----------------------------------------------------------------------------
+   §7. Status variants — self-contained dark-fill presets
+   -------------------------------------------------------------------------
+   Each status variant carries its own color so it works without a separate
+   color modifier class. Useful for inline indicators ("Saved", "Pending").
+   -------------------------------------------------------------------------- */
+
+.gui-btn--status-success {
+  background: var(--gui-surface-strong);
+  border-color: var(--gui-accent-success);
+  color: var(--gui-accent-success);
+}
+
+.gui-btn--status-warning {
+  background: var(--gui-surface-strong);
+  border-color: var(--gui-accent-warning);
+  color: var(--gui-accent-warning);
+}
+
+.gui-btn--status-danger {
+  background: var(--gui-surface-strong);
+  border-color: var(--gui-accent-danger);
+  color: var(--gui-accent-danger);
+}
+
+.gui-btn--status-success:hover:not([disabled]),
+.gui-btn--status-warning:hover:not([disabled]),
+.gui-btn--status-danger:hover:not([disabled]) {
+  box-shadow: 0 0 var(--gui-glow-blur) rgba(var(--btn-accent-rgb), var(--gui-glow-alpha));
+}

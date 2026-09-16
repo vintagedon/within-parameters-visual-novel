@@ -13,6 +13,7 @@ import type {
   GameState,
   GameConfig,
 } from '../types/index';
+import { createButton } from './gameui';
 
 // ─── DOM References ───────────────────────────────────────────────────────────
 
@@ -120,7 +121,7 @@ function updatePortrait(
 
   const expressionKey = line.expression ?? character.defaultExpression;
   const assetKey = character.expressions[expressionKey] ?? character.expressions[character.defaultExpression] ?? '';
-  const placeholderColor = portraitColors.get(assetKey) ?? '#1a2535';
+  const placeholderColor = portraitColors.get(assetKey) ?? 'var(--gui-surface-strong)';
   const initials = character.name
     .split(' ')
     .map((w) => w[0] ?? '')
@@ -222,23 +223,21 @@ export function renderChoices(
   clearChoices();
 
   choices.forEach((choice, i) => {
-    const btn = document.createElement('button');
-    btn.className = 'choice-btn';
-    btn.textContent = choice.label;
-
     // Check condition gate
     const conditionMet = checkCondition(choice, state);
-    if (!conditionMet) {
-      btn.classList.add('gated');
-      btn.disabled = true;
-    } else {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation(); // prevent bottom-bar advance handler
+    const btn = createButton({
+      label: choice.label,
+      accent: 'info',
+      variant: 'outline',
+      disabled: !conditionMet,
+      onClick: (event) => {
+        event.stopPropagation(); // prevent bottom-bar advance handler
         onSelect(i);
-      });
-    }
+      },
+    });
+    btn.el.classList.add('wp-choice-btn');
 
-    choicesAreaEl.appendChild(btn);
+    choicesAreaEl.appendChild(btn.el);
   });
 }
 

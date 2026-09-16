@@ -1,0 +1,251 @@
+/* =============================================================================
+   GameUI Loading States
+   -----------------------------------------------------------------------------
+   New-construction family (charter §2 v1: no source pack; the loading pack is
+   pending acquisition). Ships three pure-CSS spinner variants and a
+   full-screen loading overlay with optional message and progress bar. The
+   loading.js factory wires the overlay's show/hide/progress/message surface.
+
+   Structure only. Spinner color and glow come from the active accent token;
+   nothing here hardcodes a palette value.
+   =============================================================================
+
+   HTML (ring spinner):
+     <span class="gui-spinner gui-spinner--ring gui-spinner--primary"
+           role="status" aria-label="Loading"></span>
+
+   HTML (dot spinner):
+     <span class="gui-spinner gui-spinner--dot gui-spinner--info" role="status">
+       <span class="gui-spinner__dot"></span>
+       <span class="gui-spinner__dot"></span>
+       <span class="gui-spinner__dot"></span>
+     </span>
+
+   HTML (pulse spinner):
+     <span class="gui-spinner gui-spinner--pulse gui-spinner--magic"
+           role="status" aria-label="Loading"></span>
+
+   HTML (overlay — the factory emits this into document.body):
+     <div class="gui-loading-overlay is-open" role="dialog" aria-modal="true"
+          aria-labelledby="load-title">
+       <div class="gui-loading-overlay__card">
+         <span class="gui-spinner gui-spinner--ring gui-spinner--primary"></span>
+         <h2 class="gui-loading-overlay__title" id="load-title">Loading realm…</h2>
+         <div class="gui-loading-overlay__progress">
+           <div class="gui-loading-overlay__bar" style="width: 42%"></div>
+         </div>
+       </div>
+     </div>
+   =============================================================================
+*/
+
+/* -----------------------------------------------------------------------------
+   §1. Spinner base + accent modifiers
+   ------------------------------------------------------------------------- */
+
+.gui-spinner {
+  --spin-accent: var(--gui-accent-primary);
+  --spin-accent-rgb: var(--gui-accent-primary-rgb);
+  --spin-size: 40px;
+
+  position: relative;
+  display: inline-block;
+  width: var(--spin-size);
+  height: var(--spin-size);
+  flex: 0 0 auto;
+}
+
+.gui-spinner--primary { --spin-accent: var(--gui-accent-primary); --spin-accent-rgb: var(--gui-accent-primary-rgb); }
+.gui-spinner--success { --spin-accent: var(--gui-accent-success); --spin-accent-rgb: var(--gui-accent-success-rgb); }
+.gui-spinner--warning { --spin-accent: var(--gui-accent-warning); --spin-accent-rgb: var(--gui-accent-warning-rgb); }
+.gui-spinner--danger  { --spin-accent: var(--gui-accent-danger);  --spin-accent-rgb: var(--gui-accent-danger-rgb); }
+.gui-spinner--info    { --spin-accent: var(--gui-accent-info);    --spin-accent-rgb: var(--gui-accent-info-rgb); }
+.gui-spinner--magic   { --spin-accent: var(--gui-accent-magic);   --spin-accent-rgb: var(--gui-accent-magic-rgb); }
+.gui-spinner--pink    { --spin-accent: var(--gui-accent-pink);    --spin-accent-rgb: var(--gui-accent-pink-rgb); }
+
+/* Size modifiers. */
+.gui-spinner--sm { --spin-size: 24px; }
+.gui-spinner--lg { --spin-size: 64px; }
+
+/* -----------------------------------------------------------------------------
+   §2. Ring spinner — a single conic/border ring that rotates
+   -------------------------------------------------------------------------- */
+
+.gui-spinner--ring {
+  border-radius: 50%;
+  border: calc(var(--spin-size) / 8) solid rgba(var(--spin-accent-rgb), 0.2);
+  border-top-color: var(--spin-accent);
+  box-shadow: 0 0 var(--gui-glow-blur) rgba(var(--spin-accent-rgb), var(--gui-glow-alpha));
+  animation: gui-spin var(--gui-duration-slow) linear infinite;
+}
+
+/* -----------------------------------------------------------------------------
+   §3. Dot spinner — three bouncing dots
+   -------------------------------------------------------------------------- */
+
+.gui-spinner--dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  width: var(--spin-size);
+  height: calc(var(--spin-size) / 3);
+}
+
+.gui-spinner--dot .gui-spinner__dot {
+  display: block;
+  width: calc(var(--spin-size) / 4);
+  height: calc(var(--spin-size) / 4);
+  border-radius: 50%;
+  background: var(--spin-accent);
+  box-shadow: 0 0 calc(var(--gui-glow-blur) / 2) rgba(var(--spin-accent-rgb), var(--gui-glow-alpha));
+  animation: gui-spin-dot 1.2s var(--gui-ease-in-out) infinite;
+}
+
+.gui-spinner--dot .gui-spinner__dot:nth-child(2) { animation-delay: 0.18s; }
+.gui-spinner--dot .gui-spinner__dot:nth-child(3) { animation-delay: 0.36s; }
+
+/* -----------------------------------------------------------------------------
+   §4. Pulse spinner — dual pulsing ring
+   -------------------------------------------------------------------------- */
+
+.gui-spinner--pulse::before,
+.gui-spinner--pulse::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: calc(var(--spin-size) / 10) solid var(--spin-accent);
+  animation: gui-spin-pulse var(--gui-duration-slow) var(--gui-ease-out) infinite;
+}
+
+.gui-spinner--pulse::after {
+  animation-delay: calc(var(--gui-duration-slow) / -2);
+}
+
+/* -----------------------------------------------------------------------------
+   §5. Loading overlay — full-screen modal-style blocker
+   -------------------------------------------------------------------------- */
+
+.gui-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--gui-z-overlay);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: var(--gui-space-lg);
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(2px);
+}
+
+.gui-loading-overlay.is-open {
+  display: flex;
+  animation: gui-modal-fade var(--gui-duration-md) var(--gui-ease-out);
+}
+
+.gui-loading-overlay__card {
+  --overlay-accent: var(--gui-accent-primary);
+  --overlay-accent-rgb: var(--gui-accent-primary-rgb);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--gui-space-md);
+  padding: var(--gui-space-xl) var(--gui-space-xl);
+  border-radius: var(--gui-radius-lg);
+  border: var(--gui-border-width-strong) solid var(--overlay-accent);
+  background-color: var(--gui-surface-strong);
+  box-shadow:
+    0 0 var(--gui-glow-blur) rgba(var(--overlay-accent-rgb), calc(var(--gui-glow-alpha) * 0.6)),
+    var(--gui-shadow-lg);
+  text-align: center;
+  max-width: 420px;
+}
+
+.gui-loading-overlay--primary { }
+.gui-loading-overlay--success .gui-loading-overlay__card { --overlay-accent: var(--gui-accent-success); --overlay-accent-rgb: var(--gui-accent-success-rgb); }
+.gui-loading-overlay--warning .gui-loading-overlay__card { --overlay-accent: var(--gui-accent-warning); --overlay-accent-rgb: var(--gui-accent-warning-rgb); }
+.gui-loading-overlay--danger  .gui-loading-overlay__card { --overlay-accent: var(--gui-accent-danger);  --overlay-accent-rgb: var(--gui-accent-danger-rgb); }
+.gui-loading-overlay--info    .gui-loading-overlay__card { --overlay-accent: var(--gui-accent-info);    --overlay-accent-rgb: var(--gui-accent-info-rgb); }
+.gui-loading-overlay--magic   .gui-loading-overlay__card { --overlay-accent: var(--gui-accent-magic);   --overlay-accent-rgb: var(--gui-accent-magic-rgb); }
+.gui-loading-overlay--pink    .gui-loading-overlay__card { --overlay-accent: var(--gui-accent-pink);    --overlay-accent-rgb: var(--gui-accent-pink-rgb); }
+
+.gui-loading-overlay__title {
+  margin: 0;
+  font-family: var(--gui-font-display);
+  font-size: var(--gui-font-size-lg);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--gui-text);
+  text-transform: uppercase;
+}
+
+.gui-loading-overlay__message {
+  margin: 0;
+  font-family: var(--gui-font-body);
+  font-size: var(--gui-font-size-sm);
+  color: var(--gui-text-muted);
+}
+
+/* Progress track. When absent (indeterminate), a spinner carries the visual. */
+.gui-loading-overlay__progress {
+  width: 100%;
+  height: 6px;
+  border-radius: var(--gui-radius-pill);
+  background: rgba(var(--overlay-accent-rgb), 0.18);
+  overflow: hidden;
+}
+
+.gui-loading-overlay__bar {
+  height: 100%;
+  width: 0;
+  background: var(--overlay-accent);
+  border-radius: var(--gui-radius-pill);
+  box-shadow: 0 0 var(--gui-glow-blur) rgba(var(--overlay-accent-rgb), var(--gui-glow-alpha));
+  transition: width var(--gui-duration-md) var(--gui-ease-out);
+}
+
+.gui-loading-overlay__percent {
+  font-family: var(--gui-font-mono);
+  font-size: var(--gui-font-size-sm);
+  color: var(--gui-text-muted);
+}
+
+/* -----------------------------------------------------------------------------
+   §6. Animations
+   -------------------------------------------------------------------------- */
+
+@keyframes gui-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes gui-spin-dot {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+  40%           { transform: scale(1);   opacity: 1; }
+}
+
+@keyframes gui-spin-pulse {
+  0%   { transform: scale(0.4); opacity: 1; }
+  100% { transform: scale(1);   opacity: 0; }
+}
+
+/* Reuse the modal fade keyframe; define a local alias for standalone use. */
+@keyframes gui-loading-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gui-spinner--ring,
+  .gui-spinner--dot .gui-spinner__dot,
+  .gui-spinner--pulse::before,
+  .gui-spinner--pulse::after {
+    animation-duration: 1ms;
+    animation-iteration-count: 1;
+  }
+  .gui-loading-overlay.is-open,
+  .gui-loading-overlay__bar {
+    animation-duration: 1ms;
+    transition-duration: 1ms;
+  }
+}
