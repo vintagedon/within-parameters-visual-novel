@@ -46,6 +46,50 @@
       "nameColor": "#ff9800"
     },
     {
+      "id": "engineer",
+      "name": "ENGINEER",
+      "role": "Infrastructure Engineer",
+      "defaultExpression": "neutral",
+      "expressions": {
+        "neutral": "npc2-neutral",
+        "worried": "npc2-worried"
+      },
+      "nameColor": "#ff9800"
+    },
+    {
+      "id": "aguilar",
+      "name": "AGUILAR",
+      "role": "Warden",
+      "defaultExpression": "neutral",
+      "expressions": {
+        "neutral": "npc1-neutral",
+        "stern": "npc1-hostile"
+      },
+      "nameColor": "#ff9800"
+    },
+    {
+      "id": "dex",
+      "name": "DEX",
+      "role": "Scrapper",
+      "defaultExpression": "neutral",
+      "expressions": {
+        "neutral": "npc2-neutral",
+        "wary": "npc2-worried"
+      },
+      "nameColor": "#7ddf64"
+    },
+    {
+      "id": "sato",
+      "name": "SATO",
+      "role": "Elder",
+      "defaultExpression": "neutral",
+      "expressions": {
+        "neutral": "npc1-neutral",
+        "serene": "npc1-neutral"
+      },
+      "nameColor": "#c9a7ff"
+    },
+    {
       "id": "narrator",
       "name": "",
       "role": "narrator",

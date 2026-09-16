@@ -29,6 +29,8 @@ import { initNewGame } from './game-state';
 import { SceneRunner, buildSceneRegistry, type SceneRunnerCallbacks, type ChoiceView } from './scene-runner';
 import { buildEffectiveConfig } from './traits';
 import { scoreRun } from './scoring';
+import { initEventPool, drawEvent } from './event-system';
+import { createRng } from './rng';
 import type { RunOutcome } from '../types/index';
 
 // ─── Node environment shim (autosave touches localStorage) ───────────────────
@@ -215,9 +217,29 @@ function labelCost(view: ChoiceView): number | null {
 
 // ─── Gate 4.1 checks ──────────────────────────────────────────────────────────
 
+/** Community events carrying a <= -2 module choice (the review case shape). */
+function communityEventsWithTwoModuleChoice(): EventDef[] {
+  return eventsByCategory('community').filter((e) =>
+    e.scenes.some((s) =>
+      (s.choices ?? []).some((c) => (c.statChanges?.consumables ?? 0) <= -2)
+    )
+  );
+}
+
+/** Transit events carrying an unconditioned positive-clock choice. */
+function transitEventsWithClockGain(): EventDef[] {
+  return eventsByCategory('transit').filter((e) =>
+    e.scenes.some((s) =>
+      (s.choices ?? []).some(
+        (c) => (c.statChanges?.clock ?? 0) > 0 && !c.condition
+      )
+    )
+  );
+}
+
 /** Case: Rough Touch charges community costs +1; label, gate, and deduction agree. */
 check('4.1 rough-touch: community cost +1, label == affordability == deduction', () => {
-  const events = eventsByCategory('community');
+  const events = [communityEventsWithTwoModuleChoice()[0]!];
   const h = makeHarness({ positive: 'P5', negative: 'N2', events, consumables: 8 });
   const { scene, views } = driveToChoiceScene(h);
   const idx = findChoiceIndex(scene, (c) => (c.statChanges?.consumables ?? 0) <= -2);
@@ -233,7 +255,7 @@ check('4.1 rough-touch: community cost +1, label == affordability == deduction',
 
 /** Case: the same choice is disabled when the player holds less than the effective cost. */
 check('4.1 rough-touch: affordability disables below effective cost', () => {
-  const events = eventsByCategory('community');
+  const events = [communityEventsWithTwoModuleChoice()[0]!];
   const h = makeHarness({ positive: 'P5', negative: 'N2', events, consumables: 2 });
   const { scene, views } = driveToChoiceScene(h);
   const idx = findChoiceIndex(scene, (c) => (c.statChanges?.consumables ?? 0) <= -2);
@@ -300,7 +322,7 @@ check('4.1 practiced: availability resets on stop advance', () => {
 
 /** Case: Light Foot suppresses positive transit clock deltas to zero. */
 check('4.1 light-foot: transit +1 clock suppressed', () => {
-  const events = eventsByCategory('transit');
+  const events = [transitEventsWithClockGain()[0]!];
   const h = makeHarness({ positive: 'P7', negative: 'N4', events, consumables: 8, clock: 2 });
   const { scene, views } = driveToChoiceScene(h);
   const idx = findChoiceIndex(
@@ -330,7 +352,7 @@ check('4.1 tunnel-nerves: approach raw clock 0 becomes +1', () => {
 
 /** Case: without the trait flags the same choices apply raw deltas (control). */
 check('4.1 control: no clock traits leaves deltas raw', () => {
-  const events = eventsByCategory('transit');
+  const events = [transitEventsWithClockGain()[0]!];
   const h = makeHarness({ positive: 'P5', negative: 'N4', events, consumables: 8, clock: 2 });
   const { scene } = driveToChoiceScene(h);
   const idx = findChoiceIndex(
@@ -542,7 +564,58 @@ check('4.2 HUD threshold: display authority == ending authority', () => {
   return `display ${displayThreshold}; gate flips exactly there`;
 });
 
+/** Pool shape and draw coverage: 12 events, 20 seeded draws, no repeats, no unfilled stop. */
+check('4.3 event pool: 12 events, seeded draws fill every stop with no repeats', () => {
+  eq(eventsData.length, 12, 'pool size');
+  const byCat = {
+    community: eventsByCategory('community').length,
+    transit: eventsByCategory('transit').length,
+    approach: eventsByCategory('approach').length,
+  };
+  eq(byCat.community, 5, 'community events');
+  eq(byCat.transit, 4, 'transit events');
+  eq(byCat.approach, 3, 'approach events');
+  const ids = new Set(eventsData.map((e) => e.id));
+  eq(ids.size, 12, 'unique ids');
+  const expectedIds = [
+    'CE-01', 'CE-02', 'CE-03', 'CE-04', 'CE-05',
+    'TE-01', 'TE-02', 'TE-03', 'TE-04',
+    'AE-01', 'AE-02', 'AE-03',
+  ];
+  for (const id of expectedIds) assert(ids.has(id), `missing M3 id ${id}`);
 
+  const zoneMap = baseConfig.zoneMap as unknown as Record<string, string>;
+  eq(
+    JSON.stringify(zoneMap),
+    JSON.stringify({ 1: 'community', 2: 'community', 3: 'transit', 4: 'transit', 5: 'approach' }),
+    'config zone map 1-2 community, 3-4 transit, 5 approach'
+  );
+
+  for (let seed = 1; seed <= 20; seed++) {
+    const rng = createRng(seed);
+    let pool = initEventPool(eventsData, baseConfig, communitiesData, rng);
+    const drawn: string[] = [];
+    for (let stop = 1; stop <= baseConfig.journeyStops; stop++) {
+      let event: EventDef;
+      try {
+        ({ event, pool } = drawEvent(pool, stop, baseConfig));
+      } catch (e) {
+        throw new Error(`seed ${seed} stop ${stop}: ${(e as Error).message}`);
+      }
+      drawn.push(event.id);
+      assert(
+        event.category === zoneMap[String(stop)],
+        `seed ${seed} stop ${stop}: drew ${event.id} (${event.category}), zone wants ${zoneMap[String(stop)]}`
+      );
+    }
+    eq(new Set(drawn).size, drawn.length, `seed ${seed}: repeated an event within a run`);
+    const cats = drawn.map((id) => eventsData.find((e) => e.id === id)!.category);
+    eq(cats.filter((c) => c === 'community').length, 2, `seed ${seed}: community draws`);
+    eq(cats.filter((c) => c === 'transit').length, 2, `seed ${seed}: transit draws`);
+    eq(cats.filter((c) => c === 'approach').length, 1, `seed ${seed}: approach draws`);
+  }
+  return '12 events (5/4/3, M3 ids); 20 seeded draws, zone-correct, no repeats, all stops filled';
+});
 
 function report(): number {
   console.log('Within Parameters — live-path checks (drive the real SceneRunner)');

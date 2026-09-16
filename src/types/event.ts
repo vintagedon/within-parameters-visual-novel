@@ -42,6 +42,12 @@ export interface EventDef {
   rewards: [RewardOption, RewardOption, RewardOption];
   /** Scene ID for the reward selection screen */
   rewardScene: string;
+  /**
+   * Found documents attached to this event (FD ids in
+   * data/found-documents.json). At most one is surfaced per run at this
+   * event; availability tracks the event draw.
+   */
+  foundDocumentIds?: string[];
 }
 
 /** A community from the name pool, assigned to a stop at runtime */

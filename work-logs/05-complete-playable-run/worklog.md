@@ -155,3 +155,46 @@ Per-gate checkpoint log. The central worklog (mirroring the spec filename with
   identical to simulator arithmetic for correction runs and consistent with
   the authored shutdown fiction for destruction runs.
 
+## Gate 4.3 — The 12-event production pool
+
+**Commit:** (recorded at closeout)
+
+**Changes:**
+
+- `data/events.json` replaced with the full M3 pool: CE-01..CE-05 (community),
+  TE-01..TE-04 (transit), AE-01..AE-03 (approach). Situation framing, NPC
+  references (Aguilar, Dex, Sato, generic engineer), per-choice consequence
+  dialogue, and reward trilemma flavor all from the M3 design; every
+  mechanical value from `simulation/game_data.py`. Labels carry no cost or
+  gate text (the runtime resolves effective costs and gates into the view).
+  Found-document attachment lists (`foundDocumentIds`) match the M3 table:
+  CE-01 [FD-01, FD-02], CE-04 [FD-08], TE-02 [FD-03, FD-04], TE-04
+  [FD-05, FD-06], AE-03 [FD-07].
+- `src/types/event.ts`: `EventDef.foundDocumentIds` (runtime wiring in 4.4).
+- `data/characters.json`: speaker entries for aguilar / dex / sato / engineer
+  (expressions temporarily map to existing placeholder portrait files until
+  4.6 generates dedicated keys).
+- New `scripts/audit-events.py` (`npm run audit:events`): imports
+  `simulation/game_data.py` directly (no parse heuristics) and diffs every
+  choice value.
+- Live-checks: new 4.3 pool check; the 4.1 finders now select deterministic
+  target events from the full pool.
+
+**Verification evidence:**
+
+- `npm run audit:events`: all 36 choices match game_data.py exactly
+  (knowledge, module, clock, community, knowledge_gate, rapport_gate),
+  event-by-event rows recorded above in this run's output; pool shape
+  5/4/3 with M3 ids; attachments match; every consequence scene carries
+  dialogue; no scaffold gate text remains (`Requires Knowledge`,
+  `[2 resources]` gone).
+- Live-path checks: 13/13 including the pool draw check (20 seeded draws
+  through the real `initEventPool`/`drawEvent`: zone-correct 2 community +
+  2 transit + 1 approach per run, no repeats within a run, no unfilled stop,
+  no `No eligible events`).
+- `config.json` zone map confirmed 1-2 community / 3-4 transit / 5 approach.
+- `tsc --noEmit` clean; mutation checks still discriminate (4 + 2 failures).
+
+**Findings raised:** none new (the event shortage that killed natural runs at
+stop 5 is resolved by filling the pool, not by duplication or fallback
+widening).
