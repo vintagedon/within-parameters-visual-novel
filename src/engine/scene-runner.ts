@@ -18,6 +18,9 @@ import type {
   ProtagonistIdentity,
   RunOutcome,
   FoundDocument,
+  CommsBeatsData,
+  CommsBeatDef,
+  DialogueLine,
 } from '../types/index';
 import {
   applyStatChanges,
@@ -45,7 +48,6 @@ import {
   getRewardsForStop,
   applyReward,
   buildCommunityRunState,
-  shouldTriggerComms,
   type EventPoolState,
 } from './event-system';
 import { autosave } from './save-manager';
@@ -75,7 +77,12 @@ export interface SceneRunnerCallbacks {
     state: GameState
   ): void;
   /** Show a comms interrupt beat between stops */
-  onCommsInterrupt(state: GameState, onContinue: () => void): void;
+  onCommsInterrupt(
+    state: GameState,
+    beat: CommsBeatDef,
+    tierId: string,
+    onContinue: () => void
+  ): void;
   /**
    * Show a found document during the event it is attached to (before the
    * reward cycle). The runner hands over the document and a continue
@@ -105,18 +112,22 @@ export interface SceneRegistry {
   events: Map<string, EventDef>;
   /** Found documents by FD id (empty map when none loaded). */
   documents: Map<string, FoundDocument>;
+  /** Comms beats (null when not loaded). */
+  commsBeats: CommsBeatsData | null;
 }
 
 /** Indexes scenes and events by ID for O(1) lookups. Event scenes are injected into this registry at runtime (see runStop). */
 export function buildSceneRegistry(
   scenes: Scene[],
   events: EventDef[],
-  documents: FoundDocument[] = []
+  documents: FoundDocument[] = [],
+  commsBeats: CommsBeatsData | null = null
 ): SceneRegistry {
   return {
     scenes: new Map(scenes.map((s) => [s.id, s])),
     events: new Map(events.map((e) => [e.id, e])),
     documents: new Map(documents.map((d) => [d.id, d])),
+    commsBeats,
   };
 }
 
@@ -531,15 +542,37 @@ export class SceneRunner {
       return;
     }
 
-    // Check comms interrupt
-    if (shouldTriggerComms(stop, this.state.clock)) {
-      this.callbacks.onCommsInterrupt(this.state, () => {
+    // Comms interrupt: beats fire after specific stops complete, with the
+    // tier selected from the live clock at trigger time. Both the timing
+    // (afterStop) and the bands (min/max) come from data.
+    const beat = this.pendingCommsBeat(stop);
+    if (beat) {
+      this.callbacks.onCommsInterrupt(this.state, beat.beat, beat.tierId, () => {
         this.runStop(stop);
       });
       return;
     }
 
     this.runStop(stop);
+  }
+
+  /**
+   * The comms beat pending for this transition, if any: a beat whose
+   * afterStop equals the just-completed stop (stop - 1), from the tier whose
+   * band contains the live clock.
+   */
+  private pendingCommsBeat(nextStop: number): { beat: CommsBeatDef; tierId: string } | null {
+    const data = this.registry.commsBeats;
+    if (!data) return null;
+    const completed = nextStop - 1;
+    for (const tier of data.commsBeats) {
+      if (this.state.clock.current < tier.min || this.state.clock.current > tier.max) {
+        continue;
+      }
+      const beat = tier.beats.find((b) => b.afterStop === completed);
+      if (beat) return { beat, tierId: tier.id };
+    }
+    return null;
   }
 
   /**

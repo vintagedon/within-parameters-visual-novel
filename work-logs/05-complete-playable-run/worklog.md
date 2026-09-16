@@ -247,3 +247,38 @@ widening).
   overlay rendered the full FD-01 text (830 chars) with zero console errors
   and zero page errors.
 
+## Gate 4.5 — Comms beats
+
+**Commit:** (recorded at closeout)
+
+**Changes:**
+
+- New `data/comms-beats.json`: the three clock-scaled tiers (green 0-3,
+  amber 4-6, red 7-9), two Jay Chen beats each (after stop 1, after stop 3),
+  full M3 dialogue. Timing (`afterStop`) and bands (`min`/`max`) are data.
+- `src/types/scene.ts`: `CommsTierDef` / `CommsBeatDef` / `CommsBeatsData`.
+- `src/engine/scene-runner.ts`: the hardcoded
+  `shouldTriggerComms(stop, clock)` condition is removed from
+  event-system.ts; the runner now consults the registry's comms data on
+  every stop transition, selecting the tier whose band contains the live
+  clock at trigger time and firing the beat keyed to the completed stop.
+  `onCommsInterrupt` carries the beat and tier id.
+- `src/ui/screens.ts`: the comms overlay renders the ordered exchange as
+  speaker-labeled lines (new `.wp-comms-speaker` accent span; no existing
+  visual values touched).
+- `src/main.ts`: loads comms-beats.json, wires the callback. Comms speakers
+  keep the callsign: the protagonist renders as RELAY-7 on the comms
+  channel regardless of the rolled name (frozen boundary). The dev-hook
+  comms trigger now renders a real loaded beat instead of a hardcoded
+  string.
+
+**Verification evidence:**
+
+- Live-path checks: 19/19. 4.5 additions: beat A fired in all three tiers
+  with correct M3 first lines (clock 0 -> green, 3 -> amber, 6 -> red after
+  the stop tick); beat B fired after stop 3 with the tier read live at the
+  trigger across multiple starting clocks; data check confirms three tiers,
+  both beats per tier, full exchanges, and no hardcoded timing.
+- Browser smoke (dev server, seeded, no dev hooks): full passage through
+  comms interrupts with zero console errors.
+

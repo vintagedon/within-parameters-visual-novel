@@ -881,6 +881,11 @@ body {
   color: var(--gui-text);
 }
 
+.wp-comms-speaker {
+  font-family: var(--gui-font-mono);
+  color: var(--gui-accent-info, #38bdf8);
+}
+
 /* ─── Found Document Overlay (positioning; panel is framework) ───────────── */
 
 #document-overlay {

@@ -743,7 +743,16 @@ export function hideRewardOverlay(): void {
 
 // ─── Comms Overlay ────────────────────────────────────────────────────────────
 
-export function showCommsOverlay(text: string, onDismiss: () => void): void {
+/** One rendered exchange line: speaker label plus text. */
+export interface CommsLineView {
+  speaker: string;
+  text: string;
+}
+
+/** Presents a coworker comms beat: the ordered exchange renders as
+ *  speaker-labeled lines inside the warning panel; ACKNOWLEDGE dismisses it
+ *  and continues the run. */
+export function showCommsOverlay(lines: CommsLineView[], onDismiss: () => void): void {
   const panel = document.getElementById('comms-panel-body')!;
   panel.innerHTML = '';
 
@@ -753,10 +762,18 @@ export function showCommsOverlay(text: string, onDismiss: () => void): void {
   title.className = 'gui-panel__title wp-comms-title';
   title.textContent = '⚡ Incoming Comms';
   header.appendChild(title);
+  panel.appendChild(header);
 
-  const body = document.createElement('div');
-  body.className = 'wp-comms-text';
-  body.textContent = text;
+  for (const line of lines) {
+    const row = document.createElement('div');
+    row.className = 'wp-comms-text';
+    const who = document.createElement('span');
+    who.className = 'wp-comms-speaker';
+    who.textContent = `${line.speaker}: `;
+    row.appendChild(who);
+    row.appendChild(document.createTextNode(line.text));
+    panel.appendChild(row);
+  }
 
   const footer = document.createElement('div');
   footer.className = 'gui-panel__footer';
@@ -770,9 +787,6 @@ export function showCommsOverlay(text: string, onDismiss: () => void): void {
     },
   });
   footer.appendChild(dismiss.el);
-
-  panel.appendChild(header);
-  panel.appendChild(body);
   panel.appendChild(footer);
 
   commsOverlay.classList.remove('hidden');

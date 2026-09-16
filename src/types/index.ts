@@ -2,7 +2,7 @@
  * Type barrel — re-exports all public type contracts for the Within Parameters engine.
  * Import from here rather than from individual type modules.
  */
-export type { BeatType, DialogueLine, Choice, ChoiceCondition, StatChanges, Scene, SceneFlags } from './scene';
+export type { BeatType, DialogueLine, Choice, ChoiceCondition, StatChanges, Scene, SceneFlags, CommsTierDef, CommsBeatDef, CommsBeatsData } from './scene';
 export type { EventCategory, RewardType, CommunityState, RewardOption, EventDef, Community, CommunityRunState, FoundDocument } from './event';
 export type {
   PositiveTraitId,

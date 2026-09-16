@@ -19,6 +19,7 @@ import type {
   CharacterManifest,
   Character,
   FoundDocument,
+  CommsBeatsData,
 } from './types/index';
 
 // Engine
@@ -76,6 +77,7 @@ import {
   showDocumentOverlay,
   showDossierScreen,
   hideDossierScreen,
+  type CommsLineView,
 } from './ui/screens';
 
 // Audio
@@ -88,6 +90,7 @@ let scenesData: Scene[];
 let eventsData: EventDef[];
 let communitiesData: Community[];
 let documentsData: FoundDocument[];
+let commsBeatsData: CommsBeatsData;
 let pool: ProtagonistPool;
 
 let runner: SceneRunner | null = null;
@@ -108,7 +111,7 @@ async function boot(): Promise<void> {
   initScreens(document.body);
 
   // Load all data files in parallel
-  [config, manifest, scenesData, eventsData, { communities: communitiesData }, pool, documentsData] =
+  [config, manifest, scenesData, eventsData, { communities: communitiesData }, pool, documentsData, commsBeatsData] =
     await Promise.all([
       fetch('/data/config.json').then((r) => r.json()) as Promise<GameConfig>,
       fetch('/data/characters.json').then((r) => r.json()) as Promise<CharacterManifest>,
@@ -117,6 +120,7 @@ async function boot(): Promise<void> {
       fetch('/data/communities.json').then((r) => r.json()) as Promise<{ communities: Community[] }>,
       fetch('/data/protagonist-pool.json').then((r) => r.json()).then(parseProtagonistPool) as Promise<ProtagonistPool>,
       fetch('/data/found-documents.json').then((r) => r.json()).then((d) => d.documents ?? []) as Promise<FoundDocument[]>,
+      fetch('/data/comms-beats.json').then((r) => r.json()) as Promise<CommsBeatsData>,
     ]);
 
   // Register backgrounds for layout crossfade
@@ -208,7 +212,19 @@ async function boot(): Promise<void> {
       };
     }).__wp = {
       triggerComms: () => {
-        showCommsOverlay("CHEN: Clock is climbing. What's your status?", () => {});
+        // Renders a real beat from the loaded data (amber, after stop 1) so
+        // the surface is captured with production content.
+        const tier = commsBeatsData.commsBeats.find((t) => t.id === 'amber');
+        const beat = tier?.beats.find((b) => b.afterStop === 1) ?? tier?.beats[0];
+        if (!beat) return;
+        const lines: CommsLineView[] = beat.lines.map((line) => ({
+          speaker:
+            line.speaker === 'protagonist'
+              ? 'RELAY-7'
+              : characterMap.get(line.speaker)?.name ?? line.speaker.toUpperCase(),
+          text: line.text,
+        }));
+        showCommsOverlay(lines, () => {});
       },
       triggerEnding: () => {
         // Build a representative complete run state (committed protagonist,
@@ -289,7 +305,7 @@ function startNewGame(): void {
   savePersistentData(persistent);
 
   const state = initNewGame(config, persistent.runsStarted);
-  const registry = buildSceneRegistry(scenesData, eventsData, documentsData);
+  const registry = buildSceneRegistry(scenesData, eventsData, documentsData, commsBeatsData);
   clearDialogue();
   // New game: supply the chargen pool + a seeded RNG so the runner can roll a
   // protagonist and show the dossier before the lore card. The Playwright harness
@@ -307,7 +323,7 @@ function startNewGame(): void {
 /** Resume path for CONTINUE/LOAD — does NOT regenerate the protagonist. */
 function startGameFromState(state: GameState): void {
   clearDialogue();
-  const registry = buildSceneRegistry(scenesData, eventsData, documentsData);
+  const registry = buildSceneRegistry(scenesData, eventsData, documentsData, commsBeatsData);
   const effConfig = effectiveConfigFromState(state);
   runner = new SceneRunner(state, effConfig, registry, communitiesData, buildRunnerCallbacks());
   runner.start();
@@ -414,12 +430,17 @@ function buildRunnerCallbacks(): SceneRunnerCallbacks {
       );
     },
 
-    onCommsInterrupt(currentState, onContinue) {
-      const rapport = deriveRapport(currentState);
-      const msg = rapport >= 0
-        ? `CHEN: Clock is climbing. What's your status?`
-        : `CHEN: Clock is climbing and I'm getting reports from the communities along your route. What's happening out there?`;
-      showCommsOverlay(msg, onContinue);
+    onCommsInterrupt(currentState, beat, _tierId, onContinue) {
+      // Comms speakers keep the callsign: Jay addresses RELAY-7 and the
+      // protagonist's rolled name never appears on the comms channel.
+      const lines: CommsLineView[] = beat.lines.map((line) => ({
+        speaker:
+          line.speaker === 'protagonist'
+            ? currentState.protagonist.callsign
+            : characterMap.get(line.speaker)?.name ?? line.speaker.toUpperCase(),
+        text: line.text,
+      }));
+      showCommsOverlay(lines, onContinue);
     },
 
     onFoundDocument(doc, onContinue) {

@@ -115,3 +115,30 @@ export interface SceneFlags {
   /** This scene triggers a coworker comms beat */
   commsInterrupt?: boolean;
 }
+
+// ─── Comms beats (journey interrupts) ────────────────────────────────────────
+
+/** One clock-scaled comms tier with its two Jay Chen beats. */
+export interface CommsTierDef {
+  /** Tier id (green / amber / red). */
+  id: string;
+  /** Clock band lower bound (inclusive), read live at trigger time. */
+  min: number;
+  /** Clock band upper bound (inclusive). */
+  max: number;
+  /** The beats, keyed by the completed stop they follow. */
+  beats: CommsBeatDef[];
+}
+
+/** A single comms beat: fires after `afterStop` completes. */
+export interface CommsBeatDef {
+  /** The completed stop this beat follows (data-driven trigger timing). */
+  afterStop: number;
+  /** The exchange, in order. Speakers are character ids; comms keep the RELAY-7 callsign. */
+  lines: DialogueLine[];
+}
+
+/** Parsed data/comms-beats.json. */
+export interface CommsBeatsData {
+  commsBeats: CommsTierDef[];
+}

@@ -86,6 +86,7 @@ const communitiesData = load<{ communities: Community[] }>('data/communities.jso
 const documentsData = load<{ documents: import('../types/index').FoundDocument[] }>(
   'data/found-documents.json'
 ).documents;
+const commsBeatsData = load<import('../types/index').CommsBeatsData>('data/comms-beats.json');
 
 function eventsByCategory(category: EventCategory): EventDef[] {
   return eventsData.filter((e) => e.category === category);
@@ -99,6 +100,7 @@ interface Harness {
   pendingReward: { rewards: unknown[]; onSelect: (index: number) => void } | null;
   ending: { ending: string; state: GameState } | null;
   surfacedDocs: import('../types/index').FoundDocument[];
+  commsFired: { afterStop: number; tierId: string; firstLine: string }[];
 }
 
 function makeHarness(opts: {
@@ -120,11 +122,12 @@ function makeHarness(opts: {
     },
     clock: { ...state.clock, current: opts.clock ?? 0 },
   };
-  const registry = buildSceneRegistry(scenesData, opts.events, documentsData);
+  const registry = buildSceneRegistry(scenesData, opts.events, documentsData, commsBeatsData);
   const queue: Scene[] = [];
   let pendingReward: Harness['pendingReward'] = null;
   let ending: Harness['ending'] = null;
   const surfacedDocs: import('../types/index').FoundDocument[] = [];
+  const commsFired: { afterStop: number; tierId: string; firstLine: string }[] = [];
   const callbacks: SceneRunnerCallbacks = {
     onSceneStart: (scene) => {
       queue.push(scene);
@@ -136,7 +139,8 @@ function makeHarness(opts: {
     onEnding: (endingType, endingState) => {
       ending = { ending: endingType, state: endingState };
     },
-    onCommsInterrupt: (_state, onContinue) => {
+    onCommsInterrupt: (_state, beat, tierId, onContinue) => {
+      commsFired.push({ afterStop: beat.afterStop, tierId, firstLine: beat.lines[0]?.text ?? '' });
       onContinue();
     },
     onFoundDocument: (doc, onContinue) => {
@@ -162,6 +166,9 @@ function makeHarness(opts: {
     },
     get surfacedDocs() {
       return surfacedDocs;
+    },
+    get commsFired() {
+      return commsFired;
     },
   };
 }
@@ -716,6 +723,142 @@ check('4.4 found document: availability tracks the event draw', () => {
   }
   eq(h.surfacedDocs.length, 0, 'no document at an undocumented event');
   return `${docEvents.length} documented events, ${noDocEvents.length} clean; draw decides`;
+});
+
+// ─── Gate 4.5 checks ──────────────────────────────────────────────────────────
+
+/** Beat A (after stop 1) fires in the correct clock-scaled tier. */
+check('4.5 comms beats: after stop 1, tier matches the live clock band', () => {
+  const notes: string[] = [];
+  const cases: Array<{ start: number; tier: string; first: string }> = [
+    { start: 0, tier: 'green', first: 'RELAY-7, status check. Finding anything?' },
+    { start: 3, tier: 'amber', first: "RELAY-7. We're seeing cascade alerts across three stations. Whatever you're tracking, it's accelerating." },
+    { start: 6, tier: 'red', first: 'RELAY-7, respond.' },
+  ];
+  for (const c of cases) {
+    const events = [eventsByCategory('community')[0]!];
+    const h = makeHarness({
+      positive: 'P5',
+      negative: 'N4',
+      events,
+      consumables: 8,
+      clock: c.start,
+    });
+    // Pick a clock-neutral choice so the only clock motion is the stop tick
+    // (1 or 2), which keeps the band deterministic: 0->1-2 green, 3->4-5
+    // amber, 6->7-8 red.
+    const { scene, views } = driveToChoiceScene(h);
+    const idx = views.findIndex(
+      (v, i) => v.enabled && (scene.choices![i]!.statChanges?.clock ?? 0) === 0
+    );
+    h.runner.selectChoice(scene, idx);
+    for (let guard = 0; guard < 100 && h.commsFired.length === 0; guard++) {
+      if (h.pendingReward) {
+        try {
+          h.pendingReward.onSelect(0);
+        } catch (e) {
+          // Thin single-event pool: the next draw may have nothing left after
+          // the beat's onContinue. The beat itself already fired.
+          const msg = e instanceof Error ? e.message : String(e);
+          if (!msg.includes('No eligible events')) throw e;
+        }
+        h.pendingReward = null;
+        continue;
+      }
+      const s = h.queue.shift();
+      if (!s) break;
+      h.runner.sceneComplete(s);
+      if (h.runner.getState().activeEventId) h.runner.eventSceneComplete(s.id);
+    }
+    eq(h.commsFired.length, 1, `start ${c.start}: one beat fired`);
+    const fired = h.commsFired[0]!;
+    eq(fired.afterStop, 1, `start ${c.start}: beat A (after stop 1)`);
+    eq(fired.tierId, c.tier, `start ${c.start}: tier`);
+    eq(fired.firstLine, c.first, `start ${c.start}: beat content`);
+    notes.push(`clock ${c.start} -> ${h.runner.getState().clock.current} = ${fired.tierId}`);
+  }
+  return notes.join('; ');
+});
+
+/** Beat B (after stop 3) fires, with the tier read live at trigger time. */
+check('4.5 comms beats: after stop 3, tier read live at the trigger', () => {
+  const tiersSeen = new Set<string>();
+  for (const start of [0, 2, 5]) {
+    const events = [...eventsByCategory('community'), ...eventsByCategory('transit')];
+    const h = makeHarness({ positive: 'P5', negative: 'N4', events, consumables: 9, clock: start });
+    const beats: typeof h.commsFired = [];
+    // Drive three stops, collecting beats; pick knowledge rewards and
+    // clock-neutral choices.
+    for (let stop = 1; stop <= 3; stop++) {
+      if (stop === 1) {
+        const { scene, views } = driveToChoiceScene(h);
+        const idx = views.findIndex(
+          (v, i) => v.enabled && (scene.choices![i]!.statChanges?.clock ?? 0) === 0
+        );
+        h.runner.selectChoice(scene, idx);
+      }
+      for (let guard = 0; guard < 200; guard++) {
+        if (h.pendingReward) {
+          h.pendingReward.onSelect(1);
+          h.pendingReward = null;
+          break;
+        }
+        const s = h.queue.shift();
+        if (!s) continue;
+        h.runner.sceneComplete(s);
+        if (h.runner.getState().activeEventId) h.runner.eventSceneComplete(s.id);
+      }
+      for (const b of h.commsFired) if (!beats.some((x) => x.afterStop === b.afterStop)) beats.push(b);
+      if (stop < 3) {
+        // drive to the next stop's choice
+        for (let guard = 0; guard < 200; guard++) {
+          const s = h.queue.shift();
+          if (!s) break;
+          if (s.choices && s.choices.length > 0) {
+            const views = h.runner.getChoiceViews(s);
+            const idx = views.findIndex(
+              (v, i) => v.enabled && (s.choices![i]!.statChanges?.clock ?? 0) === 0
+            );
+            h.runner.selectChoice(s, idx);
+            break;
+          }
+          h.runner.sceneComplete(s);
+          if (h.runner.getState().activeEventId) h.runner.eventSceneComplete(s.id);
+        }
+      }
+    }
+    const beatB = beats.find((b) => b.afterStop === 3);
+    assert(beatB !== undefined, `start ${start}: beat B (after stop 3) fired`);
+    tiersSeen.add(beatB!.tierId);
+  }
+  assert(tiersSeen.size >= 2, `beat B observed in multiple tiers (got ${[...tiersSeen].join(',')})`);
+  return `beat B fired after stop 3 across starts 0/2/5, tiers seen: ${[...tiersSeen].join(', ')}`;
+});
+
+/** No hardcoded trigger remains: timing and bands come from the data. */
+check('4.5 comms beats: timing and bands are data-driven', () => {
+  eq(commsBeatsData.commsBeats.length, 3, 'three tiers');
+  const byId = new Map(commsBeatsData.commsBeats.map((t) => [t.id, t]));
+  const green = byId.get('green')!;
+  const amber = byId.get('amber')!;
+  const red = byId.get('red')!;
+  eq(green.min, 0, 'green min'); eq(green.max, 3, 'green max');
+  eq(amber.min, 4, 'amber min'); eq(amber.max, 6, 'amber max');
+  eq(red.min, 7, 'red min'); eq(red.max, 9, 'red max');
+  for (const tier of commsBeatsData.commsBeats) {
+    eq(tier.beats.length, 2, `tier ${tier.id}: two beats`);
+    const timings = tier.beats.map((b) => b.afterStop).sort();
+    eq(timings[0], 1, `tier ${tier.id}: beat after stop 1`);
+    eq(timings[1], 3, `tier ${tier.id}: beat after stop 3`);
+    for (const beat of tier.beats) {
+      assert(beat.lines.length >= 3, `tier ${tier.id} after stop ${beat.afterStop}: full exchange`);
+      for (const line of beat.lines) {
+        assert(line.speaker === 'coworker' || line.speaker === 'protagonist', 'known speakers');
+        assert(line.text.trim().length > 0, 'line has text (terse replies allowed)');
+      }
+    }
+  }
+  return 'green 0-3, amber 4-6, red 7-9; both beats per tier; full M3 dialogue';
 });
 
 function report(): number {
