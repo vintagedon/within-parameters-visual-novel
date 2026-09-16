@@ -155,18 +155,19 @@
       ],
       "choices": [
         {
-          "label": "Present network documentation — argue scope violation [Requires Knowledge 8]",
+          "label": "Execute the correction — present the network documentation and repair the archive's topology",
           "nextScene": "scene-confrontation-correction-gate",
-          "condition": { "stat": "knowledge", "min": 8 }
+          "facilityAction": "correct"
         },
         {
-          "label": "Attempt emergency shutdown [Requires Resources 2]",
+          "label": "Bridge the security circuit and force an emergency shutdown",
           "nextScene": "scene-confrontation-destruction-gate",
-          "condition": { "stat": "consumables", "min": 2 }
+          "facilityAction": "shutdown"
         },
         {
-          "label": "You have no good options here",
-          "nextScene": "scene-ending-destruction"
+          "label": "Step back from the terminal — you cannot execute anything here",
+          "nextScene": "scene-confrontation-withdraw-gate",
+          "facilityAction": "withdraw"
         }
       ]
     },
@@ -175,6 +176,7 @@
       "id": "scene-confrontation-correction-gate",
       "beat": "confrontation",
       "background": "bg-server-room",
+      "flags": { "determineEnding": true },
       "dialogue": [
         {
           "speaker": "protagonist",
@@ -188,13 +190,13 @@
           "speaker": "npc-1",
           "text": "ARCHIVE: Discrepancy confirmed. Revising operational parameters."
         }
-      ],
-      "next": "scene-ending-correction"
+      ]
     },
     {
       "id": "scene-confrontation-destruction-gate",
       "beat": "confrontation",
       "background": "bg-server-room",
+      "flags": { "determineEnding": true },
       "dialogue": [
         {
           "speaker": "protagonist",
@@ -204,9 +206,23 @@
           "speaker": "narrator",
           "text": "The maintenance access panel is exactly where the schematics said it would be. The archive AI begins an objection. It doesn't finish."
         }
-      ],
-      "statChanges": { "consumables": -2 },
-      "next": "scene-ending-destruction"
+      ]
+    },
+    {
+      "id": "scene-confrontation-withdraw-gate",
+      "beat": "confrontation",
+      "background": "bg-server-room",
+      "flags": { "determineEnding": true },
+      "dialogue": [
+        {
+          "speaker": "narrator",
+          "text": "You stand in front of the terminal with nothing that can act on it. No documentation strong enough to argue scope. No components to bridge anything. The archive keeps processing, within parameters."
+        },
+        {
+          "speaker": "protagonist",
+          "text": "I got here. That's all I got."
+        }
+      ]
     },
 
     {

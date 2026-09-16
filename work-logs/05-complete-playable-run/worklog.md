@@ -90,3 +90,68 @@ Per-gate checkpoint log. The central worklog (mirroring the spec filename with
   4.3-4.6 land the production content, after which a single evidence-backed
   re-approval (art: commit) refreshes the moved set. Existing approved
   baselines otherwise unchanged (9 of 10 ok).
+
+## Gate 4.2 — A single authoritative ending outcome
+
+**Commit:** (recorded at closeout)
+
+**Changes:**
+
+- `src/engine/scene-runner.ts`: ending determination is now solely the
+  state-based derivation in `scoring.ts` against the effective config. New
+  `persistedOutcome()` computes the outcome (with its frozen cascade
+  components and reroll multiplier) once and stores it on `GameState.outcome`;
+  `triggerEnding` routes by the persisted ending; ending scenes fire
+  `onEnding` from the persisted value, never from the authored
+  `flags.endingType` (advisory only). Facility choices carry
+  `facilityAction: 'correct' | 'shutdown' | 'withdraw'`: gates and labels
+  resolve from `config.knowledgeThreshold` / `config.consumableFixCost`
+  (trait-adjusted: Clear-Headed, Fragile Kit). The outcome is computed and
+  persisted from the PRE-charge arrival state (exactly what the simulator's
+  `determine_ending` sees), and the effective repair cost is charged exactly
+  once at the point of repair; the frozen breakdown means no ending path or
+  score display deducts it again.
+- `src/types/scene.ts`: `Choice.facilityAction`, `SceneFlags.determineEnding`;
+  `endingType` documented as advisory.
+- `src/types/state.ts`: `RunOutcome.components` + `RunOutcome.multiplier`
+  (the field the persisted outcome needs so no consumer recomputes).
+- `src/ui/screens.ts`: the ending score breakdown renders from the persisted
+  outcome (fallback recompute only for legacy dev-hook states without one).
+- `src/main.ts`: HUD refresh prefers `runner.getEffectiveConfig()` so the
+  knowledge bar's threshold and the ending gate read the same object.
+- `data/scenes.json`: the scaffold Knowledge-8 gate and the authored
+  `-2` repair statChanges are removed; the facility confrontation offers the
+  three config-gated intervention choices.
+
+**Verification evidence:**
+
+- Live-path checks: 12/12 passed. Gate 4.2 additions: threshold boundary
+  below/at/above under Clear-Headed (k9 destruction, k10/k11 correction,
+  narrative == independently scored == persisted in every case); the
+  knowledge-8 review probe (destruction everywhere, outcome non-null — the
+  pre-change narrative/scored disagreement is gone); repair charged exactly
+  once under Fragile Kit (5 -> 2 at fixCost 3; rawScore equals the pre-charge
+  cascade, so no second deduction); clock-failure persisted and consumed
+  identically; HUD threshold display flips the gate exactly at the effective
+  threshold.
+- Mutation check: forcing authored ending routing to override the computed
+  outcome makes 2 checks fail (discriminates).
+- Grep: no `8`/`11` knowledge-threshold or repair-cost gating comparison
+  remains in `src/` (all read from the effective config).
+- `tsc --noEmit` clean. Full `npm run replay` (5000/combo): ALL SIX criteria
+  pass. (Note: `replay:fast` at 2000/combo can sample S-tier at 20.2%, just
+  outside the band; the full run passes at 19.7%. The harness is untouched by
+  this gate.)
+
+**Findings raised:**
+
+- FINDING 4.2-A (accounting note for operator confirmation): the simulator
+  never models the facility transaction; `determine_ending` runs on the
+  arrival state and the destruction cascade counts arrival modules. The live
+  engine preserves that exactly by computing and persisting the outcome before
+  charging the repair, then charging once at the point of repair. The player's
+  post-ending inventory therefore reflects the intervention (arrival minus
+  fixCost) while the frozen breakdown reflects the arrival-state cascade —
+  identical to simulator arithmetic for correction runs and consistent with
+  the authored shutdown fiction for destruction runs.
+

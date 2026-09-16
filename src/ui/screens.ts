@@ -520,25 +520,32 @@ export function showEndingScreen(
 }
 
 /**
- * Builds the end-of-run score breakdown HTML. The numeric decomposition comes
- * from buildScoreBreakdown (scoring.ts — single source of truth, sums to the raw
- * score); the backstory/trait lines come from chargen. The reroll-penalty line
- * is shown only when rerollCount > 0.
+ * Builds the end-of-run score breakdown HTML. Numbers come from the persisted
+ * outcome (state.outcome) — the single ending authority — including its frozen
+ * components and multiplier, so the breakdown never recomputes an ending from
+ * post-charge state. Legacy states without a persisted outcome (development
+ * hooks) fall back to the live decomposition. The backstory/trait lines come
+ * from chargen. The reroll-penalty line shows only when rerollCount > 0.
  */
 function buildScoreBreakdownHtml(
   state: GameState,
   config: GameConfig,
   pool: ProtagonistPool
 ): string {
-  const bd = buildScoreBreakdown(state, config, state.rerollCount);
-  const protagonist = state.protagonist;
-
-  const rows = bd.components
+  const persisted = state.outcome;
+  const fallback = () => buildScoreBreakdown(state, config, state.rerollCount);
+  const bd = persisted ?? fallback();
+  const componentRows =
+    persisted?.components ?? fallback().components;
+  const rows = componentRows
     .map(
       (c) =>
         `<div class="wp-score-row"><span class="wp-score-row-label">${escapeHtml(c.label)}</span><span class="wp-score-row-value">${c.value}</span></div>`
     )
     .join('');
+
+  const rerollCount = state.rerollCount;
+  const multiplier = bd.multiplier ?? Math.pow(config.rerollMultiplier, rerollCount);
 
   const capNote =
     bd.rawScoreClamped < bd.rawScore
@@ -546,14 +553,14 @@ function buildScoreBreakdownHtml(
       : '';
 
   const penaltyLine =
-    bd.rerollCount > 0
-      ? `<div class="wp-score-penalty">Reroll penalty: ${bd.rerollCount} reroll${bd.rerollCount > 1 ? 's' : ''} &rarr; &times;${Math.round(bd.multiplier * 100)}%</div>`
+    rerollCount > 0
+      ? `<div class="wp-score-penalty">Reroll penalty: ${rerollCount} reroll${rerollCount > 1 ? 's' : ''} &rarr; &times;${Math.round(multiplier * 100)}%</div>`
       : '';
 
-  const bsLine = backstoryEpilogue(protagonist, pool, bd.ending);
+  const bsLine = backstoryEpilogue(state.protagonist, pool, bd.ending);
   const bsHtml = bsLine ? `<p class="wp-score-backstory">${escapeHtml(bsLine)}</p>` : '';
 
-  const traitLines = [protagonist.positiveTrait, protagonist.negativeTrait]
+  const traitLines = [state.protagonist.positiveTrait, state.protagonist.negativeTrait]
     .map((id) => traitEpilogueLine(id))
     .filter((line): line is string => line !== null)
     .map((line) => `<p class="wp-score-traitline">${escapeHtml(line)}</p>`)

@@ -127,7 +127,9 @@ export type EventPhase =
 /**
  * Computed final outcome, available once the run reaches an ending. Score and
  * grade are derived from GameState + config at ending time; they are not
- * authoritative between stops.
+ * authoritative between stops. The outcome is the single ending authority:
+ * narrative selection, the score breakdown, epilogue assembly, and persistent
+ * completion data all consume this value and none recompute an ending.
  */
 export interface RunOutcome {
   ending: EndingType;
@@ -138,6 +140,20 @@ export interface RunOutcome {
   /** Final score after applying reroll multiplier and flooring. */
   finalScore: number;
   grade: ScoreGrade;
+  /**
+   * Frozen cascade components (computed against the arrival state at ending
+   * time), so the score breakdown renders the persisted outcome instead of
+   * recomputing an ending from post-charge state. Absent on legacy outcomes.
+   */
+  components?: OutcomeComponent[];
+  /** rerollMultiplier ^ rerollCount, frozen with the outcome. */
+  multiplier?: number;
+}
+
+/** One row of the ending screen's score breakdown. */
+export interface OutcomeComponent {
+  label: string;
+  value: number;
 }
 
 // ─── Game state ───────────────────────────────────────────────────────────────

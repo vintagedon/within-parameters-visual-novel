@@ -9,12 +9,14 @@
 
 import type {
   Scene,
+  Choice,
   GameState,
   GameConfig,
   EventDef,
   Community,
   RewardOption,
   ProtagonistIdentity,
+  RunOutcome,
 } from '../types/index';
 import {
   applyStatChanges,
@@ -25,7 +27,7 @@ import {
   tickClock,
   isClockFull,
 } from './game-state';
-import { scoreRun } from './scoring';
+import { scoreRun, buildScoreBreakdown } from './scoring';
 import { buildEffectiveConfig } from './traits';
 import { generateProtagonist, type ProtagonistPool } from './chargen';
 import type { Rng } from './rng';
@@ -268,9 +270,18 @@ export class SceneRunner {
       return;
     }
 
-    // If it's an ending scene, trigger the ending handler
-    if (scene.flags?.isEnding && scene.flags.endingType) {
-      this.callbacks.onEnding(scene.flags.endingType, this.state);
+    // If it's an ending scene, trigger the ending handler from the persisted
+    // computed outcome — never from the scene's authored endingType.
+    if (scene.flags?.isEnding) {
+      const ending = this.persistedOutcome().ending;
+      this.callbacks.onEnding(ending, this.state);
+      return;
+    }
+
+    // Facility intervention consequence: compute, persist, and route on the
+    // state-derived outcome.
+    if (scene.flags?.determineEnding) {
+      this.triggerEnding();
       return;
     }
 
@@ -298,6 +309,38 @@ export class SceneRunner {
       let label = choice.label;
       let enabled = true;
       let reason: string | undefined;
+
+      // Facility intervention: gates, costs, and labels all resolve from the
+      // effective config. No authored literal thresholds or costs exist here.
+      if (choice.facilityAction) {
+        const fixCost = this.config.consumableFixCost;
+        const threshold = this.config.knowledgeThreshold;
+        const canAfford = this.state.stats.consumables >= fixCost;
+        const correctionCapable = this.state.stats.knowledge >= threshold && canAfford;
+        if (choice.facilityAction === 'correct') {
+          label = `${label} [Knowledge ${threshold}] [${fixCost} modules]`;
+          if (!correctionCapable) {
+            enabled = false;
+            reason = `Requires knowledge ${threshold} and ${fixCost} modules`;
+          }
+        } else if (choice.facilityAction === 'shutdown') {
+          label = `${label} [${fixCost} modules]`;
+          if (correctionCapable) {
+            enabled = false;
+            reason = 'The correction is executable';
+          } else if (!canAfford) {
+            enabled = false;
+            reason = `Requires ${fixCost} modules`;
+          }
+        } else {
+          // withdraw: only when nothing else can be executed
+          if (canAfford) {
+            enabled = false;
+            reason = 'You can still act';
+          }
+        }
+        return { index: i, label, enabled, reason };
+      }
 
       // Authored knowledge/rapport gate (event-specific values).
       if (choice.condition) {
@@ -408,6 +451,11 @@ export class SceneRunner {
     const choice = scene.choices?.[choiceIndex];
     if (!choice) {
       console.warn(`[scene-runner] Invalid choice index: ${choiceIndex}`);
+      return;
+    }
+
+    if (choice.facilityAction) {
+      this.selectFacilityAction(choice);
       return;
     }
 
@@ -545,8 +593,8 @@ export class SceneRunner {
       // Check loss condition
       if (isClockFull(this.state, this.config)) {
         this.state = markClockFailure(this.state);
-        this.state = { ...this.state, outcome: scoreRun(this.state, this.config) };
-        this.callbacks.onEnding('clock-failure', this.state);
+        const outcome = this.persistedOutcome();
+        this.callbacks.onEnding(outcome.ending, this.state);
         return;
       }
 
@@ -562,11 +610,54 @@ export class SceneRunner {
 
   // ─── Facility / Confrontation ─────────────────────────────────────────────
 
-  /** Called from facility scene when the confrontation gate is reached */
+  /**
+   * Computes, persists, and routes on the single authoritative outcome.
+   * Ending determination is the existing state-based derivation in scoring.ts
+   * against the effective (trait-adjusted) config — never a literal threshold
+   * and never a scene's authored endingType. The frozen cascade components
+   * ride on the outcome so the score breakdown renders the persisted value
+   * instead of recomputing an ending from post-charge state.
+   */
+  private persistedOutcome(): RunOutcome {
+    if (!this.state.outcome) {
+      const outcome = scoreRun(this.state, this.config);
+      const breakdown = buildScoreBreakdown(this.state, this.config, this.state.rerollCount);
+      const merged: RunOutcome = {
+        ...outcome,
+        components: breakdown.components,
+        multiplier: breakdown.multiplier,
+      };
+      this.state = { ...this.state, outcome: merged };
+      return merged;
+    }
+    return this.state.outcome;
+  }
+
+  /** Called when a determineEnding scene completes (and by the ending paths). */
   triggerEnding(): void {
-    this.state = { ...this.state, outcome: scoreRun(this.state, this.config) };
-    const endingType = this.state.outcome?.ending ?? 'destruction';
-    const endingSceneId = `scene-ending-${endingType}`;
+    const outcome = this.persistedOutcome();
+    const endingSceneId = `scene-ending-${outcome.ending}`;
     this.loadScene(endingSceneId);
+  }
+
+  /**
+   * Executes a facility intervention choice. The outcome is computed and
+   * persisted from the pre-charge (arrival) state — exactly the state the
+   * simulator's determine_ending sees — and the effective repair cost is then
+   * charged exactly once, here at the point of repair. No ending path or
+   * score breakdown deducts it again: the breakdown was already frozen into
+   * the persisted outcome, computed against the arrival state.
+   */
+  private selectFacilityAction(choice: Choice): void {
+    const fixCost = this.config.consumableFixCost;
+    const charges = choice.facilityAction === 'correct' || choice.facilityAction === 'shutdown';
+
+    this.persistedOutcome();
+    if (charges) {
+      this.state = applyStatChanges(this.state, { consumables: -fixCost });
+    }
+
+    this.callbacks.onStateUpdate(this.state);
+    this.loadScene(choice.nextScene);
   }
 }

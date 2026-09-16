@@ -38,6 +38,12 @@ const MUTATIONS = [
       });
     } else if`,
   },
+  {
+    name: '4.2 authored ending routing overrides the computed outcome (pre-change behavior)',
+    file: 'src/engine/scene-runner.ts',
+    find: /const endingSceneId = `scene-ending-\$\{outcome\.ending\}`;/,
+    replace: `const endingSceneId = 'scene-ending-correction'; // mutation: authored routing wins`,
+  },
 ];
 
 // ─── Runner ───────────────────────────────────────────────────────────────────

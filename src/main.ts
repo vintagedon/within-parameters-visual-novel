@@ -269,10 +269,13 @@ function effectiveConfigFromState(state: GameState): GameConfig {
 }
 
 /** Single HUD refresh path: stats against the run's effective knowledge
- *  threshold (from the committed protagonist's configuration — Clear-Headed
- *  lowers it), plus the journey timeline. */
+ *  threshold, plus the journey timeline. When a runner is live its effective
+ *  config is the display authority — the same object the resolver and the
+ *  ending determination read — so the bar and the ending gate cannot diverge
+ *  (including under threshold-modifying traits like Clear-Headed). */
 function refreshHud(state: GameState): void {
-  updateStats(state, effectiveConfigFromState(state).knowledgeThreshold);
+  const effConfig = runner?.getEffectiveConfig() ?? effectiveConfigFromState(state);
+  updateStats(state, effConfig.knowledgeThreshold);
   updateTimeline(state.currentStop, config.journeyStops, state.communities);
 }
 

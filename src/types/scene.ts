@@ -42,6 +42,16 @@ export interface Choice {
   communityEffect?: 'helped' | 'harmed';
   /** Optional — only show this choice if a condition is met */
   condition?: ChoiceCondition;
+  /**
+   * Facility confrontation semantics (Beat 5): gates and costs resolve from
+   * the effective config at runtime, never from authored literals.
+   *   - 'correct': the repair; requires knowledge >= threshold and
+   *     consumables >= fixCost; charges fixCost once at the point of repair.
+   *   - 'shutdown': the forced shutdown; requires consumables >= fixCost and
+   *     is only offered when the correction is not executable; charges fixCost.
+   *   - 'withdraw': the no-action fallback when nothing can be executed.
+   */
+  facilityAction?: 'correct' | 'shutdown' | 'withdraw';
 }
 
 /** Condition for a choice to be visible */
@@ -92,8 +102,14 @@ export interface SceneFlags {
   enterEventPhase?: boolean;
   /** This scene is an ending — show ending screen after */
   isEnding?: boolean;
-  /** Ending type for ending scenes */
+  /** Ending type for ending scenes (advisory; the persisted computed outcome routes) */
   endingType?: 'clock-failure' | 'destruction' | 'correction';
+  /**
+   * This scene's completion determines the ending: the runner computes and
+   * persists the state-derived outcome and routes to the matching ending
+   * scene. Used by the facility intervention consequences.
+   */
+  determineEnding?: boolean;
   /** Trigger autosave after this scene completes */
   autosave?: boolean;
   /** This scene triggers a coworker comms beat */

@@ -28,6 +28,8 @@ import type {
 import { initNewGame } from './game-state';
 import { SceneRunner, buildSceneRegistry, type SceneRunnerCallbacks, type ChoiceView } from './scene-runner';
 import { buildEffectiveConfig } from './traits';
+import { scoreRun } from './scoring';
+import type { RunOutcome } from '../types/index';
 
 // ─── Node environment shim (autosave touches localStorage) ───────────────────
 
@@ -90,6 +92,7 @@ interface Harness {
   runner: SceneRunner;
   queue: Scene[];
   pendingReward: { rewards: unknown[]; onSelect: (index: number) => void } | null;
+  ending: { ending: string; state: GameState } | null;
 }
 
 function makeHarness(opts: {
@@ -114,6 +117,7 @@ function makeHarness(opts: {
   const registry = buildSceneRegistry(scenesData, opts.events);
   const queue: Scene[] = [];
   let pendingReward: Harness['pendingReward'] = null;
+  let ending: Harness['ending'] = null;
   const callbacks: SceneRunnerCallbacks = {
     onSceneStart: (scene) => {
       queue.push(scene);
@@ -122,7 +126,9 @@ function makeHarness(opts: {
     onRewardChoice: (rewards, onSelect) => {
       pendingReward = { rewards, onSelect };
     },
-    onEnding: () => {},
+    onEnding: (endingType, endingState) => {
+      ending = { ending: endingType, state: endingState };
+    },
     onCommsInterrupt: (_state, onContinue) => {
       onContinue();
     },
@@ -136,6 +142,12 @@ function makeHarness(opts: {
     },
     set pendingReward(v) {
       pendingReward = v;
+    },
+    get ending() {
+      return ending;
+    },
+    set ending(v) {
+      ending = v;
     },
   };
 }
@@ -330,7 +342,207 @@ check('4.1 control: no clock traits leaves deltas raw', () => {
   return 'control: raw clock delta applied';
 });
 
-// ─── Report ───────────────────────────────────────────────────────────────────
+// ─── Gate 4.2 checks ──────────────────────────────────────────────────────────
+
+/** Drives from the facility entry to the facility confrontation choices. */
+function driveToFacilityChoice(h: Harness): { scene: Scene; views: ChoiceView[] } {
+  h.runner.loadScene('scene-facility-01');
+  for (let guard = 0; guard < 50; guard++) {
+    const scene = h.queue.shift();
+    if (!scene) break;
+    if (scene.choices && scene.choices.length > 0) {
+      return { scene, views: h.runner.getChoiceViews(scene) };
+    }
+    h.runner.sceneComplete(scene);
+  }
+  throw new Error('never reached the facility confrontation choices');
+}
+
+/** Facility policy: correct if executable, else shutdown, else withdraw. */
+function pickFacilityAction(views: ChoiceView[], scene: Scene): number {
+  const order = ['correct', 'shutdown', 'withdraw'];
+  for (const action of order) {
+    const idx = (scene.choices ?? []).findIndex((c) => c.facilityAction === action);
+    if (idx >= 0 && views[idx]!.enabled) return idx;
+  }
+  throw new Error('no executable facility action');
+}
+
+/** Drives a facility selection through to the fired ending. */
+function driveFacilityToEnding(h: Harness, knowledge: number, consumables: number): void {
+  const { scene, views } = driveToFacilityChoice(h);
+  const idx = pickFacilityAction(views, scene);
+  h.runner.selectChoice(scene, idx);
+  for (let guard = 0; guard < 50; guard++) {
+    if (h.ending) return;
+    const s = h.queue.shift();
+    if (!s) break;
+    h.runner.sceneComplete(s);
+  }
+  void knowledge;
+  void consumables;
+  throw new Error('ending never fired');
+}
+
+function assertSingleOutcomeAuthority(
+  h: Harness,
+  preState: GameState,
+  config: ReturnType<typeof buildEffectiveConfig>,
+  label: string
+): RunOutcome {
+  const scored = scoreRun(preState, config);
+  const outcome = h.ending!.state.outcome;
+  assert(outcome !== null, `${label}: persisted outcome is null`);
+  eq(h.ending!.ending, scored.ending, `${label}: narrative ending vs independently scored`);
+  eq(outcome!.ending, scored.ending, `${label}: persisted ending vs independently scored`);
+  eq(
+    h.ending!.state.currentScene,
+    `scene-ending-${scored.ending}`,
+    `${label}: ending scene routed by computed outcome`
+  );
+  eq(outcome!.rawScore, scored.rawScore, `${label}: persisted rawScore vs independent`);
+  return outcome!;
+}
+
+/** Threshold boundary under a threshold-modifying trait (Clear-Headed). */
+check('4.2 threshold boundary: below / at / above under Clear-Headed', () => {
+  const config = buildEffectiveConfig(baseConfig, 'P6', 'N4');
+  const threshold = config.knowledgeThreshold;
+  const notes: string[] = [];
+  for (const knowledge of [threshold - 1, threshold, threshold + 1]) {
+    const events = eventsByCategory('community');
+    const h = makeHarness({ positive: 'P6', negative: 'N4', events, knowledge, consumables: 6 });
+    const preState = h.runner.getState();
+    driveFacilityToEnding(h, knowledge, 6);
+    assertSingleOutcomeAuthority(
+      h,
+      preState,
+      config,
+      `knowledge ${knowledge} (threshold ${threshold})`
+    );
+    notes.push(
+      `k${knowledge} -> ${h.ending!.ending} (view gate showed [Knowledge ${threshold}])`
+    );
+  }
+  return notes.join('; ');
+});
+
+/** The knowledge-8 review probe: no narrative/scored disagreement, outcome set. */
+check('4.2 knowledge-8 probe: narrative == scored == persisted, outcome non-null', () => {
+  const events = eventsByCategory('community');
+  const h = makeHarness({ positive: 'P6', negative: 'N4', events, knowledge: 8, consumables: 4 });
+  const config = h.runner.getEffectiveConfig();
+  const preState = h.runner.getState();
+  driveFacilityToEnding(h, 8, 4);
+  assertSingleOutcomeAuthority(h, preState, config, 'knowledge-8 probe');
+  const outcome = h.ending!.state.outcome!;
+  assert(outcome !== null, 'outcome non-null');
+  eq(outcome.ending, 'destruction', 'knowledge 8 below every legal threshold scores destruction');
+  return 'narrative destruction, scored destruction, outcome persisted';
+});
+
+/** Repair cost charged exactly once at the point of repair (Fragile Kit: 3). */
+check('4.2 repair cost: charged exactly once, no second deduction', () => {
+  const events = eventsByCategory('community');
+  const h = makeHarness({ positive: 'P1', negative: 'N6', events, knowledge: 12, consumables: 5 });
+  const config = h.runner.getEffectiveConfig();
+  const fixCost = config.consumableFixCost;
+  eq(fixCost, 3, 'Fragile Kit raises the effective repair cost');
+
+  const { scene, views } = driveToFacilityChoice(h);
+  const correctIdx = (scene.choices ?? []).findIndex((c) => c.facilityAction === 'correct');
+  assert(correctIdx >= 0, 'correction choice exists');
+  const correctView = views[correctIdx]!;
+  assert(correctView.enabled, 'correction executable at k12 / 5 modules');
+  assert(correctView.label.includes(`[${fixCost} modules]`), 'label shows the effective cost');
+
+  const preState = h.runner.getState();
+  const before = preState.stats.consumables;
+  h.runner.selectChoice(scene, correctIdx);
+  for (let guard = 0; guard < 50 && !h.ending; guard++) {
+    const s = h.queue.shift();
+    if (!s) break;
+    h.runner.sceneComplete(s);
+  }
+  assert(h.ending !== null, 'ending fired');
+
+  const after = h.ending!.state.stats.consumables;
+  eq(after, before - fixCost, 'module total after ending equals before repair minus effective cost');
+
+  // The outcome must equal the cascade computed on the pre-charge (arrival)
+  // state — the score breakdown must not deduct the repair a second time.
+  const scored = scoreRun(preState, config);
+  const outcome = h.ending!.state.outcome!;
+  eq(outcome.ending, 'correction', 'correction persisted');
+  eq(outcome.rawScore, scored.rawScore, 'rawScore matches pre-charge cascade (no second deduction)');
+  const modulesRow = (outcome.components ?? []).find((c) => c.label === 'Modules remaining');
+  assert(modulesRow !== undefined, 'modules component present in frozen breakdown');
+  return `before ${before} -> after ${after} (fixCost ${fixCost}); rawScore ${outcome.rawScore} == pre-charge cascade`;
+});
+
+/** Clock failure produces a persisted outcome consumed identically. */
+check('4.2 clock-failure: persisted outcome consumed identically', () => {
+  const events = eventsByCategory('community');
+  const h = makeHarness({ positive: 'P5', negative: 'N4', events, consumables: 6, clock: 10 });
+  // Drive into the journey, select any choice, then run the reward cycle;
+  // the clock is already at max, so the post-reward tick ends the run.
+  const { scene, views } = driveToChoiceScene(h);
+  const enabled = views.findIndex((v) => v.enabled);
+  assert(enabled >= 0, 'an enabled choice exists');
+  h.runner.selectChoice(scene, enabled);
+  for (let guard = 0; guard < 100 && !h.ending; guard++) {
+    if (h.pendingReward) {
+      h.pendingReward.onSelect(0);
+      h.pendingReward = null;
+      continue;
+    }
+    const s = h.queue.shift();
+    if (!s) continue;
+    h.runner.sceneComplete(s);
+    if (h.runner.getState().activeEventId) {
+      h.runner.eventSceneComplete(s.id);
+    }
+  }
+  assert(h.ending !== null, 'clock-failure ending fired');
+  const outcome = h.ending!.state.outcome;
+  assert(outcome !== null, 'clock-failure outcome persisted');
+  eq(h.ending!.ending, outcome!.ending, 'narrative == persisted for clock-failure');
+  eq(outcome!.ending, 'clock-failure', 'ending type');
+  eq(h.ending!.state.alive, false, 'run marked not alive');
+  return 'clock-failure: narrative == scored == persisted';
+});
+
+/** HUD display and ending determination read the same effective-config value. */
+check('4.2 HUD threshold: display authority == ending authority', () => {
+  const events = eventsByCategory('community');
+  const h = makeHarness({ positive: 'P6', negative: 'N4', events, consumables: 6 });
+  const displayThreshold = h.runner.getEffectiveConfig().knowledgeThreshold;
+  const expected = buildEffectiveConfig(baseConfig, 'P6', 'N4').knowledgeThreshold;
+  eq(displayThreshold, expected, 'runner exposes the effective threshold the HUD reads');
+
+  // The correction gate flips exactly at the displayed threshold.
+  for (const [knowledge, want] of [
+    [displayThreshold - 1, 'destruction'],
+    [displayThreshold, 'correction'],
+  ] as const) {
+    const hh = makeHarness({
+      positive: 'P6',
+      negative: 'N4',
+      events,
+      knowledge,
+      consumables: 6,
+    });
+    driveFacilityToEnding(hh, knowledge, 6);
+    eq(
+      hh.ending!.ending,
+      want,
+      `gate flips at the displayed threshold (knowledge ${knowledge})`
+    );
+  }
+  return `display ${displayThreshold}; gate flips exactly there`;
+});
+
+
 
 function report(): number {
   console.log('Within Parameters — live-path checks (drive the real SceneRunner)');
