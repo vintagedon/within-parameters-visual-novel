@@ -63,6 +63,7 @@ SCREENS: list[tuple[str, str]] = [
     ("lore-card", "02-lore-card.png"),
     ("hud-midrun", "03-hud-midrun.png"),
     ("comms-interrupt", "07-comms-interrupt.png"),
+    ("document-overlay", "11-document-overlay.png"),
     ("reward-overlay", "06-reward-overlay.png"),
     ("ending", "08-ending.png"),
     ("save-load-confirm", "05-save-load-confirm.png"),
@@ -152,6 +153,7 @@ VERIFY: dict[str, str] = {
     "lore-card": "#dialogue-text",
     "hud-midrun": "#sidebar .gui-panel .gui-bar--segmented",
     "comms-interrupt": "#comms-panel-body.gui-panel--warning",
+    "document-overlay": "#document-overlay:not(.hidden) .wp-document-panel",
     "reward-overlay": ".wp-reward-cards .gui-card",
     "ending": "#ending-actions .gui-btn",
     # Spec 03: the dossier (chargen) and its post-reroll state. Both render
@@ -266,17 +268,28 @@ def start_run_and_capture_lore(page: Page, captured: set[str], errors: list[str]
 
 
 def walk_run(page: Page, captured: set[str], errors: list[str]):
-    """Drive the run forward just far enough to capture the in-game HUD, the
-    comms interrupt, and the reward overlay. These all appear early (HUD at the
-    discovery scene, the first reward after stop 1's event), so the walk stops
-    once all three are captured. The ending shell is captured separately via the
-    dev hook because the natural run flow stalls at the approach-event reward
-    (an engine edge case outside this presentation spec's scope)."""
-    hud_done = comms_done = reward_done = False
+    """Drive the run forward to capture the in-game HUD, the comms interrupt,
+    the found-document overlay, and the reward overlay. All appear during the
+    first stops of a seeded run (the comms via the dev hook below; the
+    document overlay whenever the draw surfaces a documented event), so the
+    walk stops once all four are captured."""
+    hud_done = comms_done = reward_done = doc_done = False
 
     for _ in range(MAX_WALK_ACTIONS):
-        if hud_done and comms_done and reward_done:
+        if hud_done and comms_done and reward_done and doc_done:
             return
+
+        # Found-document overlay → capture the first occurrence, then ack.
+        if visible(page, "#document-overlay:not(.hidden)"):
+            if not doc_done:
+                page.wait_for_timeout(400)
+                assert_framework(page, "document-overlay", errors)
+                capture(page, SCREEN_MAP["document-overlay"], errors)
+                captured.add("document-overlay")
+                doc_done = True
+            click_first(page, "#document-footer .gui-btn")
+            page.wait_for_timeout(ACTION_INTERVAL_MS)
+            continue
 
         # Reward overlay → capture first occurrence, then pick a reward.
         if visible(page, "#reward-overlay:not(.hidden)"):
@@ -325,7 +338,12 @@ def walk_run(page: Page, captured: set[str], errors: list[str]):
         click_first(page, "#bottom-bar")
         page.wait_for_timeout(ACTION_INTERVAL_MS)
 
-    missing = {"hud-midrun": hud_done, "comms-interrupt": comms_done, "reward-overlay": reward_done}
+    missing = {
+        "hud-midrun": hud_done,
+        "comms-interrupt": comms_done,
+        "reward-overlay": reward_done,
+        "document-overlay": doc_done,
+    }
     for name, done in missing.items():
         if not done and name not in captured:
             errors.append(f"walk: {name} never appeared")
