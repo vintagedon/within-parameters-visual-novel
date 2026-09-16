@@ -213,6 +213,32 @@ export interface SaveSlot {
   sceneLabel: string;
   /** Current beat for display */
   beatLabel: string;
+  /**
+   * Engine snapshot for exact resume (gate 4.7): the run RNG state, the
+   * per-stop Practiced availability, and the serializable event-pool state,
+   * so a resumed run continues the same random stream and draw order an
+   * uninterrupted run would have taken. Absent on legacy slots.
+   */
+  engine?: EngineSnapshot;
+}
+
+/**
+ * Serializable engine state riding on a save slot. Zone pools and community
+ * queues are stored as ids and rehydrated against the loaded registries.
+ */
+export interface EngineSnapshot {
+  /** Run RNG state (mulberry32 32-bit word). */
+  rngState: number;
+  /** Whether the Practiced (P8) discount is still available this stop. */
+  practicedAvailable: boolean;
+  /** Event pool state at save time; null before the journey phase begins. */
+  eventPool: {
+    community: string[];
+    transit: string[];
+    approach: string[];
+    availableCommunities: string[];
+    usedEventIds: string[];
+  } | null;
 }
 
 /** Persistent data across runs (stored separately from saves) */

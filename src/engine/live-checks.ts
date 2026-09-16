@@ -31,6 +31,7 @@ import { buildEffectiveConfig } from './traits';
 import { scoreRun } from './scoring';
 import { initEventPool, drawEvent } from './event-system';
 import { createRng } from './rng';
+import { createRunRng } from './run-rng';
 import { buildEpilogue } from '../ui/screens';
 import type { RunOutcome, CommunityRunState } from '../types/index';
 
@@ -111,18 +112,25 @@ function makeHarness(opts: {
   consumables?: number;
   knowledge?: number;
   clock?: number;
+  runSeed?: number;
+  resume?: { state: GameState; engine: import('../types/index').EngineSnapshot };
 }): Harness {
   const config = buildEffectiveConfig(baseConfig, opts.positive, opts.negative);
-  let state: GameState = initNewGame(config);
-  state = {
-    ...state,
-    stats: {
-      ...state.stats,
-      consumables: opts.consumables ?? config.startingConsumables,
-      knowledge: opts.knowledge ?? 0,
-    },
-    clock: { ...state.clock, current: opts.clock ?? 0 },
-  };
+  let state: GameState;
+  if (opts.resume) {
+    state = opts.resume.state;
+  } else {
+    state = initNewGame(config);
+    state = {
+      ...state,
+      stats: {
+        ...state.stats,
+        consumables: opts.consumables ?? config.startingConsumables,
+        knowledge: opts.knowledge ?? 0,
+      },
+      clock: { ...state.clock, current: opts.clock ?? 0 },
+    };
+  }
   const registry = buildSceneRegistry(scenesData, opts.events, documentsData, commsBeatsData);
   const queue: Scene[] = [];
   let pendingReward: Harness['pendingReward'] = null;
@@ -149,7 +157,19 @@ function makeHarness(opts: {
       onContinue();
     },
   };
-  const runner = new SceneRunner(state, config, registry, communitiesData, callbacks);
+  const runRng = createRunRng(opts.resume ? 0 : (opts.runSeed ?? 12345));
+  const runner = new SceneRunner(
+    state,
+    config,
+    registry,
+    communitiesData,
+    callbacks,
+    undefined,
+    runRng
+  );
+  if (opts.resume) {
+    runner.restoreEngine(opts.resume.engine);
+  }
   return {
     runner,
     queue,
@@ -988,6 +1008,170 @@ check('4.6 scenes and NPCs: full coverage, no six-stop text', () => {
     }
   }
   return 'scenes cover lore/authorization/journey/facility/endings; six NPCs present with M3 expressions and colors';
+});
+
+// ─── Gate 4.7 checks ──────────────────────────────────────────────────────────
+
+/** Drives a full run (journey + facility) to its ending with a fixed policy. */
+function driveToCompletion(
+  h: Harness,
+  rewardIndex = 1,
+  start = true
+): void {
+  if (start) h.runner.loadScene('scene-discovery-01');
+  for (let guard = 0; guard < 3000 && !h.ending; guard++) {
+    if (h.pendingReward) {
+      h.pendingReward.onSelect(rewardIndex);
+      h.pendingReward = null;
+      continue;
+    }
+    const scene = h.queue.shift();
+    if (!scene) continue;
+    if (scene.choices && scene.choices.length > 0) {
+      const views = h.runner.getChoiceViews(scene);
+      const idx = views.findIndex((v) => v.enabled);
+      if (idx >= 0) {
+        h.runner.selectChoice(scene, idx);
+        continue;
+      }
+    }
+    h.runner.sceneComplete(scene);
+    if (h.runner.getState().activeEventId) {
+      h.runner.eventSceneComplete(scene.id);
+    }
+  }
+}
+
+/** Mid-run save, full serialize/deserialize cycle, resume: field-by-field equality. */
+check('4.7 save/resume: restored state matches field by field', () => {
+  const seed = 90210;
+  const h = makeHarness({ positive: 'P2', negative: 'N4', events: eventsData, runSeed: seed });
+  // Drive into stop 3's choice and select it.
+  h.runner.loadScene('scene-discovery-01');
+  let stopsSeen = 0;
+  let saved: { state: GameState; engine: import('../types/index').EngineSnapshot } | null = null;
+  for (let guard = 0; guard < 1000 && !saved; guard++) {
+    if (h.pendingReward) {
+      h.pendingReward.onSelect(1);
+      h.pendingReward = null;
+      continue;
+    }
+    const scene = h.queue.shift();
+    if (!scene) continue;
+    if (scene.choices && scene.choices.length > 0) {
+      const views = h.runner.getChoiceViews(scene);
+      const idx = views.findIndex((v) => v.enabled);
+      if (idx >= 0) {
+        h.runner.selectChoice(scene, idx);
+        if (h.runner.getState().currentStop === 3) {
+          saved = {
+            state: h.runner.getState(),
+            engine: h.runner.snapshot()!,
+          };
+        }
+        continue;
+      }
+    }
+    h.runner.sceneComplete(scene);
+    if (h.runner.getState().activeEventId) h.runner.eventSceneComplete(scene.id);
+    const stop = h.runner.getState().currentStop;
+    if (stop > stopsSeen) stopsSeen = stop;
+  }
+  assert(saved !== null, 'reached a stop-3 save point');
+  const slot = JSON.parse(
+    JSON.stringify({
+      id: 0,
+      label: 'Slot 1',
+      state: saved!.state,
+      savedAt: 0,
+      sceneLabel: 'x',
+      beatLabel: 'y',
+      engine: saved!.engine,
+    })
+  ) as import('../types/index').SaveSlot;
+
+  const before = saved!.state;
+  const after = slot.state;
+  eq(after.stats.knowledge, before.stats.knowledge, 'knowledge');
+  eq(after.stats.consumables, before.stats.consumables, 'consumables');
+  eq(after.stats.rapport, before.stats.rapport, 'rapport');
+  eq(after.stats.startingRapport, before.stats.startingRapport, 'startingRapport');
+  eq(after.clock.current, before.clock.current, 'clock current');
+  eq(after.clock.max, before.clock.max, 'clock max');
+  eq(after.currentStop, before.currentStop, 'current stop');
+  eq(after.communities.length, before.communities.length, 'community count');
+  for (let i = 0; i < before.communities.length; i++) {
+    eq(after.communities[i]!.community.id, before.communities[i]!.community.id, `community ${i} id`);
+    eq(after.communities[i]!.state, before.communities[i]!.state, `community ${i} state`);
+    eq(after.communities[i]!.stop, before.communities[i]!.stop, `community ${i} stop`);
+  }
+  eq(JSON.stringify(after.protagonist), JSON.stringify(before.protagonist), 'protagonist (traits incl.)');
+  eq(after.rerollCount, before.rerollCount, 'reroll count');
+  eq(after.outcome, before.outcome, 'persisted outcome');
+  eq(JSON.stringify(after.usedEventIds), JSON.stringify(before.usedEventIds), 'used events');
+  const eff = buildEffectiveConfig(baseConfig, 'P2', 'N4');
+  eq(eff.knowledgeThreshold, buildEffectiveConfig(baseConfig, 'P2', 'N4').knowledgeThreshold, 'effective config re-derived');
+  return `stop ${before.currentStop} slot round-trips with all fields intact`;
+});
+
+/** Same-seed parity: a save+resume run scores exactly what the uninterrupted run scored. */
+check('4.7 save/resume: resumed completion matches the uninterrupted score', () => {
+  const seed = 31337;
+  // Uninterrupted twin.
+  const a = makeHarness({ positive: 'P1', negative: 'N5', events: eventsData, runSeed: seed });
+  driveToCompletion(a, 1);
+  assert(a.ending !== null, 'uninterrupted run ended');
+  const outcomeA = a.ending!.state.outcome!;
+
+  // Save mid-run (stop 3 choice), serialize, resume with a fresh runner.
+  const b = makeHarness({ positive: 'P1', negative: 'N5', events: eventsData, runSeed: seed });
+  b.runner.loadScene('scene-discovery-01');
+  let slotJson: string | null = null;
+  for (let guard = 0; guard < 1000 && !slotJson; guard++) {
+    if (b.pendingReward) {
+      b.pendingReward.onSelect(1);
+      b.pendingReward = null;
+      continue;
+    }
+    const scene = b.queue.shift();
+    if (!scene) continue;
+    if (scene.choices && scene.choices.length > 0) {
+      const views = b.runner.getChoiceViews(scene);
+      const idx = views.findIndex((v) => v.enabled);
+      if (idx >= 0) {
+        b.runner.selectChoice(scene, idx);
+        if (b.runner.getState().currentStop === 3) {
+          slotJson = JSON.stringify({
+            state: b.runner.getState(),
+            engine: b.runner.snapshot(),
+          });
+        }
+        continue;
+      }
+    }
+    b.runner.sceneComplete(scene);
+    if (b.runner.getState().activeEventId) b.runner.eventSceneComplete(scene.id);
+  }
+  assert(slotJson !== null, 'saved mid-run at stop 3');
+  const slot = JSON.parse(slotJson!) as {
+    state: GameState;
+    engine: import('../types/index').EngineSnapshot;
+  };
+  const r = makeHarness({
+    positive: 'P1',
+    negative: 'N5',
+    events: eventsData,
+    resume: slot,
+  });
+  r.runner.start();
+  driveToCompletion(r, 1, false);
+  assert(r.ending !== null, 'resumed run ended');
+  const outcomeB = r.ending!.state.outcome!;
+  eq(outcomeB.ending, outcomeA.ending, 'ending');
+  eq(outcomeB.finalScore, outcomeA.finalScore, 'final score');
+  eq(outcomeB.rawScore, outcomeA.rawScore, 'raw score');
+  eq(outcomeB.grade, outcomeA.grade, 'grade');
+  return `${outcomeA.ending} @ ${outcomeA.finalScore} == ${outcomeB.ending} @ ${outcomeB.finalScore} from seed ${seed}`;
 });
 
 function report(): number {

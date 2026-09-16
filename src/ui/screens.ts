@@ -673,8 +673,10 @@ export function buildEpilogue(
 }
 
 /** Drops a leading indefinite article so descriptions interpolate cleanly
- *  into sentences that carry their own article. */
-function stripLeadingArticle(d: string): string {
+ *  into sentences that carry their own article. Tolerates missing
+ *  descriptions (legacy/dev states). */
+function stripLeadingArticle(d: string | undefined): string {
+  if (!d) return 'community';
   return d.replace(/^(a|an)\s+/i, '');
 }
 

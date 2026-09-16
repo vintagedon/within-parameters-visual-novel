@@ -896,6 +896,10 @@ body {
 
 /* ─── Found Document Overlay (positioning; panel is framework) ───────────── */
 
+#hud-actions .gui-btn {
+  width: 100%;
+}
+
 #document-overlay {
   position: fixed;
   inset: 0;

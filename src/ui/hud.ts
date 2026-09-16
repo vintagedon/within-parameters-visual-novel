@@ -15,6 +15,7 @@
  */
 
 import type { GameState, CommunityRunState, GameConfig } from "../types/index";
+import { createButton } from './gameui';
 
 // ─── Display constants ────────────────────────────────────────────────────────
 
@@ -43,7 +44,7 @@ let totalStops = 6;
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
-export function initHUD(sidebar: HTMLElement, config: GameConfig): void {
+export function initHUD(sidebar: HTMLElement, config: GameConfig, onSave?: () => void): void {
   totalStops = config.journeyStops;
 
   sidebar.innerHTML = `
@@ -88,6 +89,7 @@ export function initHUD(sidebar: HTMLElement, config: GameConfig): void {
         <div class="gui-panel__title">Route</div>
       </div>
       <div class="wp-timeline" id="timeline-body"></div>
+      <div class="gui-panel__footer wp-hud-actions" id="hud-actions"></div>
     </section>
   `;
 
@@ -106,6 +108,19 @@ export function initHUD(sidebar: HTMLElement, config: GameConfig): void {
   resourceSegments = document.getElementById('resources-segments')!;
 
   timelineBody = document.getElementById('timeline-body')!;
+
+  // Manual save action (gate 4.7): reachable from the sidebar during a run.
+  const actions = document.getElementById('hud-actions');
+  if (actions && onSave) {
+    const save = createButton({
+      label: 'SAVE',
+      accent: 'primary',
+      variant: 'outline',
+      onClick: onSave,
+    });
+    save.el.id = 'hud-save';
+    actions.appendChild(save.el);
+  }
 
   // Seed segmented bars and timeline at their initial state.
   renderSegmented(clockSegments, 0, config.clockMax);

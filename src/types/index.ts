@@ -17,6 +17,7 @@ export type {
   RunOutcome,
   GameState,
   SaveSlot,
+  EngineSnapshot,
   PersistentData,
   GameConfig,
 } from './state';

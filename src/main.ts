@@ -20,6 +20,7 @@ import type {
   Character,
   FoundDocument,
   CommsBeatsData,
+  SaveSlot,
 } from './types/index';
 
 // Engine
@@ -37,10 +38,12 @@ import {
   type ProtagonistPool,
 } from './engine/chargen';
 import { createRng } from './engine/rng';
+import { createRunRng } from './engine/run-rng';
 import {
   autosave,
   saveToSlot,
   loadFromSlot,
+  loadSlot,
   getSlotSummaries,
   hasAutosave,
   loadPersistentData,
@@ -142,7 +145,7 @@ async function boot(): Promise<void> {
   initDialogue(layout.bottomBar, config);
 
   // Init HUD (hidden until game starts)
-  initHUD(layout.sidebar, config);
+  initHUD(layout.sidebar, config, () => openSaveMenu());
 
   // Show title screen
   Audio.playBGM('bgm-title', false);
@@ -154,19 +157,19 @@ async function boot(): Promise<void> {
       startNewGame();
     },
     onContinue: () => {
-      const state = loadFromSlot('auto');
-      if (state) {
+      const slot = loadSlot('auto');
+      if (slot) {
         hideTitleScreen();
-        startGameFromState(state);
+        startGameFromState(slot.state, slot.engine);
       }
     },
     onLoad: () => {
       showSaveLoadScreen('load', getSlotSummaries(), (slotId) => {
-        const state = loadFromSlot(slotId);
-        if (state) {
+        const slot = loadSlot(slotId);
+        if (slot) {
           hideSaveLoadScreen();
           hideTitleScreen();
-          startGameFromState(state);
+          startGameFromState(slot.state, slot.engine);
         }
       }, hideSaveLoadScreen);
     },
@@ -198,9 +201,9 @@ async function boot(): Promise<void> {
   const devEnv = (import.meta as { env?: { DEV?: boolean } }).env;
   if (devEnv?.DEV) {
     const sampleCommunities = [
-      { community: { name: 'Georgetown Hydro' }, state: 'helped', stop: 1 },
-      { community: { name: 'Foggy Bottom Relay' }, state: 'helped', stop: 2 },
-      { community: { name: 'Silver Spring Junction' }, state: 'harmed', stop: 3 },
+      { community: { name: 'Georgetown Hydro', description: 'a water reclamation community dependent on surface-fed filtration' }, state: 'helped', stop: 1 },
+      { community: { name: 'Foggy Bottom Relay', description: 'a transit workers\' cooperative maintaining the eastern tunnel network' }, state: 'helped', stop: 2 },
+      { community: { name: 'Silver Spring Junction', description: 'a small trading post at the intersection of three major tunnel routes' }, state: 'harmed', stop: 3 },
     ] as unknown as GameState['communities'];
     (window as unknown as {
       __wp?: {
@@ -307,26 +310,49 @@ function startNewGame(): void {
   const state = initNewGame(config, persistent.runsStarted);
   const registry = buildSceneRegistry(scenesData, eventsData, documentsData, commsBeatsData);
   clearDialogue();
-  // New game: supply the chargen pool + a seeded RNG so the runner can roll a
-  // protagonist and show the dossier before the lore card. The Playwright harness
-  // sets window.__wpSeed for deterministic captures; in normal play it is unset,
+  // New game: supply the chargen pool + the run's stateful RNG (one stream
+  // for the protagonist roll and everything after it: pool shuffles,
+  // community assignment, clock jitter). The Playwright harness sets
+  // window.__wpSeed for deterministic captures; in normal play it is unset,
   // so the seed is time+random (truly random per run). No-op in production.
   const harnessSeed = (window as unknown as { __wpSeed?: number }).__wpSeed;
   const seed = harnessSeed ?? ((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0);
+  const runRng = createRunRng(seed);
   runner = new SceneRunner(state, config, registry, communitiesData, buildRunnerCallbacks(), {
     pool,
-    rng: createRng(seed),
+    rng: runRng,
   });
   runner.beginNewRun();
 }
 
 /** Resume path for CONTINUE/LOAD — does NOT regenerate the protagonist. */
-function startGameFromState(state: GameState): void {
+function startGameFromState(state: GameState, slotEngine?: SaveSlot['engine']): void {
   clearDialogue();
   const registry = buildSceneRegistry(scenesData, eventsData, documentsData, commsBeatsData);
   const effConfig = effectiveConfigFromState(state);
-  runner = new SceneRunner(state, effConfig, registry, communitiesData, buildRunnerCallbacks());
+  const runRng = createRunRng(0);
+  runner = new SceneRunner(state, effConfig, registry, communitiesData, buildRunnerCallbacks(), undefined, runRng);
+  if (slotEngine) {
+    runner.restoreEngine(slotEngine);
+  }
   runner.start();
+}
+
+/** Manual save surface (gate 4.7): reachable from the HUD during a run. */
+function openSaveMenu(): void {
+  if (!runner) return;
+  showSaveLoadScreen('save', getSlotSummaries(), (slotId) => {
+    if (slotId === 'auto') return; // autosave slot is not manually writable
+    const state = runner!.getState();
+    saveToSlot(
+      slotId,
+      state,
+      state.currentScene,
+      state.currentBeat,
+      runner!.snapshot() ?? undefined
+    );
+    hideSaveLoadScreen();
+  }, hideSaveLoadScreen);
 }
 
 function buildRunnerCallbacks(): SceneRunnerCallbacks {
@@ -408,13 +434,13 @@ function buildRunnerCallbacks(): SceneRunnerCallbacks {
                 startNewGame();
               },
               onContinue: () => {
-                const s = loadFromSlot('auto');
-                if (s) { hideTitleScreen(); startGameFromState(s); }
+                const slot = loadSlot('auto');
+                if (slot) { hideTitleScreen(); startGameFromState(slot.state, slot.engine); }
               },
               onLoad: () => {
                 showSaveLoadScreen('load', getSlotSummaries(), (slotId) => {
-                  const s = loadFromSlot(slotId);
-                  if (s) { hideSaveLoadScreen(); hideTitleScreen(); startGameFromState(s); }
+                  const slot = loadSlot(slotId);
+                  if (slot) { hideSaveLoadScreen(); hideTitleScreen(); startGameFromState(slot.state, slot.engine); }
                 }, hideSaveLoadScreen);
               },
               onSettings: () => {

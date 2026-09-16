@@ -36,6 +36,8 @@ import { scoreRun, buildScoreBreakdown } from './scoring';
 import { buildEffectiveConfig } from './traits';
 import { generateProtagonist, type ProtagonistPool } from './chargen';
 import type { Rng } from './rng';
+import type { RunRng } from './run-rng';
+import type { EngineSnapshot } from '../types/index';
 import {
   calcEffectiveConsumableCost,
   applyChoiceEffects,
@@ -158,13 +160,22 @@ export class SceneRunner {
   private candidate: ProtagonistIdentity | null = null;
   private candidateRerollCount = 0;
 
+  /**
+   * The run's stateful RNG (event pool shuffles, community assignment,
+   * clock jitter). Same stream as the chargen rng on new-game runners;
+   * supplied separately on resume runners so a saved run continues the exact
+   * stream an uninterrupted run would have consumed.
+   */
+  private runRng: RunRng | null;
+
   constructor(
     initialState: GameState,
     config: GameConfig,
     registry: SceneRegistry,
     communities: Community[],
     callbacks: SceneRunnerCallbacks,
-    chargen?: { pool: ProtagonistPool; rng: Rng }
+    chargen?: { pool: ProtagonistPool; rng: Rng },
+    runRng?: RunRng
   ) {
     this.state = initialState;
     this.config = config;
@@ -172,10 +183,74 @@ export class SceneRunner {
     this.communities = communities;
     this.callbacks = callbacks;
     this.chargen = chargen ?? null;
+    this.runRng = runRng ?? (chargen?.rng as RunRng | undefined) ?? null;
   }
 
   getState(): GameState {
     return this.state;
+  }
+
+  // ─── Engine snapshot (exact resume, gate 4.7) ────────────────────────────
+
+  /**
+   * Captures the serializable engine state that GameState alone cannot
+   * carry: the run RNG stream position, the per-stop Practiced availability,
+   * and the event-pool ordering. Ride this on a save slot to make a resumed
+   * run continue the exact stream an uninterrupted run would have taken.
+   */
+  snapshot(): EngineSnapshot | null {
+    return {
+      rngState: this.runRng?.getState() ?? 0,
+      practicedAvailable: this.practicedAvailable,
+      eventPool: this.eventPool
+        ? {
+            community: this.eventPool.byZone.community.map((e) => e.id),
+            transit: this.eventPool.byZone.transit.map((e) => e.id),
+            approach: this.eventPool.byZone.approach.map((e) => e.id),
+            availableCommunities: this.eventPool.availableCommunities.map((c) => c.id),
+            usedEventIds: Array.from(this.eventPool.usedEventIds),
+          }
+        : null,
+    };
+  }
+
+  /**
+   * Restores an engine snapshot: RNG stream, Practiced availability, and the
+   * event pool ordering. Re-injects the active event's scenes and pending
+   * reward tracking so a mid-event resume continues where the save left off.
+   */
+  restoreEngine(snap: EngineSnapshot): void {
+    this.runRng?.setState(snap.rngState);
+    this.practicedAvailable = snap.practicedAvailable;
+    if (snap.eventPool) {
+      const byId = (id: string) => this.registry.events.get(id)!;
+      const communityById = (id: string) =>
+        this.communities.find((c) => c.id === id) ?? {
+          id,
+          name: id,
+          description: 'an unrecorded community',
+        };
+      this.eventPool = {
+        byZone: {
+          community: snap.eventPool.community.map(byId),
+          transit: snap.eventPool.transit.map(byId),
+          approach: snap.eventPool.approach.map(byId),
+        },
+        availableCommunities: snap.eventPool.availableCommunities.map(communityById),
+        usedEventIds: new Set(snap.eventPool.usedEventIds),
+      };
+    }
+    // Mid-event resume: re-register the event's scenes and reward tracking.
+    const activeId = this.state.activeEventId;
+    if (activeId) {
+      const event = this.registry.events.get(activeId);
+      if (event) {
+        for (const scene of event.scenes) {
+          this.registry.scenes.set(scene.id, scene);
+        }
+        this._pendingEventForStop = { event, stop: this.state.currentStop };
+      }
+    }
   }
 
   // ─── Entry point ─────────────────────────────────────────────────────────
@@ -266,7 +341,7 @@ export class SceneRunner {
 
     // Autosave if flagged
     if (scene.flags?.autosave) {
-      autosave(this.state, scene.id, scene.beat);
+      autosave(this.state, scene.id, scene.beat, this.snapshot() ?? undefined);
     }
 
     // Check if this scene enters the event phase
@@ -526,8 +601,9 @@ export class SceneRunner {
 
   private enterEventPhase(): void {
     const allEvents = Array.from(this.registry.events.values());
-    this.eventPool = initEventPool(allEvents, this.config, this.communities);
+    this.eventPool = initEventPool(allEvents, this.config, this.communities, this.runRng ?? undefined);
     this.state = { ...this.state, currentStop: 1 };
+    this.practicedAvailable = true;
     this.runNextStop();
   }
 
@@ -664,7 +740,7 @@ export class SceneRunner {
       this.state = applyReward(reward, this.state, this.config);
 
       // Tick the clock
-      this.state = tickClock(this.state, this.config);
+      this.state = tickClock(this.state, this.config, this.runRng ?? undefined);
       this.callbacks.onStateUpdate(this.state);
 
       // Check loss condition
