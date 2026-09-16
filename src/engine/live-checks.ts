@@ -83,6 +83,9 @@ const baseConfig = load<GameConfig>('data/config.json');
 const scenesData = load<{ scenes: Scene[] }>('data/scenes.json').scenes;
 const eventsData = load<{ events: EventDef[] }>('data/events.json').events;
 const communitiesData = load<{ communities: Community[] }>('data/communities.json').communities;
+const documentsData = load<{ documents: import('../types/index').FoundDocument[] }>(
+  'data/found-documents.json'
+).documents;
 
 function eventsByCategory(category: EventCategory): EventDef[] {
   return eventsData.filter((e) => e.category === category);
@@ -95,6 +98,7 @@ interface Harness {
   queue: Scene[];
   pendingReward: { rewards: unknown[]; onSelect: (index: number) => void } | null;
   ending: { ending: string; state: GameState } | null;
+  surfacedDocs: import('../types/index').FoundDocument[];
 }
 
 function makeHarness(opts: {
@@ -116,10 +120,11 @@ function makeHarness(opts: {
     },
     clock: { ...state.clock, current: opts.clock ?? 0 },
   };
-  const registry = buildSceneRegistry(scenesData, opts.events);
+  const registry = buildSceneRegistry(scenesData, opts.events, documentsData);
   const queue: Scene[] = [];
   let pendingReward: Harness['pendingReward'] = null;
   let ending: Harness['ending'] = null;
+  const surfacedDocs: import('../types/index').FoundDocument[] = [];
   const callbacks: SceneRunnerCallbacks = {
     onSceneStart: (scene) => {
       queue.push(scene);
@@ -132,6 +137,10 @@ function makeHarness(opts: {
       ending = { ending: endingType, state: endingState };
     },
     onCommsInterrupt: (_state, onContinue) => {
+      onContinue();
+    },
+    onFoundDocument: (doc, onContinue) => {
+      surfacedDocs.push(doc);
       onContinue();
     },
   };
@@ -150,6 +159,9 @@ function makeHarness(opts: {
     },
     set ending(v) {
       ending = v;
+    },
+    get surfacedDocs() {
+      return surfacedDocs;
     },
   };
 }
@@ -615,6 +627,95 @@ check('4.3 event pool: 12 events, seeded draws fill every stop with no repeats',
     eq(cats.filter((c) => c === 'approach').length, 1, `seed ${seed}: approach draws`);
   }
   return '12 events (5/4/3, M3 ids); 20 seeded draws, zone-correct, no repeats, all stops filled';
+});
+
+// ─── Gate 4.4 checks ──────────────────────────────────────────────────────────
+
+/** Reads a found document at a documented event: +1 knowledge, once, from within the run. */
+check('4.4 found document: read grants +1 knowledge through applyFoundDocument', () => {
+  const docEvent = eventsData.find((e) => (e.foundDocumentIds ?? []).length > 0)!;
+  const h = makeHarness({ positive: 'P5', negative: 'N2', events: [docEvent], consumables: 8 });
+  const { scene, views } = driveToChoiceScene(h);
+  const idx = views.findIndex((v) => v.enabled);
+  h.runner.selectChoice(scene, idx);
+
+  const before = h.runner.getState().stats.knowledge;
+  const choiceGain = h.runner.getState().stats.knowledge - before;
+  void choiceGain;
+
+  // Drive to the reward phase: the document surfaces there.
+  for (let guard = 0; guard < 100 && h.surfacedDocs.length === 0; guard++) {
+    if (h.pendingReward) break;
+    const s = h.queue.shift();
+    if (!s) break;
+    h.runner.sceneComplete(s);
+    if (h.runner.getState().activeEventId) h.runner.eventSceneComplete(s.id);
+  }
+  eq(h.surfacedDocs.length, 1, 'one document surfaced at the documented event');
+  const doc = h.surfacedDocs[0]!;
+  assert(
+    (docEvent.foundDocumentIds ?? []).includes(doc.id),
+    `surfaced doc ${doc.id} attached to ${docEvent.id}`
+  );
+  assert(doc.body.length > 200, 'full M3 text present');
+  const afterRead = h.runner.getState().stats.knowledge;
+  eq(afterRead - before, 1, 'reading granted exactly +1 knowledge');
+  assert(h.runner.getState().flags[`fd-read-${docEvent.id}`] === true, 'read flag set');
+  return `${docEvent.id} surfaced ${doc.id}; knowledge +1 via the run surface`;
+});
+
+/** Distracted (N4) suppresses the found-document knowledge gain. */
+check('4.4 found document: Distracted gains nothing', () => {
+  const docEvent = eventsData.find((e) => (e.foundDocumentIds ?? []).length > 0)!;
+  const h = makeHarness({ positive: 'P5', negative: 'N4', events: [docEvent], consumables: 8 });
+  const { scene, views } = driveToChoiceScene(h);
+  h.runner.selectChoice(scene, views.findIndex((v) => v.enabled)!);
+  const before = h.runner.getState().stats.knowledge;
+  for (let guard = 0; guard < 100 && h.surfacedDocs.length === 0; guard++) {
+    if (h.pendingReward) break;
+    const s = h.queue.shift();
+    if (!s) break;
+    h.runner.sceneComplete(s);
+    if (h.runner.getState().activeEventId) h.runner.eventSceneComplete(s.id);
+  }
+  eq(h.surfacedDocs.length, 1, 'document still surfaces (reading is not optional)');
+  eq(
+    h.runner.getState().stats.knowledge - before,
+    0,
+    'Distracted protagonist gains nothing'
+  );
+  return 'Distracted: document surfaces, knowledge unchanged';
+});
+
+/** Availability tracks the event draw: undocumented events never surface one. */
+check('4.4 found document: availability tracks the event draw', () => {
+  const docEvents = eventsData.filter((e) => (e.foundDocumentIds ?? []).length > 0);
+  const noDocEvents = eventsData.filter((e) => (e.foundDocumentIds ?? []).length === 0);
+  const ids = new Set(documentsData.map((d) => d.id));
+  eq(documentsData.length, 8, 'eight documents exist');
+  for (const d of documentsData) {
+    assert(d.body.length > 200, `${d.id} carries full text`);
+    const attached = eventsData.find((e) => e.id === d.attachedEvent);
+    assert(attached !== undefined, `${d.id} attachedEvent ${d.attachedEvent} exists`);
+    assert(
+      (attached?.foundDocumentIds ?? []).includes(d.id),
+      `${d.id} listed by its attached event`
+    );
+  }
+  for (const e of docEvents) {
+    for (const id of e.foundDocumentIds ?? []) assert(ids.has(id), `${e.id} lists unknown ${id}`);
+  }
+  const h = makeHarness({ positive: 'P5', negative: 'N4', events: [noDocEvents[0]!], consumables: 8 });
+  const { scene, views } = driveToChoiceScene(h);
+  h.runner.selectChoice(scene, views.findIndex((v) => v.enabled)!);
+  for (let guard = 0; guard < 100 && h.pendingReward === null; guard++) {
+    const s = h.queue.shift();
+    if (!s) break;
+    h.runner.sceneComplete(s);
+    if (h.runner.getState().activeEventId) h.runner.eventSceneComplete(s.id);
+  }
+  eq(h.surfacedDocs.length, 0, 'no document at an undocumented event');
+  return `${docEvents.length} documented events, ${noDocEvents.length} clean; draw decides`;
 });
 
 function report(): number {

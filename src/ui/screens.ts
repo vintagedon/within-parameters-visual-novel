@@ -14,7 +14,7 @@
  * @module ui/screens
  */
 
-import type { SaveSlot, PersistentData, GameState, CommunityRunState, RewardOption, GameConfig } from "../types/index";
+import type { SaveSlot, PersistentData, GameState, CommunityRunState, RewardOption, GameConfig, FoundDocument } from "../types/index";
 import {
   createButton,
   createSwitch,
@@ -36,6 +36,7 @@ let settingsScreen: HTMLElement;
 let rewardOverlay: HTMLElement;
 let commsOverlay: HTMLElement;
 let dossierScreen: HTMLElement;
+let documentOverlay: HTMLElement;
 
 // ─── Init all screen overlays ─────────────────────────────────────────────────
 
@@ -108,6 +109,17 @@ export function initScreens(root: HTMLElement): void {
     <div id="comms-overlay" class="hidden">
       <div class="gui-panel gui-panel--warning wp-comms-panel" id="comms-panel-body"></div>
     </div>
+
+    <!-- Found Document Overlay -->
+    <div id="document-overlay" class="hidden">
+      <div class="gui-panel gui-panel--info wp-document-panel">
+        <div class="gui-panel__header">
+          <div class="gui-panel__title" id="document-title"></div>
+        </div>
+        <div class="wp-document-body" id="document-body"></div>
+        <div class="gui-panel__footer" id="document-footer"></div>
+      </div>
+    </div>
   `;
 
   const wrapper = document.createElement('div');
@@ -123,6 +135,7 @@ export function initScreens(root: HTMLElement): void {
   rewardOverlay = document.getElementById('reward-overlay')!;
   commsOverlay = document.getElementById('comms-overlay')!;
   dossierScreen = document.getElementById('dossier-screen')!;
+  documentOverlay = document.getElementById('document-overlay')!;
 }
 
 // ─── Title Screen ─────────────────────────────────────────────────────────────
@@ -767,4 +780,40 @@ export function showCommsOverlay(text: string, onDismiss: () => void): void {
 
 export function hideCommsOverlay(): void {
   commsOverlay.classList.add('hidden');
+}
+
+// ─── Found Document Overlay ───────────────────────────────────────────────────
+
+/**
+ * Presents a found document during the event it is attached to. The full
+ * preformatted body renders in a scrollable panel; ACKNOWLEDGE dismisses it
+ * and continues (the runner applies the knowledge gain on continue, exactly
+ * once per event, suppressed by the Distracted trait).
+ */
+export function showDocumentOverlay(doc: FoundDocument, onContinue: () => void): void {
+  const title = document.getElementById('document-title')!;
+  const body = document.getElementById('document-body')!;
+  const footer = document.getElementById('document-footer')!;
+  title.textContent = doc.title;
+  body.textContent = doc.body;
+  footer.innerHTML = '';
+
+  const ack = createButton({
+    label: 'ACKNOWLEDGE',
+    accent: 'info',
+    variant: 'outline',
+    onClick: () => {
+      hideDocumentOverlay();
+      onContinue();
+    },
+  });
+  footer.appendChild(ack.el);
+
+  // Reset scroll so long documents start at the top.
+  documentOverlay.scrollTo(0, 0);
+  documentOverlay.classList.remove('hidden');
+}
+
+export function hideDocumentOverlay(): void {
+  documentOverlay.classList.add('hidden');
 }

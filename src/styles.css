@@ -881,6 +881,38 @@ body {
   color: var(--gui-text);
 }
 
+/* ─── Found Document Overlay (positioning; panel is framework) ───────────── */
+
+#document-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--gui-z-modal, 50);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  padding: var(--gui-space-lg);
+}
+
+#document-overlay.hidden { display: none; }
+
+.wp-document-panel {
+  width: min(680px, 100%);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.wp-document-body {
+  overflow-y: auto;
+  padding: var(--gui-space-md);
+  font-family: var(--gui-font-mono);
+  font-size: var(--gui-font-size-sm);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  color: var(--gui-text);
+}
+
 /* ─── Utility ────────────────────────────────────────────────────────────── */
 
 .hidden {

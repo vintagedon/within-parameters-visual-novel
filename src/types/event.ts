@@ -60,6 +60,22 @@ export interface Community {
   description: string;
 }
 
+/**
+ * A found document (M3 section 5). Surfaced during the event it is attached
+ * to; reading grants +1 knowledge through applyFoundDocument (suppressed by
+ * the Distracted trait).
+ */
+export interface FoundDocument {
+  /** FD id (FD-01..FD-08) */
+  id: string;
+  /** Display title */
+  title: string;
+  /** Full document body (preformatted) */
+  body: string;
+  /** The event this document is attached to (informational; events carry the authoritative list) */
+  attachedEvent: string;
+}
+
 /** Runtime state of a community during a run */
 export interface CommunityRunState {
   community: Community;

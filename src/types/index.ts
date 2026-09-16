@@ -3,7 +3,7 @@
  * Import from here rather than from individual type modules.
  */
 export type { BeatType, DialogueLine, Choice, ChoiceCondition, StatChanges, Scene, SceneFlags } from './scene';
-export type { EventCategory, RewardType, CommunityState, RewardOption, EventDef, Community, CommunityRunState } from './event';
+export type { EventCategory, RewardType, CommunityState, RewardOption, EventDef, Community, CommunityRunState, FoundDocument } from './event';
 export type {
   PositiveTraitId,
   NegativeTraitId,

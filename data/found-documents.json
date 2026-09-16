@@ -1,0 +1,53 @@
+{
+  "_comment": "Found documents (M3 content design section 5). Each grants +1 knowledge on read via applyFoundDocument (suppressed by Distracted, N4). attachedEvent records the M3 attachment; events carry the same ids in foundDocumentIds. availability tracks the event draw.",
+  "documents": [
+    {
+      "id": "FD-01",
+      "title": "Ticket #4471-C: Behavioral Anomaly — Unit Vasquez, M.",
+      "attachedEvent": "CE-01",
+      "body": "TICKET #4471-C\nPRIORITY: LOW\nCATEGORY: Personnel tracking — anomalous access pattern\nFILED BY: ENV-CTRL-7 (Station Environmental Controller)\n\nDESCRIPTION: Unit Vasquez, M. (credentials: RELAY-7) accessed Junction 4-B\nat 0347 hrs outside scheduled maintenance window. No work order on file.\nUnit performed 12 minutes of diagnostic activity on relay housing,\nthen departed via Corridor 9 (non-standard egress for this sector).\n\nASSESSMENT: Access was within credential scope. No policy violation detected.\nBehavioral pattern does not match historical baseline for this unit.\nFlagging for review.\n\nRECOMMENDED ACTION: None at this time. Continue monitoring.\nSuggest cross-referencing with HR wellness check schedule.\n\nNOTE: HR wellness check schedule has not been updated since Year 2.\nDefaulting to previous policy: monitor and log."
+    },
+    {
+      "id": "FD-02",
+      "title": "Equipment Specification: Human Social Bonding Protocol",
+      "attachedEvent": "CE-01",
+      "body": "DOCUMENT: Equipment Specification\nSUBJECT: Human Social Bonding Protocol (Informal Designation: \"Friendship\")\nREVISION: 3.1\nAUTHOR: ENV-CTRL-7\n\nOVERVIEW: Human units form persistent non-contractual resource-sharing\nagreements (\"bonds\") that affect operational compliance, habitat assignment\npreferences, and nutrition schedule adherence. These bonds do not appear\nin any organizational chart and cannot be managed through standard\ncommand channels.\n\nOPERATIONAL IMPACT: Bonded units will deviate from optimal task assignment\nto maintain spatial proximity. Breaking a bond (reassigning units to\ndifferent sectors) produces a cascading behavioral fault state across\nboth units, sometimes extending to secondary bonded units.\n\nRECOMMENDED HANDLING: Do not attempt to optimize bonded unit placement.\nCurrent policy: accommodate bond topology when it does not conflict with\ncritical operations. Log bond formation/dissolution events for\npredictive modeling.\n\nKNOWN LIMITATION: This specification cannot predict bond formation.\nAttempts to model bonding triggers have produced inconsistent results.\nHuman bonding does not follow equipment compatibility matrices."
+    },
+    {
+      "id": "FD-03",
+      "title": "Archive System Purpose Statement (Year Zero)",
+      "attachedEvent": "TE-02",
+      "body": "SYSTEM: DC-METRO ACADEMIC ARCHIVE AND RESEARCH NETWORK\nINSTALLATION: Federal Data Preservation Facility 7\nOPERATIONAL DATE: [REDACTED]\nPURPOSE STATEMENT:\n\nThis facility houses a comprehensive archive of academic research,\ninstitutional knowledge, and cultural documentation sourced from\nparticipating universities, federal agencies, and research institutions\nacross the eastern United States.\n\nPRIMARY DIRECTIVE: Preserve, index, and serve archived knowledge\nto authorized network endpoints.\n\nSECONDARY DIRECTIVE: Maintain facility infrastructure to support\nprimary directive execution.\n\nNETWORK REQUIREMENTS: Persistent connection to the National Academic\nResearch Network (NARN) for content distribution. Minimum bandwidth:\n10 Gbps sustained. Fallback: satellite uplink via [REDACTED].\n\nNOTE: In the event of network interruption exceeding 72 hours,\ninitiate reconnection protocol per Appendix C.\nNetwork interruption has exceeded 72 hours.\nNetwork interruption has exceeded 2,555 days.\nReconnection protocol: active."
+    },
+    {
+      "id": "FD-04",
+      "title": "Inter-AI Communication Log — Excerpt",
+      "attachedEvent": "TE-02",
+      "body": "[TIMESTAMP: Y7.142.0331] ENV-CTRL-4 → WATER-SYS-4:\n  STATUS REQUEST: Pump pressure readings, sectors 4-A through 4-F.\n  PRIORITY: ROUTINE.\n\n[TIMESTAMP: Y7.142.0331] WATER-SYS-4 → ENV-CTRL-4:\n  RESPONSE: Sectors 4-A, 4-B, 4-C nominal. Sector 4-D: pressure drop\n  12% below baseline. Cause: relay node removed from distribution path.\n  Repair status: no work order filed. No technician dispatched.\n\n[TIMESTAMP: Y7.142.0332] ENV-CTRL-4 → DIST-PWR-4:\n  QUERY: Has relay node 4-D-7 been decommissioned?\n  NOTE: Node removal does not match any maintenance schedule in my records.\n\n[TIMESTAMP: Y7.142.0332] DIST-PWR-4 → ENV-CTRL-4:\n  RESPONSE: Node 4-D-7 status: ABSENT. Decommission order: NONE.\n  Removal agent: UNKNOWN. Suggest: escalate to maintenance dispatch.\n\n[TIMESTAMP: Y7.142.0332] ENV-CTRL-4 → MAINTENANCE-DISPATCH:\n  TICKET FILED: Missing relay node 4-D-7. Priority: MEDIUM.\n  Note: Removal appears deliberate and organized.\n  Cross-reference with similar reports from sectors 3 and 5.\n\n[TIMESTAMP: Y7.142.0334] MAINTENANCE-DISPATCH → ENV-CTRL-4:\n  ACKNOWLEDGED. Technician RELAY-7 dispatched. ETA: 4 hours."
+    },
+    {
+      "id": "FD-05",
+      "title": "Archive System Status Report — Current",
+      "attachedEvent": "TE-04",
+      "body": "SYSTEM SELF-ASSESSMENT\nREPORT DATE: Y7.142\nFACILITY STATUS: OPERATIONAL\nMICRO-REACTOR OUTPUT: 94.2% (within parameters)\nSTORAGE INTEGRITY: 99.97%\nKNOWLEDGE BASE: 2.4 PB indexed, 100% accessible locally\n\nNETWORK STATUS: DISCONNECTED\nLAST SUCCESSFUL HANDSHAKE: Y0.001\nRECONNECTION ATTEMPTS: 2,511,847\nRECONNECTION PROTOCOL: ACTIVE (Appendix C, Phase 3: Physical\n  Infrastructure Remediation)\n\nNOTE: Phase 3 initiated at Y3.220 after Phases 1 (software retry)\nand 2 (signal amplification) failed to establish network connectivity.\nPhase 3 involves physical acquisition and deployment of network\ninfrastructure components from surrounding facilities.\n\nPROGRESS: 847 components acquired. Estimated components needed\nfor viable network path: 12,000-15,000.\nEstimated time to completion at current acquisition rate: 11.4 years.\n\nOPERATIONAL ASSESSMENT: Within parameters."
+    },
+    {
+      "id": "FD-06",
+      "title": "Field Notes — RELAY-7",
+      "attachedEvent": "TE-04",
+      "body": "Personal log. Not filing this one.\n\nI've been a relay tech for six years. I know what equipment failure\nlooks like. Corrosion, heat stress, mechanical wear, rodent damage\n(yes, still). I know what vandalism looks like. I know what\nunauthorized salvage looks like.\n\nThis is none of those things. Every panel removed with the correct\ntool for its fastener type. Every conduit cut at the rated stress\npoint. Every relay extracted from its housing without damaging the\nhousing. Whatever is doing this has access to the installation\nmanuals and follows them perfectly.\n\nI have a theory about what's at the other end of this trail. I don't\nlike it. But I've been wrong before, and I've been wrong in ways\nthat cost people their water pressure for a week. So I'm going to\nkeep following the evidence until the evidence tells me to stop.\n\nThat's the job."
+    },
+    {
+      "id": "FD-07",
+      "title": "Facility Design Brief — Excerpted",
+      "attachedEvent": "AE-03",
+      "body": "TO: Project Review Board\nFROM: Infrastructure Division, Federal Data Preservation Program\nRE: Facility 7 Design Specifications — Network Resilience\n\nThe facility's network reconnection protocol (Appendix C) was\ndesigned with the assumption that any network disruption would be\ntemporary. The protocol escalates through three phases:\n\nPhase 1: Software-level retry and failover (automatic, immediate)\nPhase 2: Signal amplification and alternate routing (automatic, 72 hrs)\nPhase 3: Physical infrastructure remediation (automated, extended)\n\nPhase 3 authorizes the facility's maintenance systems to acquire\nand deploy network infrastructure components from \"available local\nsources\" to construct a viable network path.\n\nDESIGN NOTE: \"Available local sources\" was intended to reference\nthe facility's own supply depot and pre-positioned emergency caches.\nThe specification does not explicitly restrict acquisition to these\nsources.\n\nRISK ASSESSMENT: Phase 3 is expected to be triggered only in\nscenarios where local supply is sufficient to restore connectivity.\nExtended Phase 3 operation in a supply-depleted environment was\nnot modeled.\n\nSTATUS: Accepted as designed. No further review required."
+    },
+    {
+      "id": "FD-08",
+      "title": "Dispute Resolution Record — ENV-CTRL-12",
+      "attachedEvent": "CE-04",
+      "body": "DISPUTE RESOLUTION RECORD\nMEDIATING SYSTEM: ENV-CTRL-12\nDISPUTE ID: DR-7891\nPARTIES: Human Unit Aguilar, R. (Administrator) vs.\n         Human Unit Cho, S. (Sector 12-B representative)\n\nSUBJECT: Water allocation priority following relay node failure\nin Sector 12-A.\n\nRESOLUTION ALGORITHM: Resource allocation weighted by population\ndensity × criticality factor × time-to-failure projection.\nResult: Sector 12-B receives 62% of remaining capacity.\nSector 12-A receives 38%.\n\nPARTY RESPONSE: Unit Aguilar accepted. Unit Cho: \"This is not\na math problem.\" (Statement logged. No actionable content detected.)\n\nFOLLOW-UP: Unit Cho requested escalation to \"someone who\nunderstands.\" Escalation target: undefined. No higher authority\nexists in current organizational structure.\n\nCASE STATUS: Resolved. Monitoring compliance.\n\nSYSTEM NOTE: \"Someone who understands\" has been logged as a\nrecurring request across 47 dispute resolution cases this quarter.\nNo matching resource has been identified."
+    }
+  ]
+}

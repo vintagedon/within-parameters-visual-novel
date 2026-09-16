@@ -18,6 +18,7 @@ import type {
   RewardOption,
   CharacterManifest,
   Character,
+  FoundDocument,
 } from './types/index';
 
 // Engine
@@ -72,6 +73,7 @@ import {
   hideSettings,
   showRewardOverlay,
   showCommsOverlay,
+  showDocumentOverlay,
   showDossierScreen,
   hideDossierScreen,
 } from './ui/screens';
@@ -85,6 +87,7 @@ let manifest: CharacterManifest;
 let scenesData: Scene[];
 let eventsData: EventDef[];
 let communitiesData: Community[];
+let documentsData: FoundDocument[];
 let pool: ProtagonistPool;
 
 let runner: SceneRunner | null = null;
@@ -105,7 +108,7 @@ async function boot(): Promise<void> {
   initScreens(document.body);
 
   // Load all data files in parallel
-  [config, manifest, scenesData, eventsData, { communities: communitiesData }, pool] =
+  [config, manifest, scenesData, eventsData, { communities: communitiesData }, pool, documentsData] =
     await Promise.all([
       fetch('/data/config.json').then((r) => r.json()) as Promise<GameConfig>,
       fetch('/data/characters.json').then((r) => r.json()) as Promise<CharacterManifest>,
@@ -113,6 +116,7 @@ async function boot(): Promise<void> {
       fetch('/data/events.json').then((r) => r.json()).then((d) => d.events) as Promise<EventDef[]>,
       fetch('/data/communities.json').then((r) => r.json()) as Promise<{ communities: Community[] }>,
       fetch('/data/protagonist-pool.json').then((r) => r.json()).then(parseProtagonistPool) as Promise<ProtagonistPool>,
+      fetch('/data/found-documents.json').then((r) => r.json()).then((d) => d.documents ?? []) as Promise<FoundDocument[]>,
     ]);
 
   // Register backgrounds for layout crossfade
@@ -285,7 +289,7 @@ function startNewGame(): void {
   savePersistentData(persistent);
 
   const state = initNewGame(config, persistent.runsStarted);
-  const registry = buildSceneRegistry(scenesData, eventsData);
+  const registry = buildSceneRegistry(scenesData, eventsData, documentsData);
   clearDialogue();
   // New game: supply the chargen pool + a seeded RNG so the runner can roll a
   // protagonist and show the dossier before the lore card. The Playwright harness
@@ -303,7 +307,7 @@ function startNewGame(): void {
 /** Resume path for CONTINUE/LOAD — does NOT regenerate the protagonist. */
 function startGameFromState(state: GameState): void {
   clearDialogue();
-  const registry = buildSceneRegistry(scenesData, eventsData);
+  const registry = buildSceneRegistry(scenesData, eventsData, documentsData);
   const effConfig = effectiveConfigFromState(state);
   runner = new SceneRunner(state, effConfig, registry, communitiesData, buildRunnerCallbacks());
   runner.start();
@@ -416,6 +420,10 @@ function buildRunnerCallbacks(): SceneRunnerCallbacks {
         ? `CHEN: Clock is climbing. What's your status?`
         : `CHEN: Clock is climbing and I'm getting reports from the communities along your route. What's happening out there?`;
       showCommsOverlay(msg, onContinue);
+    },
+
+    onFoundDocument(doc, onContinue) {
+      showDocumentOverlay(doc, onContinue);
     },
   };
 }

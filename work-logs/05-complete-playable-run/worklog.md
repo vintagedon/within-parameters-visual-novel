@@ -198,3 +198,52 @@ Per-gate checkpoint log. The central worklog (mirroring the spec filename with
 **Findings raised:** none new (the event shortage that killed natural runs at
 stop 5 is resolved by filling the pool, not by duplication or fallback
 widening).
+## Gate 4.4 — Found documents
+
+**Commit:** (recorded at closeout)
+
+**Changes:**
+
+- New `data/found-documents.json`: FD-01..FD-08 with full M3 text and
+  `attachedEvent` metadata (CE-01 [FD-01, FD-02], CE-04 [FD-08], TE-02
+  [FD-03, FD-04], TE-04 [FD-05, FD-06], AE-03 [FD-07]).
+- `src/types/event.ts`: `FoundDocument` contract.
+- `src/engine/scene-runner.ts`: documents live on the registry
+  (`buildSceneRegistry(scenes, events, documents)`). At an event with
+  attached documents, the reward phase first surfaces one document through
+  the new `onFoundDocument` callback; acknowledging the panel IS the read:
+  the runner applies `applyFoundDocument` (+1 knowledge, suppressed by
+  Distracted) exactly once per event, guarded by the `fd-read-{eventId}`
+  flag. The surfaced document is picked deterministically from
+  `(runNumber + stop) mod ids.length`, so save/resume re-derives the same
+  document without extra persisted state.
+- `src/ui/screens.ts` + `src/styles.css` (new positioning block only, no
+  existing visual values touched): `#document-overlay` renders the title and
+  the full preformatted body in a scrollable panel with an ACKNOWLEDGE
+  action.
+- `src/main.ts`: loads found-documents.json, passes documents into both
+  registry constructions, wires `onFoundDocument`.
+
+**Design decisions (recorded):**
+
+- Reading is not optional: the panel surfaces automatically before the
+  reward cycle and acknowledging applies the gain. This mirrors the
+  simulator (`has_found_document` always grants) rather than adding a
+  player decision the validated balance never modeled.
+- FD-01 names "Unit Vasquez, M." per the M3 text. Under randomized
+  protagonists this is a continuity artifact of the fixed-protagonist era.
+  The M3 design owns text, so it ships as authored; raised as a review
+  finding for the operator (slot-ifying is a one-line content change if
+  wanted).
+
+**Verification evidence:**
+
+- Live-path checks: 16/16. 4.4 additions: reading grants exactly +1 through
+  the in-run surface (CE-01 surfaced FD-01); Distracted (N4) gains nothing
+  while the document still surfaces; 8 documents exist with full text and
+  correct two-way attachment; undocumented events surface nothing
+  (availability tracks the draw).
+- Browser smoke (Chromium, dev server, seeded runs, no dev hooks): the
+  overlay rendered the full FD-01 text (830 chars) with zero console errors
+  and zero page errors.
+

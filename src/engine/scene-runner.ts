@@ -17,6 +17,7 @@ import type {
   RewardOption,
   ProtagonistIdentity,
   RunOutcome,
+  FoundDocument,
 } from '../types/index';
 import {
   applyStatChanges,
@@ -26,6 +27,7 @@ import {
   markClockFailure,
   tickClock,
   isClockFull,
+  setFlag,
 } from './game-state';
 import { scoreRun, buildScoreBreakdown } from './scoring';
 import { buildEffectiveConfig } from './traits';
@@ -34,6 +36,7 @@ import type { Rng } from './rng';
 import {
   calcEffectiveConsumableCost,
   applyChoiceEffects,
+  applyFoundDocument,
 } from './resolution';
 import type { EventCategory } from '../types/index';
 import {
@@ -74,6 +77,14 @@ export interface SceneRunnerCallbacks {
   /** Show a comms interrupt beat between stops */
   onCommsInterrupt(state: GameState, onContinue: () => void): void;
   /**
+   * Show a found document during the event it is attached to (before the
+   * reward cycle). The runner hands over the document and a continue
+   * callback; acknowledging the document is the read: the runner applies
+   * the knowledge gain via applyFoundDocument exactly once per event when
+   * the UI calls onContinue.
+   */
+  onFoundDocument?(doc: FoundDocument, onContinue: () => void): void;
+  /**
    * Show the chargen dossier for a candidate protagonist (spec 03). The UI
    * builds the dossier view from the candidate and binds DEPLOY/REROLL to the
    * provided actions. Invoked by beginNewRun() and rerollCandidate().
@@ -92,16 +103,20 @@ export interface SceneRunnerCallbacks {
 export interface SceneRegistry {
   scenes: Map<string, Scene>;
   events: Map<string, EventDef>;
+  /** Found documents by FD id (empty map when none loaded). */
+  documents: Map<string, FoundDocument>;
 }
 
 /** Indexes scenes and events by ID for O(1) lookups. Event scenes are injected into this registry at runtime (see runStop). */
 export function buildSceneRegistry(
   scenes: Scene[],
-  events: EventDef[]
+  events: EventDef[],
+  documents: FoundDocument[] = []
 ): SceneRegistry {
   return {
     scenes: new Map(scenes.map((s) => [s.id, s])),
     events: new Map(events.map((e) => [e.id, e])),
+    documents: new Map(documents.map((d) => [d.id, d])),
   };
 }
 
@@ -578,6 +593,35 @@ export class SceneRunner {
   }
 
   private showRewards(event: EventDef, stop: number): void {
+    // Found documents surface here, before the reward cycle. Acknowledging
+    // the document is the read: the +1 knowledge (suppressed by Distracted)
+    // applies exactly once per event via applyFoundDocument.
+    const docIds = event.foundDocumentIds ?? [];
+    const readFlag = `fd-read-${event.id}`;
+    if (docIds.length > 0 && !this.state.flags[readFlag]) {
+      const docId = docIds[(this.state.runNumber + stop) % docIds.length]!;
+      const doc = this.registry.documents.get(docId);
+      if (doc) {
+        const presentRewards = (): void => {
+          this.state = applyFoundDocument(this.state, this.config);
+          this.state = setFlag(this.state, readFlag);
+          this.callbacks.onStateUpdate(this.state);
+          this.presentRewards(event, stop);
+        };
+        if (this.callbacks.onFoundDocument) {
+          this.callbacks.onFoundDocument(doc, presentRewards);
+          return;
+        }
+        // No document surface wired (headless defaults): apply and continue.
+        presentRewards();
+        return;
+      }
+    }
+
+    this.presentRewards(event, stop);
+  }
+
+  private presentRewards(event: EventDef, stop: number): void {
     const rewards = getRewardsForStop(event, this.state, this.config);
 
     this.callbacks.onRewardChoice(rewards, (rewardIndex: number) => {
