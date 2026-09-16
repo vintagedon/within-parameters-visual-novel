@@ -32,6 +32,8 @@ import { scoreRun } from './scoring';
 import { initEventPool, drawEvent } from './event-system';
 import { createRng } from './rng';
 import { createRunRng } from './run-rng';
+import { allCombinations } from './traits';
+import { applyChoiceEffects } from './resolution';
 import { buildEpilogue } from '../ui/screens';
 import type { RunOutcome, CommunityRunState } from '../types/index';
 
@@ -111,6 +113,7 @@ function makeHarness(opts: {
   events: EventDef[];
   consumables?: number;
   knowledge?: number;
+  rapport?: number;
   clock?: number;
   runSeed?: number;
   resume?: { state: GameState; engine: import('../types/index').EngineSnapshot };
@@ -127,6 +130,8 @@ function makeHarness(opts: {
         ...state.stats,
         consumables: opts.consumables ?? config.startingConsumables,
         knowledge: opts.knowledge ?? 0,
+        rapport: opts.rapport ?? 0,
+        startingRapport: opts.rapport ?? 0,
       },
       clock: { ...state.clock, current: opts.clock ?? 0 },
     };
@@ -1172,6 +1177,174 @@ check('4.7 save/resume: resumed completion matches the uninterrupted score', () 
   eq(outcomeB.rawScore, outcomeA.rawScore, 'raw score');
   eq(outcomeB.grade, outcomeA.grade, 'grade');
   return `${outcomeA.ending} @ ${outcomeA.finalScore} == ${outcomeB.ending} @ ${outcomeB.finalScore} from seed ${seed}`;
+});
+
+// ─── Gate 4.8 evidence checks ─────────────────────────────────────────────────
+
+/** Exhaustive live-vs-resolver matrix: every combo, every choice, both Practiced states. */
+check('4.8 evidence: 64 combos x 36 choices resolve identically to the resolver', () => {
+  let resolutions = 0;
+  let mismatches = 0;
+  const firstMismatch = { msg: '' };
+
+  for (const { positive, negative } of allCombinations()) {
+    const eff = buildEffectiveConfig(baseConfig, positive, negative);
+    for (const event of eventsData) {
+      const situation = event.scenes.find((s) => (s.choices ?? []).length > 0)!;
+      const choices = situation.choices!;
+      for (let i = 0; i < choices.length; i++) {
+        const choice = choices[i]!;
+        for (const practiced of [true, false]) {
+          const h = makeHarness({
+            positive,
+            negative,
+            events: [event],
+            consumables: 50,
+            knowledge: 20,
+            rapport: 3,
+            runSeed: 7,
+          });
+          const { scene } = driveToChoiceScene(h);
+          // Set the Practiced availability for this pass (harness-only reach-in).
+          (h.runner as unknown as { practicedAvailable: boolean }).practicedAvailable = practiced;
+
+          const before = h.runner.getState();
+          const sc = choice.statChanges ?? {};
+          h.runner.selectChoice(scene, i);
+          const live = h.runner.getState();
+
+          const expected = applyChoiceEffects(
+            before,
+            {
+              knowledge: sc.knowledge ?? 0,
+              consumables: sc.consumables ?? 0,
+              clock: sc.clock ?? 0,
+              communityEffect:
+                choice.communityEffect === 'helped' || choice.communityEffect === 'harmed'
+                  ? choice.communityEffect
+                  : 'none',
+            },
+            eff,
+            event.category,
+            practiced
+          ).state;
+
+          resolutions++;
+          const fields = [
+            ['knowledge', live.stats.knowledge, expected.stats.knowledge],
+            ['consumables', live.stats.consumables, expected.stats.consumables],
+            ['clock', live.clock.current, expected.clock.current],
+            ['communities', JSON.stringify(live.communities.map((c) => [c.stop, c.state])), JSON.stringify(expected.communities.map((c) => [c.stop, c.state]))],
+          ] as const;
+          for (const [field, a, b] of fields) {
+            if (a !== b) {
+              mismatches++;
+              if (!firstMismatch.msg) {
+                firstMismatch.msg = `${positive}+${negative} ${event.id}[${i}] practiced=${practiced}: ${field} live=${a} resolver=${b}`;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  eq(mismatches, 0, `live outcome diverged from the resolver (${firstMismatch.msg})`);
+  return `${resolutions} resolutions across 64 combos, 36 choices, both Practiced states: identical`;
+});
+
+/** Every trait combination completes a journey without a choice deadlock. */
+check('4.8 evidence: all 64 combos complete runs without deadlock', () => {
+  let completed = 0;
+  let deadlocks = 0;
+  const notes: string[] = [];
+  for (const { positive, negative } of allCombinations()) {
+    for (const seed of [101, 202]) {
+      const h = makeHarness({ positive, negative, events: eventsData, runSeed: seed });
+      h.runner.loadScene('scene-discovery-01');
+      let stuck = false;
+      for (let guard = 0; guard < 3000 && !h.ending; guard++) {
+        if (h.pendingReward) {
+          h.pendingReward.onSelect(1);
+          h.pendingReward = null;
+          continue;
+        }
+        const scene = h.queue.shift();
+        if (!scene) continue;
+        if (scene.choices && scene.choices.length > 0) {
+          const views = h.runner.getChoiceViews(scene);
+          if (!views.some((v) => v.enabled)) {
+            stuck = true;
+            break;
+          }
+          h.runner.selectChoice(scene, views.findIndex((v) => v.enabled));
+          continue;
+        }
+        h.runner.sceneComplete(scene);
+        if (h.runner.getState().activeEventId) h.runner.eventSceneComplete(scene.id);
+      }
+      if (h.ending && !stuck) {
+        completed++;
+      } else {
+        deadlocks++;
+        notes.push(`${positive}+${negative} seed ${seed}: ${stuck ? 'deadlocked' : 'no ending'}`);
+      }
+    }
+  }
+  eq(deadlocks, 0, `deadlock or non-completion: ${notes.slice(0, 3).join('; ')}`);
+  return `${completed}/128 runs (64 combos x 2 seeds) completed with an enabled choice always available`;
+});
+
+/** Every gated choice is reachable at a legal knowledge value by its earliest draw. */
+check('4.8 evidence: every gated choice reachable at a legal knowledge value', () => {
+  const zoneStops: Record<string, number[]> = {
+    community: [1, 2],
+    transit: [3, 4],
+    approach: [5],
+  };
+  const maxKnowledgeByStop = (stop: number): number => {
+    // Best case per stop: the zone's highest knowledge choice plus a found
+    // document when the zone carries any documented event.
+    const zone = (baseConfig.zoneMap as unknown as Record<string, string>)[String(stop)] as
+      | 'community'
+      | 'transit'
+      | 'approach';
+    const pool = eventsData.filter((e) => e.category === zone);
+    const bestChoice = Math.max(
+      ...pool.flatMap((e) =>
+        (e.scenes.find((s) => (s.choices ?? []).length > 0)?.choices ?? []).map(
+          (c) => c.statChanges?.knowledge ?? 0
+        )
+      )
+    );
+    const docBonus = pool.some((e) => (e.foundDocumentIds ?? []).length > 0) ? 1 : 0;
+    return bestChoice + docBonus;
+  };
+  // Cumulative attainable knowledge when arriving at a stop (before choosing).
+  const cumulative: number[] = [0];
+  for (let stop = 1; stop <= baseConfig.journeyStops; stop++) {
+    cumulative[stop] = cumulative[stop - 1]! + maxKnowledgeByStop(stop);
+  }
+
+  const notes: string[] = [];
+  for (const event of eventsData) {
+    const situation = event.scenes.find((s) => (s.choices ?? []).length > 0)!;
+    (situation.choices ?? []).forEach((choice, i) => {
+      const gate = choice.condition?.stat === 'knowledge' ? choice.condition.min : 0;
+      if (!gate) return;
+      // Reachable when the knowledge the run can hold at some drawable stop
+      // satisfies the gate: use the latest stop the event can draw (the
+      // most knowledge a legal run can hold while the event is still in the
+      // pool).
+      const latest = zoneStops[event.category]![zoneStops[event.category]!.length - 1]!;
+      const attainable = cumulative[latest - 1]!;
+      assert(
+        attainable >= gate,
+        `${event.id}[${i}] gate ${gate} unreachable at every drawable stop (attainable ${attainable})`
+      );
+      notes.push(`${event.id}[${i}] k>=${gate} (attainable by stop ${latest}: ${attainable})`);
+    });
+  }
+  return notes.join(', ');
 });
 
 function report(): number {

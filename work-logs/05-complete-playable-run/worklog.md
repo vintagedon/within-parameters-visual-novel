@@ -333,3 +333,80 @@ widening).
 - `npm run audit:events` still exact; mutation checks still discriminate;
   `tsc --noEmit` clean.
 
+## Gate 4.7 — Asset packaging and save/resume
+
+**Commit:** be5e60b (plus art: baseline re-approval 4e9f199)
+
+**Changes:**
+
+- `vite.config.ts`: closeBundle now ships the runtime-requested asset
+  subtrees (backgrounds, portraits, audio) into dist/assets alongside the
+  hashed bundle output.
+- New `src/engine/run-rng.ts`: a stateful mulberry32 run RNG
+  (getState/setState) in its own module, leaving the validated rng.ts
+  untouched.
+- `src/engine/scene-runner.ts`: the run RNG drives event-pool shuffles,
+  community assignment, and clock ticks; new `snapshot()`/`restoreEngine()`
+  capture and rehydrate the RNG stream, Practiced availability, pool
+  ordering, and mid-event scene registration.
+- `src/types/state.ts`: `SaveSlot.engine?: EngineSnapshot` (the field the
+  persisted-resume contract needs); `src/engine/save-manager.ts`: slots
+  carry the snapshot; new `loadSlot` returns the full slot.
+- `src/ui/hud.ts` + `src/main.ts` + `src/styles.css`: a SAVE action in the
+  Route panel opens the save-mode slot modal and writes the slot with the
+  engine snapshot; CONTINUE/LOAD resume through `restoreEngine`.
+- New `scripts/check-dist-assets.mjs` and `tests/preview_check.py`.
+- Known environment defect: `npm run build` failed with `tsc: Permission
+  denied`; repaired the launcher exec bit with chmod (recorded; not a code
+  defect).
+- Baselines re-approved with evidence (art commit 4e9f199): 03 (SAVE
+  control + production content), 06 (trait-adjusted HUD values), 07 (comms
+  exchange), 08 (M3 epilogue + persisted breakdown), 09/10 (dossier
+  portrait image), new 11 (document overlay); 01/02/04/05 unmoved.
+
+**Verification evidence:**
+
+- `npm run build` + `node scripts/check-dist-assets.mjs`: 36/36
+  source-present manifest assets in dist/, zero absent; sfx-click and
+  sfx-alert enumerated as findings (F-03).
+- `tests/preview_check.py` against vite preview: run segment with 28
+  same-origin asset/data responses, zero status >= 400, zero console
+  errors.
+- Live-path checks: 25/25 including slot round-trip field equality and
+  same-seed score parity through a fresh runner (destruction 68 == 68).
+- Screenshots deterministic after re-approval (capture, check x2 green).
+
+## Gate 4.8 — Complete-run verification and review surface
+
+**Commit:** (recorded at closeout)
+
+**Changes:**
+
+- `src/engine/live-checks.ts`: three evidence checks (4608-resolution
+  live-vs-resolver matrix across 64 combos x 36 choices x both Practiced
+  states; 128/128 deadlock-free completions; gated-choice reachability by
+  latest drawable stop).
+- New `tests/complete_run.py`: complete natural runs against the production
+  build (no dev hooks; DEV-gated code absent from the bundle), seeds
+  recorded, HTTP status read from responses, baselines hash-guarded.
+- New `docs/verification/2026-09-16-complete-run-verification.md`: the
+  operator review surface with findings F-01..F-09, each with evidence and
+  a closed question.
+
+**Verification evidence (37 completed natural runs):**
+
+- All three endings across the set (11 clock-failure, 24 destruction, 2
+  correction); reroll, found-document reads (44), comms at green/amber/red,
+  and a save-and-resume whose completed score equals its uninterrupted twin
+  (55 C).
+- Zero uncaught console errors; zero failed required asset requests by
+  HTTP status; no `No eligible events`; tests/baseline/ hash unchanged.
+- Spec 03 amendment harness repairs confirmed holding: check mode
+  read-only, every declared screen required. The 404-labeling defect is
+  repaired in the new harness (status from responses).
+- Findings from evidence: F-01 no divergence; F-02 no deadlock; F-03 two
+  SFX absent, non-blocking; F-04 all gates reachable; F-05 run length ~5-15
+  min vs 25-35 target (volume gap); F-06 red comms tier nearly unreachable
+  at authored triggers; F-07 FD-01 fixed-name artifact; F-08 destruction
+  inventory accounting; F-09 project-brief disposition.
+
