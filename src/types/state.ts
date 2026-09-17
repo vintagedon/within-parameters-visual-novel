@@ -127,7 +127,9 @@ export type EventPhase =
 /**
  * Computed final outcome, available once the run reaches an ending. Score and
  * grade are derived from GameState + config at ending time; they are not
- * authoritative between stops.
+ * authoritative between stops. The outcome is the single ending authority:
+ * narrative selection, the score breakdown, epilogue assembly, and persistent
+ * completion data all consume this value and none recompute an ending.
  */
 export interface RunOutcome {
   ending: EndingType;
@@ -138,6 +140,20 @@ export interface RunOutcome {
   /** Final score after applying reroll multiplier and flooring. */
   finalScore: number;
   grade: ScoreGrade;
+  /**
+   * Frozen cascade components (computed against the arrival state at ending
+   * time), so the score breakdown renders the persisted outcome instead of
+   * recomputing an ending from post-charge state. Absent on legacy outcomes.
+   */
+  components?: OutcomeComponent[];
+  /** rerollMultiplier ^ rerollCount, frozen with the outcome. */
+  multiplier?: number;
+}
+
+/** One row of the ending screen's score breakdown. */
+export interface OutcomeComponent {
+  label: string;
+  value: number;
 }
 
 // ─── Game state ───────────────────────────────────────────────────────────────
@@ -197,6 +213,32 @@ export interface SaveSlot {
   sceneLabel: string;
   /** Current beat for display */
   beatLabel: string;
+  /**
+   * Engine snapshot for exact resume (gate 4.7): the run RNG state, the
+   * per-stop Practiced availability, and the serializable event-pool state,
+   * so a resumed run continues the same random stream and draw order an
+   * uninterrupted run would have taken. Absent on legacy slots.
+   */
+  engine?: EngineSnapshot;
+}
+
+/**
+ * Serializable engine state riding on a save slot. Zone pools and community
+ * queues are stored as ids and rehydrated against the loaded registries.
+ */
+export interface EngineSnapshot {
+  /** Run RNG state (mulberry32 32-bit word). */
+  rngState: number;
+  /** Whether the Practiced (P8) discount is still available this stop. */
+  practicedAvailable: boolean;
+  /** Event pool state at save time; null before the journey phase begins. */
+  eventPool: {
+    community: string[];
+    transit: string[];
+    approach: string[];
+    availableCommunities: string[];
+    usedEventIds: string[];
+  } | null;
 }
 
 /** Persistent data across runs (stored separately from saves) */

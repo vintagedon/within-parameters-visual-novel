@@ -18,7 +18,6 @@ import type {
   RewardOption,
   GameState,
   GameConfig,
-  IntrusionClock,
 } from '../types/index';
 import { calculateClockReduction, applyStatChanges } from './game-state';
 import type { Rng } from './rng';
@@ -171,15 +170,6 @@ export function applyReward(
     baseEffect.knowledge = baseEffect.knowledge + config.knowledgeRewardBonus;
   }
   return applyStatChanges(state, baseEffect);
-}
-
-/** Triggers a Jay Chen comms interrupt after stop 3 if the clock exceeds 50% capacity. Hard-coded stop index (not configurable) — change with care. */
-export function shouldTriggerComms(stopIndex: number, clock: IntrusionClock): boolean {
-  // Trigger a coworker comms beat after stop 3 if clock is above 50%
-  if (stopIndex === 3 && clock.current / clock.max > 0.5) {
-    return true;
-  }
-  return false;
 }
 
 export function buildCommunityRunState(

@@ -120,8 +120,8 @@ Before the individual events, the value ranges for reference:
 
 | Resource | Per-Event Range | Notes |
 |----------|----------------|-------|
-| Knowledge gain | +1 to +3 | Accumulator, never spent except at confrontation gate (threshold 8) |
-| Bypass module cost | -1 to -2 | Starting 5, need 2 at facility for the fix |
+| Knowledge gain | +1 to +3 | Accumulator, never spent except at confrontation gate (threshold 11, Clear-Headed 10) |
+| Bypass module cost | -1 to -2 | Starting 6, need 2 at facility for the fix (Fragile Kit 3) |
 | Rapport | Set by community flag | helped (+1), ignored (0), harmed (-1) |
 | Clock impact | 0 to +1 | Events don't tick the clock; the transition between stops does. Some choices add bonus ticks. |
 

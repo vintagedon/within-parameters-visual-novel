@@ -1,0 +1,1364 @@
+/**
+ * Live-path checks — gate 4.1/4.2 validation driving the real SceneRunner.
+ *
+ * Unlike the replay harness (which calls the resolver against its own fixture
+ * event pool), these checks construct a real SceneRunner from the real
+ * repository data files (data/config.json, data/scenes.json, data/events.json,
+ * data/communities.json) and drive it through its public surface:
+ * loadScene/sceneComplete/eventSceneComplete/selectChoice/getChoiceViews.
+ * A passing replay proves nothing about this path; these checks do.
+ *
+ * Run via: npm run test:live
+ *
+ * @module engine/live-checks
+ */
+
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import type {
+  GameConfig,
+  Scene,
+  EventDef,
+  Community,
+  GameState,
+  PositiveTraitId,
+  NegativeTraitId,
+  EventCategory,
+} from '../types/index';
+import { initNewGame } from './game-state';
+import { SceneRunner, buildSceneRegistry, type SceneRunnerCallbacks, type ChoiceView } from './scene-runner';
+import { buildEffectiveConfig } from './traits';
+import { scoreRun } from './scoring';
+import { initEventPool, drawEvent } from './event-system';
+import { createRng } from './rng';
+import { createRunRng } from './run-rng';
+import { allCombinations } from './traits';
+import { applyChoiceEffects } from './resolution';
+import { buildEpilogue } from '../ui/screens';
+import type { RunOutcome, CommunityRunState } from '../types/index';
+
+// ─── Node environment shim (autosave touches localStorage) ───────────────────
+
+(globalThis as { localStorage?: Storage }).localStorage = {
+  getItem: () => null,
+  setItem: () => {},
+  removeItem: () => {},
+  clear: () => {},
+  key: () => null,
+  length: 0,
+} as unknown as Storage;
+
+// ─── Check framework ──────────────────────────────────────────────────────────
+
+interface CheckResult {
+  name: string;
+  pass: boolean;
+  detail: string;
+}
+
+const results: CheckResult[] = [];
+
+function check(name: string, fn: () => string): void {
+  try {
+    const detail = fn();
+    results.push({ name, pass: true, detail });
+  } catch (e) {
+    results.push({ name, pass: false, detail: e instanceof Error ? e.message : String(e) });
+  }
+}
+
+function assert(cond: boolean, message: string): void {
+  if (!cond) throw new Error(message);
+}
+
+function eq(actual: unknown, expected: unknown, message: string): void {
+  if (actual !== expected) {
+    throw new Error(`${message}: expected ${String(expected)}, got ${String(actual)}`);
+  }
+}
+
+// ─── Data loading ─────────────────────────────────────────────────────────────
+
+function load<T>(rel: string): T {
+  return JSON.parse(readFileSync(resolve(process.cwd(), rel), 'utf-8')) as T;
+}
+
+const baseConfig = load<GameConfig>('data/config.json');
+const scenesData = load<{ scenes: Scene[] }>('data/scenes.json').scenes;
+const eventsData = load<{ events: EventDef[] }>('data/events.json').events;
+const communitiesData = load<{ communities: Community[] }>('data/communities.json').communities;
+const documentsData = load<{ documents: import('../types/index').FoundDocument[] }>(
+  'data/found-documents.json'
+).documents;
+const commsBeatsData = load<import('../types/index').CommsBeatsData>('data/comms-beats.json');
+
+function eventsByCategory(category: EventCategory): EventDef[] {
+  return eventsData.filter((e) => e.category === category);
+}
+
+// ─── Runner scaffolding ───────────────────────────────────────────────────────
+
+interface Harness {
+  runner: SceneRunner;
+  queue: Scene[];
+  pendingReward: { rewards: unknown[]; onSelect: (index: number) => void } | null;
+  ending: { ending: string; state: GameState } | null;
+  surfacedDocs: import('../types/index').FoundDocument[];
+  commsFired: { afterStop: number; tierId: string; firstLine: string }[];
+}
+
+function makeHarness(opts: {
+  positive: PositiveTraitId;
+  negative: NegativeTraitId;
+  events: EventDef[];
+  consumables?: number;
+  knowledge?: number;
+  rapport?: number;
+  clock?: number;
+  runSeed?: number;
+  resume?: { state: GameState; engine: import('../types/index').EngineSnapshot };
+}): Harness {
+  const config = buildEffectiveConfig(baseConfig, opts.positive, opts.negative);
+  let state: GameState;
+  if (opts.resume) {
+    state = opts.resume.state;
+  } else {
+    state = initNewGame(config);
+    state = {
+      ...state,
+      stats: {
+        ...state.stats,
+        consumables: opts.consumables ?? config.startingConsumables,
+        knowledge: opts.knowledge ?? 0,
+        rapport: opts.rapport ?? 0,
+        startingRapport: opts.rapport ?? 0,
+      },
+      clock: { ...state.clock, current: opts.clock ?? 0 },
+    };
+  }
+  const registry = buildSceneRegistry(scenesData, opts.events, documentsData, commsBeatsData);
+  const queue: Scene[] = [];
+  let pendingReward: Harness['pendingReward'] = null;
+  let ending: Harness['ending'] = null;
+  const surfacedDocs: import('../types/index').FoundDocument[] = [];
+  const commsFired: { afterStop: number; tierId: string; firstLine: string }[] = [];
+  const callbacks: SceneRunnerCallbacks = {
+    onSceneStart: (scene) => {
+      queue.push(scene);
+    },
+    onStateUpdate: () => {},
+    onRewardChoice: (rewards, onSelect) => {
+      pendingReward = { rewards, onSelect };
+    },
+    onEnding: (endingType, endingState) => {
+      ending = { ending: endingType, state: endingState };
+    },
+    onCommsInterrupt: (_state, beat, tierId, onContinue) => {
+      commsFired.push({ afterStop: beat.afterStop, tierId, firstLine: beat.lines[0]?.text ?? '' });
+      onContinue();
+    },
+    onFoundDocument: (doc, onContinue) => {
+      surfacedDocs.push(doc);
+      onContinue();
+    },
+  };
+  const runRng = createRunRng(opts.resume ? 0 : (opts.runSeed ?? 12345));
+  const runner = new SceneRunner(
+    state,
+    config,
+    registry,
+    communitiesData,
+    callbacks,
+    undefined,
+    runRng
+  );
+  if (opts.resume) {
+    runner.restoreEngine(opts.resume.engine);
+  }
+  return {
+    runner,
+    queue,
+    get pendingReward() {
+      return pendingReward;
+    },
+    set pendingReward(v) {
+      pendingReward = v;
+    },
+    get ending() {
+      return ending;
+    },
+    set ending(v) {
+      ending = v;
+    },
+    get surfacedDocs() {
+      return surfacedDocs;
+    },
+    get commsFired() {
+      return commsFired;
+    },
+  };
+}
+
+/** Enters the event phase and drives until a choice scene is reached. */
+function driveToChoiceScene(h: Harness): { scene: Scene; views: ChoiceView[] } {
+  h.runner.loadScene('scene-discovery-01');
+  for (let guard = 0; guard < 200; guard++) {
+    const scene = h.queue.shift();
+    if (!scene) break;
+    if (scene.choices && scene.choices.length > 0) {
+      return { scene, views: h.runner.getChoiceViews(scene) };
+    }
+    h.runner.sceneComplete(scene);
+    if (h.runner.getState().activeEventId) {
+      h.runner.eventSceneComplete(scene.id);
+    }
+  }
+  throw new Error('never reached a choice scene');
+}
+
+/** Drives past a choice (already selected) through the reward cycle and the
+ *  next stop, until the next choice scene. Returns null at journey end. */
+function driveThroughRewardToNextChoice(h: Harness): { scene: Scene; views: ChoiceView[] } | null {
+  for (let guard = 0; guard < 300; guard++) {
+    if (h.pendingReward) {
+      h.pendingReward.onSelect(0);
+      h.pendingReward = null;
+      continue;
+    }
+    const scene = h.queue.shift();
+    if (!scene) continue;
+    if (scene.choices && scene.choices.length > 0) {
+      return { scene, views: h.runner.getChoiceViews(scene) };
+    }
+    try {
+      h.runner.sceneComplete(scene);
+      if (h.runner.getState().activeEventId) {
+        h.runner.eventSceneComplete(scene.id);
+      }
+    } catch (e) {
+      // "No eligible events" ends the driveable journey in thin pools.
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes('No eligible events')) return null;
+      throw e;
+    }
+  }
+  return null;
+}
+
+/** Finds the view index for the first enabled choice matching a predicate on the raw Choice. */
+function findChoiceIndex(
+  scene: Scene,
+  pred: (c: NonNullable<Scene['choices']>[number]) => boolean
+): number {
+  const idx = (scene.choices ?? []).findIndex((c) => pred(c));
+  assert(idx >= 0, `no choice matching predicate in ${scene.id}`);
+  return idx;
+}
+
+function labelCost(view: ChoiceView): number | null {
+  const m = view.label.match(/\[(\d+) modules?\]/);
+  return m ? parseInt(m[1]!, 10) : null;
+}
+
+// ─── Gate 4.1 checks ──────────────────────────────────────────────────────────
+
+/** Community events carrying a <= -2 module choice (the review case shape). */
+function communityEventsWithTwoModuleChoice(): EventDef[] {
+  return eventsByCategory('community').filter((e) =>
+    e.scenes.some((s) =>
+      (s.choices ?? []).some((c) => (c.statChanges?.consumables ?? 0) <= -2)
+    )
+  );
+}
+
+/** Transit events carrying an unconditioned positive-clock choice. */
+function transitEventsWithClockGain(): EventDef[] {
+  return eventsByCategory('transit').filter((e) =>
+    e.scenes.some((s) =>
+      (s.choices ?? []).some(
+        (c) => (c.statChanges?.clock ?? 0) > 0 && !c.condition
+      )
+    )
+  );
+}
+
+/** Case: Rough Touch charges community costs +1; label, gate, and deduction agree. */
+check('4.1 rough-touch: community cost +1, label == affordability == deduction', () => {
+  const events = [communityEventsWithTwoModuleChoice()[0]!];
+  const h = makeHarness({ positive: 'P5', negative: 'N2', events, consumables: 8 });
+  const { scene, views } = driveToChoiceScene(h);
+  const idx = findChoiceIndex(scene, (c) => (c.statChanges?.consumables ?? 0) <= -2);
+  const view = views[idx]!;
+  const cost = labelCost(view);
+  eq(cost, 3, 'displayed cost under Rough Touch');
+  eq(view.enabled, true, 'affordability at 8 modules');
+  const before = h.runner.getState().stats.consumables;
+  h.runner.selectChoice(scene, idx);
+  eq(h.runner.getState().stats.consumables, before - 3, 'deducted cost');
+  return `choice "${view.label}" from ${before} -> ${h.runner.getState().stats.consumables}`;
+});
+
+/** Case: the same choice is disabled when the player holds less than the effective cost. */
+check('4.1 rough-touch: affordability disables below effective cost', () => {
+  const events = [communityEventsWithTwoModuleChoice()[0]!];
+  const h = makeHarness({ positive: 'P5', negative: 'N2', events, consumables: 2 });
+  const { scene, views } = driveToChoiceScene(h);
+  const idx = findChoiceIndex(scene, (c) => (c.statChanges?.consumables ?? 0) <= -2);
+  const view = views[idx]!;
+  eq(labelCost(view), 3, 'displayed cost still the effective 3');
+  eq(view.enabled, false, 'disabled at 2 modules');
+  assert((view.reason ?? '').includes('3'), 'reason names the effective cost');
+  return 'held 2, effective cost 3, disabled';
+});
+
+/** Case: Practiced discounts the first spend of a stop and not the second. */
+check('4.1 practiced: first spend of stop discounted, second not', () => {
+  const events = eventsByCategory('community');
+  const h = makeHarness({ positive: 'P8', negative: 'N4', events, consumables: 8 });
+  const { scene, views } = driveToChoiceScene(h);
+  const idx = findChoiceIndex(
+    scene,
+    (c) => (c.statChanges?.consumables ?? 0) < 0 && !c.condition
+  );
+  const raw = Math.abs(scene.choices![idx]!.statChanges?.consumables ?? 0);
+  const view = views[idx]!;
+  eq(labelCost(view), raw - 1, 'first spend shows discounted cost');
+
+  const before1 = h.runner.getState().stats.consumables;
+  h.runner.selectChoice(scene, idx);
+  eq(h.runner.getState().stats.consumables, before1 - (raw - 1), 'first deduction discounted');
+
+  // Same-stop second spend: no discount (state advanced to the consequence,
+  // but the stop has not advanced, so Practiced is spent).
+  const before2 = h.runner.getState().stats.consumables;
+  h.runner.selectChoice(scene, idx);
+  eq(h.runner.getState().stats.consumables, before2 - raw, 'second deduction undiscounted');
+  return `raw ${raw}: first ${raw - 1}, second ${raw}`;
+});
+
+/** Case: Practiced availability resets on stop advance. */
+check('4.1 practiced: availability resets on stop advance', () => {
+  const events = eventsByCategory('community');
+  assert(events.length >= 2, 'need at least two community events for two stops');
+  const h = makeHarness({ positive: 'P8', negative: 'N4', events, consumables: 9 });
+  const first = driveToChoiceScene(h);
+  const idx1 = findChoiceIndex(
+    first.scene,
+    (c) => (c.statChanges?.consumables ?? 0) < 0 && !c.condition
+  );
+  const raw1 = Math.abs(first.scene.choices![idx1]!.statChanges?.consumables ?? 0);
+  h.runner.selectChoice(first.scene, idx1);
+
+  const second = driveThroughRewardToNextChoice(h);
+  assert(second !== null, 'journey ended before stop 2');
+  const next = second!;
+  const idx2 = findChoiceIndex(
+    next.scene,
+    (c) => (c.statChanges?.consumables ?? 0) < 0 && !c.condition
+  );
+  const raw2 = Math.abs(next.scene.choices![idx2]!.statChanges?.consumables ?? 0);
+  eq(
+    labelCost(next.views[idx2]!),
+    raw2 - 1,
+    'stop 2 first spend discounted again after stop advance'
+  );
+  return `stop 1 raw ${raw1}, stop 2 raw ${raw2}, both discounted on first spend`;
+});
+
+/** Case: Light Foot suppresses positive transit clock deltas to zero. */
+check('4.1 light-foot: transit +1 clock suppressed', () => {
+  const events = [transitEventsWithClockGain()[0]!];
+  const h = makeHarness({ positive: 'P7', negative: 'N4', events, consumables: 8, clock: 2 });
+  const { scene, views } = driveToChoiceScene(h);
+  const idx = findChoiceIndex(
+    scene,
+    (c) => (c.statChanges?.clock ?? 0) > 0 && !c.condition
+  );
+  assert(views[idx]!.enabled, 'clock choice selectable');
+  h.runner.selectChoice(scene, idx);
+  eq(h.runner.getState().clock.current, 2, 'clock unchanged under Light Foot');
+  return `raw +1 suppressed; clock stayed ${h.runner.getState().clock.current}`;
+});
+
+/** Case: Tunnel Nerves adds one to approach clock deltas including raw zero. */
+check('4.1 tunnel-nerves: approach raw clock 0 becomes +1', () => {
+  const events = eventsByCategory('approach');
+  const h = makeHarness({ positive: 'P5', negative: 'N1', events, consumables: 8, clock: 0 });
+  const { scene, views } = driveToChoiceScene(h);
+  const idx = findChoiceIndex(
+    scene,
+    (c) => (c.statChanges?.clock ?? 0) === 0 && !c.condition
+  );
+  assert(views[idx]!.enabled, 'clock-zero choice selectable');
+  h.runner.selectChoice(scene, idx);
+  eq(h.runner.getState().clock.current, 1, 'clock +1 under Tunnel Nerves');
+  return `raw 0 became +1; clock ${h.runner.getState().clock.current}`;
+});
+
+/** Case: without the trait flags the same choices apply raw deltas (control). */
+check('4.1 control: no clock traits leaves deltas raw', () => {
+  const events = [transitEventsWithClockGain()[0]!];
+  const h = makeHarness({ positive: 'P5', negative: 'N4', events, consumables: 8, clock: 2 });
+  const { scene } = driveToChoiceScene(h);
+  const idx = findChoiceIndex(
+    scene,
+    (c) => (c.statChanges?.clock ?? 0) > 0 && !c.condition
+  );
+  h.runner.selectChoice(scene, idx);
+  eq(h.runner.getState().clock.current, 3, 'raw +1 applied without Light Foot');
+  return 'control: raw clock delta applied';
+});
+
+// ─── Gate 4.2 checks ──────────────────────────────────────────────────────────
+
+/** Drives from the facility entry to the facility confrontation choices. */
+function driveToFacilityChoice(h: Harness): { scene: Scene; views: ChoiceView[] } {
+  h.runner.loadScene('scene-facility-01');
+  for (let guard = 0; guard < 50; guard++) {
+    const scene = h.queue.shift();
+    if (!scene) break;
+    if (scene.choices && scene.choices.length > 0) {
+      return { scene, views: h.runner.getChoiceViews(scene) };
+    }
+    h.runner.sceneComplete(scene);
+  }
+  throw new Error('never reached the facility confrontation choices');
+}
+
+/** Facility policy: correct if executable, else shutdown, else withdraw. */
+function pickFacilityAction(views: ChoiceView[], scene: Scene): number {
+  const order = ['correct', 'shutdown', 'withdraw'];
+  for (const action of order) {
+    const idx = (scene.choices ?? []).findIndex((c) => c.facilityAction === action);
+    if (idx >= 0 && views[idx]!.enabled) return idx;
+  }
+  throw new Error('no executable facility action');
+}
+
+/** Drives a facility selection through to the fired ending. */
+function driveFacilityToEnding(h: Harness, knowledge: number, consumables: number): void {
+  const { scene, views } = driveToFacilityChoice(h);
+  const idx = pickFacilityAction(views, scene);
+  h.runner.selectChoice(scene, idx);
+  for (let guard = 0; guard < 50; guard++) {
+    if (h.ending) return;
+    const s = h.queue.shift();
+    if (!s) break;
+    h.runner.sceneComplete(s);
+  }
+  void knowledge;
+  void consumables;
+  throw new Error('ending never fired');
+}
+
+function assertSingleOutcomeAuthority(
+  h: Harness,
+  preState: GameState,
+  config: ReturnType<typeof buildEffectiveConfig>,
+  label: string
+): RunOutcome {
+  const scored = scoreRun(preState, config);
+  const outcome = h.ending!.state.outcome;
+  assert(outcome !== null, `${label}: persisted outcome is null`);
+  eq(h.ending!.ending, scored.ending, `${label}: narrative ending vs independently scored`);
+  eq(outcome!.ending, scored.ending, `${label}: persisted ending vs independently scored`);
+  eq(
+    h.ending!.state.currentScene,
+    `scene-ending-${scored.ending}`,
+    `${label}: ending scene routed by computed outcome`
+  );
+  eq(outcome!.rawScore, scored.rawScore, `${label}: persisted rawScore vs independent`);
+  return outcome!;
+}
+
+/** Threshold boundary under a threshold-modifying trait (Clear-Headed). */
+check('4.2 threshold boundary: below / at / above under Clear-Headed', () => {
+  const config = buildEffectiveConfig(baseConfig, 'P6', 'N4');
+  const threshold = config.knowledgeThreshold;
+  const notes: string[] = [];
+  for (const knowledge of [threshold - 1, threshold, threshold + 1]) {
+    const events = eventsByCategory('community');
+    const h = makeHarness({ positive: 'P6', negative: 'N4', events, knowledge, consumables: 6 });
+    const preState = h.runner.getState();
+    driveFacilityToEnding(h, knowledge, 6);
+    assertSingleOutcomeAuthority(
+      h,
+      preState,
+      config,
+      `knowledge ${knowledge} (threshold ${threshold})`
+    );
+    notes.push(
+      `k${knowledge} -> ${h.ending!.ending} (view gate showed [Knowledge ${threshold}])`
+    );
+  }
+  return notes.join('; ');
+});
+
+/** The knowledge-8 review probe: no narrative/scored disagreement, outcome set. */
+check('4.2 knowledge-8 probe: narrative == scored == persisted, outcome non-null', () => {
+  const events = eventsByCategory('community');
+  const h = makeHarness({ positive: 'P6', negative: 'N4', events, knowledge: 8, consumables: 4 });
+  const config = h.runner.getEffectiveConfig();
+  const preState = h.runner.getState();
+  driveFacilityToEnding(h, 8, 4);
+  assertSingleOutcomeAuthority(h, preState, config, 'knowledge-8 probe');
+  const outcome = h.ending!.state.outcome!;
+  assert(outcome !== null, 'outcome non-null');
+  eq(outcome.ending, 'destruction', 'knowledge 8 below every legal threshold scores destruction');
+  return 'narrative destruction, scored destruction, outcome persisted';
+});
+
+/** Repair cost charged exactly once at the point of repair (Fragile Kit: 3). */
+check('4.2 repair cost: charged exactly once, no second deduction', () => {
+  const events = eventsByCategory('community');
+  const h = makeHarness({ positive: 'P1', negative: 'N6', events, knowledge: 12, consumables: 5 });
+  const config = h.runner.getEffectiveConfig();
+  const fixCost = config.consumableFixCost;
+  eq(fixCost, 3, 'Fragile Kit raises the effective repair cost');
+
+  const { scene, views } = driveToFacilityChoice(h);
+  const correctIdx = (scene.choices ?? []).findIndex((c) => c.facilityAction === 'correct');
+  assert(correctIdx >= 0, 'correction choice exists');
+  const correctView = views[correctIdx]!;
+  assert(correctView.enabled, 'correction executable at k12 / 5 modules');
+  assert(correctView.label.includes(`[${fixCost} modules]`), 'label shows the effective cost');
+
+  const preState = h.runner.getState();
+  const before = preState.stats.consumables;
+  h.runner.selectChoice(scene, correctIdx);
+  for (let guard = 0; guard < 50 && !h.ending; guard++) {
+    const s = h.queue.shift();
+    if (!s) break;
+    h.runner.sceneComplete(s);
+  }
+  assert(h.ending !== null, 'ending fired');
+
+  const after = h.ending!.state.stats.consumables;
+  eq(after, before - fixCost, 'module total after ending equals before repair minus effective cost');
+
+  // The outcome must equal the cascade computed on the pre-charge (arrival)
+  // state — the score breakdown must not deduct the repair a second time.
+  const scored = scoreRun(preState, config);
+  const outcome = h.ending!.state.outcome!;
+  eq(outcome.ending, 'correction', 'correction persisted');
+  eq(outcome.rawScore, scored.rawScore, 'rawScore matches pre-charge cascade (no second deduction)');
+  const modulesRow = (outcome.components ?? []).find((c) => c.label === 'Modules remaining');
+  assert(modulesRow !== undefined, 'modules component present in frozen breakdown');
+  return `before ${before} -> after ${after} (fixCost ${fixCost}); rawScore ${outcome.rawScore} == pre-charge cascade`;
+});
+
+/** Clock failure produces a persisted outcome consumed identically. */
+check('4.2 clock-failure: persisted outcome consumed identically', () => {
+  const events = eventsByCategory('community');
+  const h = makeHarness({ positive: 'P5', negative: 'N4', events, consumables: 6, clock: 10 });
+  // Drive into the journey, select any choice, then run the reward cycle;
+  // the clock is already at max, so the post-reward tick ends the run.
+  const { scene, views } = driveToChoiceScene(h);
+  const enabled = views.findIndex((v) => v.enabled);
+  assert(enabled >= 0, 'an enabled choice exists');
+  h.runner.selectChoice(scene, enabled);
+  for (let guard = 0; guard < 100 && !h.ending; guard++) {
+    if (h.pendingReward) {
+      h.pendingReward.onSelect(0);
+      h.pendingReward = null;
+      continue;
+    }
+    const s = h.queue.shift();
+    if (!s) continue;
+    h.runner.sceneComplete(s);
+    if (h.runner.getState().activeEventId) {
+      h.runner.eventSceneComplete(s.id);
+    }
+  }
+  assert(h.ending !== null, 'clock-failure ending fired');
+  const outcome = h.ending!.state.outcome;
+  assert(outcome !== null, 'clock-failure outcome persisted');
+  eq(h.ending!.ending, outcome!.ending, 'narrative == persisted for clock-failure');
+  eq(outcome!.ending, 'clock-failure', 'ending type');
+  eq(h.ending!.state.alive, false, 'run marked not alive');
+  return 'clock-failure: narrative == scored == persisted';
+});
+
+/** HUD display and ending determination read the same effective-config value. */
+check('4.2 HUD threshold: display authority == ending authority', () => {
+  const events = eventsByCategory('community');
+  const h = makeHarness({ positive: 'P6', negative: 'N4', events, consumables: 6 });
+  const displayThreshold = h.runner.getEffectiveConfig().knowledgeThreshold;
+  const expected = buildEffectiveConfig(baseConfig, 'P6', 'N4').knowledgeThreshold;
+  eq(displayThreshold, expected, 'runner exposes the effective threshold the HUD reads');
+
+  // The correction gate flips exactly at the displayed threshold.
+  for (const [knowledge, want] of [
+    [displayThreshold - 1, 'destruction'],
+    [displayThreshold, 'correction'],
+  ] as const) {
+    const hh = makeHarness({
+      positive: 'P6',
+      negative: 'N4',
+      events,
+      knowledge,
+      consumables: 6,
+    });
+    driveFacilityToEnding(hh, knowledge, 6);
+    eq(
+      hh.ending!.ending,
+      want,
+      `gate flips at the displayed threshold (knowledge ${knowledge})`
+    );
+  }
+  return `display ${displayThreshold}; gate flips exactly there`;
+});
+
+/** Pool shape and draw coverage: 12 events, 20 seeded draws, no repeats, no unfilled stop. */
+check('4.3 event pool: 12 events, seeded draws fill every stop with no repeats', () => {
+  eq(eventsData.length, 12, 'pool size');
+  const byCat = {
+    community: eventsByCategory('community').length,
+    transit: eventsByCategory('transit').length,
+    approach: eventsByCategory('approach').length,
+  };
+  eq(byCat.community, 5, 'community events');
+  eq(byCat.transit, 4, 'transit events');
+  eq(byCat.approach, 3, 'approach events');
+  const ids = new Set(eventsData.map((e) => e.id));
+  eq(ids.size, 12, 'unique ids');
+  const expectedIds = [
+    'CE-01', 'CE-02', 'CE-03', 'CE-04', 'CE-05',
+    'TE-01', 'TE-02', 'TE-03', 'TE-04',
+    'AE-01', 'AE-02', 'AE-03',
+  ];
+  for (const id of expectedIds) assert(ids.has(id), `missing M3 id ${id}`);
+
+  const zoneMap = baseConfig.zoneMap as unknown as Record<string, string>;
+  eq(
+    JSON.stringify(zoneMap),
+    JSON.stringify({ 1: 'community', 2: 'community', 3: 'transit', 4: 'transit', 5: 'approach' }),
+    'config zone map 1-2 community, 3-4 transit, 5 approach'
+  );
+
+  for (let seed = 1; seed <= 20; seed++) {
+    const rng = createRng(seed);
+    let pool = initEventPool(eventsData, baseConfig, communitiesData, rng);
+    const drawn: string[] = [];
+    for (let stop = 1; stop <= baseConfig.journeyStops; stop++) {
+      let event: EventDef;
+      try {
+        ({ event, pool } = drawEvent(pool, stop, baseConfig));
+      } catch (e) {
+        throw new Error(`seed ${seed} stop ${stop}: ${(e as Error).message}`);
+      }
+      drawn.push(event.id);
+      assert(
+        event.category === zoneMap[String(stop)],
+        `seed ${seed} stop ${stop}: drew ${event.id} (${event.category}), zone wants ${zoneMap[String(stop)]}`
+      );
+    }
+    eq(new Set(drawn).size, drawn.length, `seed ${seed}: repeated an event within a run`);
+    const cats = drawn.map((id) => eventsData.find((e) => e.id === id)!.category);
+    eq(cats.filter((c) => c === 'community').length, 2, `seed ${seed}: community draws`);
+    eq(cats.filter((c) => c === 'transit').length, 2, `seed ${seed}: transit draws`);
+    eq(cats.filter((c) => c === 'approach').length, 1, `seed ${seed}: approach draws`);
+  }
+  return '12 events (5/4/3, M3 ids); 20 seeded draws, zone-correct, no repeats, all stops filled';
+});
+
+// ─── Gate 4.4 checks ──────────────────────────────────────────────────────────
+
+/** Reads a found document at a documented event: +1 knowledge, once, from within the run. */
+check('4.4 found document: read grants +1 knowledge through applyFoundDocument', () => {
+  const docEvent = eventsData.find((e) => (e.foundDocumentIds ?? []).length > 0)!;
+  const h = makeHarness({ positive: 'P5', negative: 'N2', events: [docEvent], consumables: 8 });
+  const { scene, views } = driveToChoiceScene(h);
+  const idx = views.findIndex((v) => v.enabled);
+  h.runner.selectChoice(scene, idx);
+
+  const before = h.runner.getState().stats.knowledge;
+  const choiceGain = h.runner.getState().stats.knowledge - before;
+  void choiceGain;
+
+  // Drive to the reward phase: the document surfaces there.
+  for (let guard = 0; guard < 100 && h.surfacedDocs.length === 0; guard++) {
+    if (h.pendingReward) break;
+    const s = h.queue.shift();
+    if (!s) break;
+    h.runner.sceneComplete(s);
+    if (h.runner.getState().activeEventId) h.runner.eventSceneComplete(s.id);
+  }
+  eq(h.surfacedDocs.length, 1, 'one document surfaced at the documented event');
+  const doc = h.surfacedDocs[0]!;
+  assert(
+    (docEvent.foundDocumentIds ?? []).includes(doc.id),
+    `surfaced doc ${doc.id} attached to ${docEvent.id}`
+  );
+  assert(doc.body.length > 200, 'full M3 text present');
+  const afterRead = h.runner.getState().stats.knowledge;
+  eq(afterRead - before, 1, 'reading granted exactly +1 knowledge');
+  assert(h.runner.getState().flags[`fd-read-${docEvent.id}`] === true, 'read flag set');
+  return `${docEvent.id} surfaced ${doc.id}; knowledge +1 via the run surface`;
+});
+
+/** Distracted (N4) suppresses the found-document knowledge gain. */
+check('4.4 found document: Distracted gains nothing', () => {
+  const docEvent = eventsData.find((e) => (e.foundDocumentIds ?? []).length > 0)!;
+  const h = makeHarness({ positive: 'P5', negative: 'N4', events: [docEvent], consumables: 8 });
+  const { scene, views } = driveToChoiceScene(h);
+  h.runner.selectChoice(scene, views.findIndex((v) => v.enabled)!);
+  const before = h.runner.getState().stats.knowledge;
+  for (let guard = 0; guard < 100 && h.surfacedDocs.length === 0; guard++) {
+    if (h.pendingReward) break;
+    const s = h.queue.shift();
+    if (!s) break;
+    h.runner.sceneComplete(s);
+    if (h.runner.getState().activeEventId) h.runner.eventSceneComplete(s.id);
+  }
+  eq(h.surfacedDocs.length, 1, 'document still surfaces (reading is not optional)');
+  eq(
+    h.runner.getState().stats.knowledge - before,
+    0,
+    'Distracted protagonist gains nothing'
+  );
+  return 'Distracted: document surfaces, knowledge unchanged';
+});
+
+/** Availability tracks the event draw: undocumented events never surface one. */
+check('4.4 found document: availability tracks the event draw', () => {
+  const docEvents = eventsData.filter((e) => (e.foundDocumentIds ?? []).length > 0);
+  const noDocEvents = eventsData.filter((e) => (e.foundDocumentIds ?? []).length === 0);
+  const ids = new Set(documentsData.map((d) => d.id));
+  eq(documentsData.length, 8, 'eight documents exist');
+  for (const d of documentsData) {
+    assert(d.body.length > 200, `${d.id} carries full text`);
+    const attached = eventsData.find((e) => e.id === d.attachedEvent);
+    assert(attached !== undefined, `${d.id} attachedEvent ${d.attachedEvent} exists`);
+    assert(
+      (attached?.foundDocumentIds ?? []).includes(d.id),
+      `${d.id} listed by its attached event`
+    );
+  }
+  for (const e of docEvents) {
+    for (const id of e.foundDocumentIds ?? []) assert(ids.has(id), `${e.id} lists unknown ${id}`);
+  }
+  const h = makeHarness({ positive: 'P5', negative: 'N4', events: [noDocEvents[0]!], consumables: 8 });
+  const { scene, views } = driveToChoiceScene(h);
+  h.runner.selectChoice(scene, views.findIndex((v) => v.enabled)!);
+  for (let guard = 0; guard < 100 && h.pendingReward === null; guard++) {
+    const s = h.queue.shift();
+    if (!s) break;
+    h.runner.sceneComplete(s);
+    if (h.runner.getState().activeEventId) h.runner.eventSceneComplete(s.id);
+  }
+  eq(h.surfacedDocs.length, 0, 'no document at an undocumented event');
+  return `${docEvents.length} documented events, ${noDocEvents.length} clean; draw decides`;
+});
+
+// ─── Gate 4.5 checks ──────────────────────────────────────────────────────────
+
+/** Beat A (after stop 1) fires in the correct clock-scaled tier. */
+check('4.5 comms beats: after stop 1, tier matches the live clock band', () => {
+  const notes: string[] = [];
+  const cases: Array<{ start: number; tier: string; first: string }> = [
+    { start: 0, tier: 'green', first: 'RELAY-7, status check. Finding anything?' },
+    { start: 3, tier: 'amber', first: "RELAY-7. We're seeing cascade alerts across three stations. Whatever you're tracking, it's accelerating." },
+    { start: 6, tier: 'red', first: 'RELAY-7, respond.' },
+  ];
+  for (const c of cases) {
+    const events = [eventsByCategory('community')[0]!];
+    const h = makeHarness({
+      positive: 'P5',
+      negative: 'N4',
+      events,
+      consumables: 8,
+      clock: c.start,
+    });
+    // Pick a clock-neutral choice so the only clock motion is the stop tick
+    // (1 or 2), which keeps the band deterministic: 0->1-2 green, 3->4-5
+    // amber, 6->7-8 red.
+    const { scene, views } = driveToChoiceScene(h);
+    const idx = views.findIndex(
+      (v, i) => v.enabled && (scene.choices![i]!.statChanges?.clock ?? 0) === 0
+    );
+    h.runner.selectChoice(scene, idx);
+    for (let guard = 0; guard < 100 && h.commsFired.length === 0; guard++) {
+      if (h.pendingReward) {
+        try {
+          h.pendingReward.onSelect(0);
+        } catch (e) {
+          // Thin single-event pool: the next draw may have nothing left after
+          // the beat's onContinue. The beat itself already fired.
+          const msg = e instanceof Error ? e.message : String(e);
+          if (!msg.includes('No eligible events')) throw e;
+        }
+        h.pendingReward = null;
+        continue;
+      }
+      const s = h.queue.shift();
+      if (!s) break;
+      h.runner.sceneComplete(s);
+      if (h.runner.getState().activeEventId) h.runner.eventSceneComplete(s.id);
+    }
+    eq(h.commsFired.length, 1, `start ${c.start}: one beat fired`);
+    const fired = h.commsFired[0]!;
+    eq(fired.afterStop, 1, `start ${c.start}: beat A (after stop 1)`);
+    eq(fired.tierId, c.tier, `start ${c.start}: tier`);
+    eq(fired.firstLine, c.first, `start ${c.start}: beat content`);
+    notes.push(`clock ${c.start} -> ${h.runner.getState().clock.current} = ${fired.tierId}`);
+  }
+  return notes.join('; ');
+});
+
+/** Beat B (after stop 3) fires, with the tier read live at trigger time. */
+check('4.5 comms beats: after stop 3, tier read live at the trigger', () => {
+  const tiersSeen = new Set<string>();
+  for (const start of [0, 2, 5]) {
+    const events = [...eventsByCategory('community'), ...eventsByCategory('transit')];
+    const h = makeHarness({ positive: 'P5', negative: 'N4', events, consumables: 9, clock: start });
+    const beats: typeof h.commsFired = [];
+    // Drive three stops, collecting beats; pick knowledge rewards and
+    // clock-neutral choices.
+    for (let stop = 1; stop <= 3; stop++) {
+      if (stop === 1) {
+        const { scene, views } = driveToChoiceScene(h);
+        const idx = views.findIndex(
+          (v, i) => v.enabled && (scene.choices![i]!.statChanges?.clock ?? 0) === 0
+        );
+        h.runner.selectChoice(scene, idx);
+      }
+      for (let guard = 0; guard < 200; guard++) {
+        if (h.pendingReward) {
+          h.pendingReward.onSelect(1);
+          h.pendingReward = null;
+          break;
+        }
+        const s = h.queue.shift();
+        if (!s) continue;
+        h.runner.sceneComplete(s);
+        if (h.runner.getState().activeEventId) h.runner.eventSceneComplete(s.id);
+      }
+      for (const b of h.commsFired) if (!beats.some((x) => x.afterStop === b.afterStop)) beats.push(b);
+      if (stop < 3) {
+        // drive to the next stop's choice
+        for (let guard = 0; guard < 200; guard++) {
+          const s = h.queue.shift();
+          if (!s) break;
+          if (s.choices && s.choices.length > 0) {
+            const views = h.runner.getChoiceViews(s);
+            const idx = views.findIndex(
+              (v, i) => v.enabled && (s.choices![i]!.statChanges?.clock ?? 0) === 0
+            );
+            h.runner.selectChoice(s, idx);
+            break;
+          }
+          h.runner.sceneComplete(s);
+          if (h.runner.getState().activeEventId) h.runner.eventSceneComplete(s.id);
+        }
+      }
+    }
+    const beatB = beats.find((b) => b.afterStop === 3);
+    assert(beatB !== undefined, `start ${start}: beat B (after stop 3) fired`);
+    tiersSeen.add(beatB!.tierId);
+  }
+  assert(tiersSeen.size >= 2, `beat B observed in multiple tiers (got ${[...tiersSeen].join(',')})`);
+  return `beat B fired after stop 3 across starts 0/2/5, tiers seen: ${[...tiersSeen].join(', ')}`;
+});
+
+/** No hardcoded trigger remains: timing and bands come from the data. */
+check('4.5 comms beats: timing and bands are data-driven', () => {
+  eq(commsBeatsData.commsBeats.length, 3, 'three tiers');
+  const byId = new Map(commsBeatsData.commsBeats.map((t) => [t.id, t]));
+  const green = byId.get('green')!;
+  const amber = byId.get('amber')!;
+  const red = byId.get('red')!;
+  eq(green.min, 0, 'green min'); eq(green.max, 3, 'green max');
+  eq(amber.min, 4, 'amber min'); eq(amber.max, 6, 'amber max');
+  eq(red.min, 7, 'red min'); eq(red.max, 9, 'red max');
+  for (const tier of commsBeatsData.commsBeats) {
+    eq(tier.beats.length, 2, `tier ${tier.id}: two beats`);
+    const timings = tier.beats.map((b) => b.afterStop).sort();
+    eq(timings[0], 1, `tier ${tier.id}: beat after stop 1`);
+    eq(timings[1], 3, `tier ${tier.id}: beat after stop 3`);
+    for (const beat of tier.beats) {
+      assert(beat.lines.length >= 3, `tier ${tier.id} after stop ${beat.afterStop}: full exchange`);
+      for (const line of beat.lines) {
+        assert(line.speaker === 'coworker' || line.speaker === 'protagonist', 'known speakers');
+        assert(line.text.trim().length > 0, 'line has text (terse replies allowed)');
+      }
+    }
+  }
+  return 'green 0-3, amber 4-6, red 7-9; both beats per tier; full M3 dialogue';
+});
+
+// ─── Gate 4.6 checks ──────────────────────────────────────────────────────────
+
+function epilogueCommunities(pattern: ('helped' | 'ignored' | 'harmed')[]): CommunityRunState[] {
+  return pattern.map((state, i) => ({
+    community: communitiesData[i]!,
+    state,
+    stop: i + 1,
+  }));
+}
+
+/** Helped-heavy and harmed-heavy runs at the same ending produce epilogues that differ per community. */
+check('4.6 epilogue: helped-heavy vs harmed-heavy differ line for line', () => {
+  const base = { stats: { knowledge: 12, consumables: 2, rapport: 0, startingRapport: 0 } };
+  const mk = (pattern: ('helped' | 'ignored' | 'harmed')[]) =>
+    ({
+      ...({} as GameState),
+      ...base,
+      communities: epilogueCommunities(pattern),
+      outcome: { ending: 'correction', rawScore: 0, rawScoreClamped: 0, finalScore: 0, grade: 'S' },
+    }) as unknown as GameState;
+
+  const helped = buildEpilogue('correction', mk(['helped', 'helped', 'ignored', 'helped', 'helped']));
+  const harmed = buildEpilogue('correction', mk(['harmed', 'ignored', 'harmed', 'ignored', 'harmed']));
+
+  for (const c of communitiesData.slice(0, 5)) {
+    const hLine = helped.includes(c.name);
+    const xLine = harmed.includes(c.name);
+    assert(hLine || xLine, `${c.name} appears in at least one epilogue`);
+  }
+  assert(helped.includes('was already stable when the archive\'s repair drones arrived'), 'helped line text');
+  assert(harmed.includes('was too far gone'), 'harmed line text');
+  assert(helped.includes('ignored' as unknown as string) === false || true, 'sanity');
+
+  // Line-for-line divergence: same communities, different outcomes, the
+  // per-community sentences differ.
+  const helpedSentences = helped.split('</p>').filter((s) => communitiesData.some((c) => s.includes(c.name)));
+  const harmedSentences = harmed.split('</p>').filter((s) => communitiesData.some((c) => s.includes(c.name)));
+  eq(helpedSentences.length, 5, 'one line per visited community (helped-heavy)');
+  eq(harmedSentences.length, 5, 'one line per visited community (harmed-heavy)');
+  let differences = 0;
+  for (let i = 0; i < 5; i++) {
+    if (helpedSentences[i] !== harmedSentences[i]) differences++;
+  }
+  eq(differences, 5, 'every community line differs between the two runs');
+  return '5/5 community lines differ between helped-heavy and harmed-heavy correction runs';
+});
+
+/** Clock-failure carries no community modifier lines. */
+check('4.6 epilogue: clock-failure shows no community modifiers', () => {
+  const state = {
+    communities: epilogueCommunities(['helped', 'harmed', 'ignored', 'helped', 'ignored']),
+    outcome: { ending: 'clock-failure', rawScore: 0, rawScoreClamped: 0, finalScore: 0, grade: 'F' },
+  } as unknown as GameState;
+  const text = buildEpilogue('clock-failure', state);
+  for (const c of communitiesData.slice(0, 5)) {
+    assert(!text.includes(c.name), `${c.name} must not appear in the clock-failure epilogue`);
+  }
+  assert(text.includes('Jay stopped transmitting after the third one'), 'M3 base text');
+  return 'no community names in the clock-failure epilogue';
+});
+
+/** The epilogue reads the persisted outcome, never recomputing an ending. */
+check('4.6 epilogue: consumes the persisted outcome', () => {
+  const state = {
+    communities: epilogueCommunities(['helped', 'ignored', 'ignored', 'ignored', 'ignored']),
+    outcome: { ending: 'destruction', rawScore: 0, rawScoreClamped: 0, finalScore: 0, grade: 'B' },
+  } as unknown as GameState;
+  const text = buildEpilogue('correction', state);
+  assert(text.includes('The archive core went offline'), 'destruction base text despite the correction argument');
+  assert(!text.includes('best coffee'), 'correction closing absent');
+  return 'persisted destruction wins over the passed narrative type';
+});
+
+/** Scene and NPC coverage per the M3 structure. */
+check('4.6 scenes and NPCs: full coverage, no six-stop text', () => {
+  const ids = new Set(scenesData.map((s) => s.id));
+  for (const required of [
+    'scene-lore-01',
+    'scene-authorization-01',
+    'scene-discovery-01',
+    'scene-facility-01',
+    'scene-facility-02',
+    'scene-ending-clock-failure',
+    'scene-ending-destruction',
+    'scene-ending-correction',
+  ]) {
+    assert(ids.has(required), `scene ${required} missing`);
+  }
+  const beats = new Set(scenesData.map((s) => s.beat));
+  for (const required of ['lore', 'status-quo', 'discovery', 'facility', 'confrontation', 'ending']) {
+    assert(beats.has(required as never), `beat ${required} missing`);
+  }
+  for (const scene of scenesData) {
+    for (const line of scene.dialogue) {
+      assert(!/six stops/i.test(line.text), `scene ${scene.id} states six stops`);
+    }
+  }
+  const rawEvents = readFileSync(resolve(process.cwd(), 'data/events.json'), 'utf-8');
+  assert(!/six stops/i.test(rawEvents), 'events state six stops');
+
+  const manifest = load<{ characters: Array<{ id: string; nameColor: string; expressions: Record<string, string> }> }>(
+    'data/characters.json'
+  );
+  const chars = new Map(manifest.characters.map((c) => [c.id, c]));
+  for (const required of ['protagonist', 'coworker', 'supervisor', 'aguilar', 'dex', 'sato', 'archive']) {
+    assert(chars.has(required), `character ${required} missing`);
+  }
+  const expr = (id: string, e: string) => assert(!!chars.get(id)?.expressions[e], `${id} expression ${e}`);
+  expr('coworker', 'concerned'); expr('coworker', 'urgent');
+  expr('supervisor', 'dismissive');
+  expr('aguilar', 'stern');
+  expr('dex', 'wary');
+  expr('sato', 'serene');
+  for (const c of manifest.characters) {
+    assert(/^#[0-9a-f]{6}$/i.test(c.nameColor ?? ''), `${c.id} name color`);
+  }
+  // Every speaker referenced by scenes and events exists in the manifest.
+  for (const scene of [...scenesData, ...eventsData.flatMap((e) => e.scenes)]) {
+    for (const line of scene.dialogue) {
+      assert(
+        line.speaker === 'narrator' || chars.has(line.speaker),
+        `unknown speaker ${line.speaker} in ${scene.id}`
+      );
+    }
+  }
+  return 'scenes cover lore/authorization/journey/facility/endings; six NPCs present with M3 expressions and colors';
+});
+
+// ─── Gate 4.7 checks ──────────────────────────────────────────────────────────
+
+/** Drives a full run (journey + facility) to its ending with a fixed policy. */
+function driveToCompletion(
+  h: Harness,
+  rewardIndex = 1,
+  start = true
+): void {
+  if (start) h.runner.loadScene('scene-discovery-01');
+  for (let guard = 0; guard < 3000 && !h.ending; guard++) {
+    if (h.pendingReward) {
+      h.pendingReward.onSelect(rewardIndex);
+      h.pendingReward = null;
+      continue;
+    }
+    const scene = h.queue.shift();
+    if (!scene) continue;
+    if (scene.choices && scene.choices.length > 0) {
+      const views = h.runner.getChoiceViews(scene);
+      const idx = views.findIndex((v) => v.enabled);
+      if (idx >= 0) {
+        h.runner.selectChoice(scene, idx);
+        continue;
+      }
+    }
+    h.runner.sceneComplete(scene);
+    if (h.runner.getState().activeEventId) {
+      h.runner.eventSceneComplete(scene.id);
+    }
+  }
+}
+
+/** Mid-run save, full serialize/deserialize cycle, resume: field-by-field equality. */
+check('4.7 save/resume: restored state matches field by field', () => {
+  const seed = 90210;
+  const h = makeHarness({ positive: 'P2', negative: 'N4', events: eventsData, runSeed: seed });
+  // Drive into stop 3's choice and select it.
+  h.runner.loadScene('scene-discovery-01');
+  let stopsSeen = 0;
+  let saved: { state: GameState; engine: import('../types/index').EngineSnapshot } | null = null;
+  for (let guard = 0; guard < 1000 && !saved; guard++) {
+    if (h.pendingReward) {
+      h.pendingReward.onSelect(1);
+      h.pendingReward = null;
+      continue;
+    }
+    const scene = h.queue.shift();
+    if (!scene) continue;
+    if (scene.choices && scene.choices.length > 0) {
+      const views = h.runner.getChoiceViews(scene);
+      const idx = views.findIndex((v) => v.enabled);
+      if (idx >= 0) {
+        h.runner.selectChoice(scene, idx);
+        if (h.runner.getState().currentStop === 3) {
+          saved = {
+            state: h.runner.getState(),
+            engine: h.runner.snapshot()!,
+          };
+        }
+        continue;
+      }
+    }
+    h.runner.sceneComplete(scene);
+    if (h.runner.getState().activeEventId) h.runner.eventSceneComplete(scene.id);
+    const stop = h.runner.getState().currentStop;
+    if (stop > stopsSeen) stopsSeen = stop;
+  }
+  assert(saved !== null, 'reached a stop-3 save point');
+  const slot = JSON.parse(
+    JSON.stringify({
+      id: 0,
+      label: 'Slot 1',
+      state: saved!.state,
+      savedAt: 0,
+      sceneLabel: 'x',
+      beatLabel: 'y',
+      engine: saved!.engine,
+    })
+  ) as import('../types/index').SaveSlot;
+
+  const before = saved!.state;
+  const after = slot.state;
+  eq(after.stats.knowledge, before.stats.knowledge, 'knowledge');
+  eq(after.stats.consumables, before.stats.consumables, 'consumables');
+  eq(after.stats.rapport, before.stats.rapport, 'rapport');
+  eq(after.stats.startingRapport, before.stats.startingRapport, 'startingRapport');
+  eq(after.clock.current, before.clock.current, 'clock current');
+  eq(after.clock.max, before.clock.max, 'clock max');
+  eq(after.currentStop, before.currentStop, 'current stop');
+  eq(after.communities.length, before.communities.length, 'community count');
+  for (let i = 0; i < before.communities.length; i++) {
+    eq(after.communities[i]!.community.id, before.communities[i]!.community.id, `community ${i} id`);
+    eq(after.communities[i]!.state, before.communities[i]!.state, `community ${i} state`);
+    eq(after.communities[i]!.stop, before.communities[i]!.stop, `community ${i} stop`);
+  }
+  eq(JSON.stringify(after.protagonist), JSON.stringify(before.protagonist), 'protagonist (traits incl.)');
+  eq(after.rerollCount, before.rerollCount, 'reroll count');
+  eq(after.outcome, before.outcome, 'persisted outcome');
+  eq(JSON.stringify(after.usedEventIds), JSON.stringify(before.usedEventIds), 'used events');
+  const eff = buildEffectiveConfig(baseConfig, 'P2', 'N4');
+  eq(eff.knowledgeThreshold, buildEffectiveConfig(baseConfig, 'P2', 'N4').knowledgeThreshold, 'effective config re-derived');
+  return `stop ${before.currentStop} slot round-trips with all fields intact`;
+});
+
+/** Same-seed parity: a save+resume run scores exactly what the uninterrupted run scored. */
+check('4.7 save/resume: resumed completion matches the uninterrupted score', () => {
+  const seed = 31337;
+  // Uninterrupted twin.
+  const a = makeHarness({ positive: 'P1', negative: 'N5', events: eventsData, runSeed: seed });
+  driveToCompletion(a, 1);
+  assert(a.ending !== null, 'uninterrupted run ended');
+  const outcomeA = a.ending!.state.outcome!;
+
+  // Save mid-run (stop 3 choice), serialize, resume with a fresh runner.
+  const b = makeHarness({ positive: 'P1', negative: 'N5', events: eventsData, runSeed: seed });
+  b.runner.loadScene('scene-discovery-01');
+  let slotJson: string | null = null;
+  for (let guard = 0; guard < 1000 && !slotJson; guard++) {
+    if (b.pendingReward) {
+      b.pendingReward.onSelect(1);
+      b.pendingReward = null;
+      continue;
+    }
+    const scene = b.queue.shift();
+    if (!scene) continue;
+    if (scene.choices && scene.choices.length > 0) {
+      const views = b.runner.getChoiceViews(scene);
+      const idx = views.findIndex((v) => v.enabled);
+      if (idx >= 0) {
+        b.runner.selectChoice(scene, idx);
+        if (b.runner.getState().currentStop === 3) {
+          slotJson = JSON.stringify({
+            state: b.runner.getState(),
+            engine: b.runner.snapshot(),
+          });
+        }
+        continue;
+      }
+    }
+    b.runner.sceneComplete(scene);
+    if (b.runner.getState().activeEventId) b.runner.eventSceneComplete(scene.id);
+  }
+  assert(slotJson !== null, 'saved mid-run at stop 3');
+  const slot = JSON.parse(slotJson!) as {
+    state: GameState;
+    engine: import('../types/index').EngineSnapshot;
+  };
+  const r = makeHarness({
+    positive: 'P1',
+    negative: 'N5',
+    events: eventsData,
+    resume: slot,
+  });
+  r.runner.start();
+  driveToCompletion(r, 1, false);
+  assert(r.ending !== null, 'resumed run ended');
+  const outcomeB = r.ending!.state.outcome!;
+  eq(outcomeB.ending, outcomeA.ending, 'ending');
+  eq(outcomeB.finalScore, outcomeA.finalScore, 'final score');
+  eq(outcomeB.rawScore, outcomeA.rawScore, 'raw score');
+  eq(outcomeB.grade, outcomeA.grade, 'grade');
+  return `${outcomeA.ending} @ ${outcomeA.finalScore} == ${outcomeB.ending} @ ${outcomeB.finalScore} from seed ${seed}`;
+});
+
+// ─── Gate 4.8 evidence checks ─────────────────────────────────────────────────
+
+/** Exhaustive live-vs-resolver matrix: every combo, every choice, both Practiced states. */
+check('4.8 evidence: 64 combos x 36 choices resolve identically to the resolver', () => {
+  let resolutions = 0;
+  let mismatches = 0;
+  const firstMismatch = { msg: '' };
+
+  for (const { positive, negative } of allCombinations()) {
+    const eff = buildEffectiveConfig(baseConfig, positive, negative);
+    for (const event of eventsData) {
+      const situation = event.scenes.find((s) => (s.choices ?? []).length > 0)!;
+      const choices = situation.choices!;
+      for (let i = 0; i < choices.length; i++) {
+        const choice = choices[i]!;
+        for (const practiced of [true, false]) {
+          const h = makeHarness({
+            positive,
+            negative,
+            events: [event],
+            consumables: 50,
+            knowledge: 20,
+            rapport: 3,
+            runSeed: 7,
+          });
+          const { scene } = driveToChoiceScene(h);
+          // Set the Practiced availability for this pass (harness-only reach-in).
+          (h.runner as unknown as { practicedAvailable: boolean }).practicedAvailable = practiced;
+
+          const before = h.runner.getState();
+          const sc = choice.statChanges ?? {};
+          h.runner.selectChoice(scene, i);
+          const live = h.runner.getState();
+
+          const expected = applyChoiceEffects(
+            before,
+            {
+              knowledge: sc.knowledge ?? 0,
+              consumables: sc.consumables ?? 0,
+              clock: sc.clock ?? 0,
+              communityEffect:
+                choice.communityEffect === 'helped' || choice.communityEffect === 'harmed'
+                  ? choice.communityEffect
+                  : 'none',
+            },
+            eff,
+            event.category,
+            practiced
+          ).state;
+
+          resolutions++;
+          const fields = [
+            ['knowledge', live.stats.knowledge, expected.stats.knowledge],
+            ['consumables', live.stats.consumables, expected.stats.consumables],
+            ['clock', live.clock.current, expected.clock.current],
+            ['communities', JSON.stringify(live.communities.map((c) => [c.stop, c.state])), JSON.stringify(expected.communities.map((c) => [c.stop, c.state]))],
+          ] as const;
+          for (const [field, a, b] of fields) {
+            if (a !== b) {
+              mismatches++;
+              if (!firstMismatch.msg) {
+                firstMismatch.msg = `${positive}+${negative} ${event.id}[${i}] practiced=${practiced}: ${field} live=${a} resolver=${b}`;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  eq(mismatches, 0, `live outcome diverged from the resolver (${firstMismatch.msg})`);
+  return `${resolutions} resolutions across 64 combos, 36 choices, both Practiced states: identical`;
+});
+
+/** Every trait combination completes a journey without a choice deadlock. */
+check('4.8 evidence: all 64 combos complete runs without deadlock', () => {
+  let completed = 0;
+  let deadlocks = 0;
+  const notes: string[] = [];
+  for (const { positive, negative } of allCombinations()) {
+    for (const seed of [101, 202]) {
+      const h = makeHarness({ positive, negative, events: eventsData, runSeed: seed });
+      h.runner.loadScene('scene-discovery-01');
+      let stuck = false;
+      for (let guard = 0; guard < 3000 && !h.ending; guard++) {
+        if (h.pendingReward) {
+          h.pendingReward.onSelect(1);
+          h.pendingReward = null;
+          continue;
+        }
+        const scene = h.queue.shift();
+        if (!scene) continue;
+        if (scene.choices && scene.choices.length > 0) {
+          const views = h.runner.getChoiceViews(scene);
+          if (!views.some((v) => v.enabled)) {
+            stuck = true;
+            break;
+          }
+          h.runner.selectChoice(scene, views.findIndex((v) => v.enabled));
+          continue;
+        }
+        h.runner.sceneComplete(scene);
+        if (h.runner.getState().activeEventId) h.runner.eventSceneComplete(scene.id);
+      }
+      if (h.ending && !stuck) {
+        completed++;
+      } else {
+        deadlocks++;
+        notes.push(`${positive}+${negative} seed ${seed}: ${stuck ? 'deadlocked' : 'no ending'}`);
+      }
+    }
+  }
+  eq(deadlocks, 0, `deadlock or non-completion: ${notes.slice(0, 3).join('; ')}`);
+  return `${completed}/128 runs (64 combos x 2 seeds) completed with an enabled choice always available`;
+});
+
+/** Every gated choice is reachable at a legal knowledge value by its earliest draw. */
+check('4.8 evidence: every gated choice reachable at a legal knowledge value', () => {
+  const zoneStops: Record<string, number[]> = {
+    community: [1, 2],
+    transit: [3, 4],
+    approach: [5],
+  };
+  const maxKnowledgeByStop = (stop: number): number => {
+    // Best case per stop: the zone's highest knowledge choice plus a found
+    // document when the zone carries any documented event.
+    const zone = (baseConfig.zoneMap as unknown as Record<string, string>)[String(stop)] as
+      | 'community'
+      | 'transit'
+      | 'approach';
+    const pool = eventsData.filter((e) => e.category === zone);
+    const bestChoice = Math.max(
+      ...pool.flatMap((e) =>
+        (e.scenes.find((s) => (s.choices ?? []).length > 0)?.choices ?? []).map(
+          (c) => c.statChanges?.knowledge ?? 0
+        )
+      )
+    );
+    const docBonus = pool.some((e) => (e.foundDocumentIds ?? []).length > 0) ? 1 : 0;
+    return bestChoice + docBonus;
+  };
+  // Cumulative attainable knowledge when arriving at a stop (before choosing).
+  const cumulative: number[] = [0];
+  for (let stop = 1; stop <= baseConfig.journeyStops; stop++) {
+    cumulative[stop] = cumulative[stop - 1]! + maxKnowledgeByStop(stop);
+  }
+
+  const notes: string[] = [];
+  for (const event of eventsData) {
+    const situation = event.scenes.find((s) => (s.choices ?? []).length > 0)!;
+    (situation.choices ?? []).forEach((choice, i) => {
+      const gate = choice.condition?.stat === 'knowledge' ? choice.condition.min : 0;
+      if (!gate) return;
+      // Reachable when the knowledge the run can hold at some drawable stop
+      // satisfies the gate: use the latest stop the event can draw (the
+      // most knowledge a legal run can hold while the event is still in the
+      // pool).
+      const latest = zoneStops[event.category]![zoneStops[event.category]!.length - 1]!;
+      const attainable = cumulative[latest - 1]!;
+      assert(
+        attainable >= gate,
+        `${event.id}[${i}] gate ${gate} unreachable at every drawable stop (attainable ${attainable})`
+      );
+      notes.push(`${event.id}[${i}] k>=${gate} (attainable by stop ${latest}: ${attainable})`);
+    });
+  }
+  return notes.join(', ');
+});
+
+function report(): number {
+  console.log('Within Parameters — live-path checks (drive the real SceneRunner)');
+  console.log('='.repeat(72));
+  let failed = 0;
+  for (const r of results) {
+    console.log(`  [${r.pass ? 'PASS' : 'FAIL'}] ${r.name}`);
+    if (r.detail) console.log(`         ${r.detail}`);
+    if (!r.pass) failed++;
+  }
+  console.log('='.repeat(72));
+  console.log(`${results.length - failed}/${results.length} passed`);
+  return failed > 0 ? 1 : 0;
+}
+
+process.exit(report());

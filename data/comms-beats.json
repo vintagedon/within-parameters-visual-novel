@@ -1,0 +1,78 @@
+{
+  "_comment": "Coworker comms beats (M3 section 4). Three clock-scaled tiers, two Jay Chen beats each, triggered after stop 1 and after stop 3. Tier selection reads the live clock at trigger time against min/max. Comms speakers keep the RELAY-7 callsign regardless of the protagonist's rolled name.",
+  "commsBeats": [
+    {
+      "id": "green",
+      "min": 0,
+      "max": 3,
+      "beats": [
+        {
+          "afterStop": 1,
+          "lines": [
+            { "speaker": "coworker", "text": "RELAY-7, status check. Finding anything?" },
+            { "speaker": "protagonist", "text": "Found something. Still working on what it is." },
+            { "speaker": "coworker", "text": "Copy. Nothing critical on the board here. A few more fault alerts, probably related. Take your time." }
+          ]
+        },
+        {
+          "afterStop": 3,
+          "lines": [
+            { "speaker": "coworker", "text": "RELAY-7, dispatch logged two more relay faults in your sector. Same pattern?" },
+            { "speaker": "protagonist", "text": "Same pattern. It's not random. I'm getting closer to the source." },
+            { "speaker": "coworker", "text": "Understood. Supervisor Torres is aware. Says to use your judgment." }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "amber",
+      "min": 4,
+      "max": 6,
+      "beats": [
+        {
+          "afterStop": 1,
+          "lines": [
+            { "speaker": "coworker", "text": "RELAY-7. We're seeing cascade alerts across three stations. Whatever you're tracking, it's accelerating." },
+            { "speaker": "protagonist", "text": "I know. I can see it from here." },
+            { "speaker": "coworker", "text": "Torres wants a timeline. I told him you'd have one when you have one." }
+          ]
+        },
+        {
+          "afterStop": 3,
+          "lines": [
+            { "speaker": "coworker", "text": "RELAY-7. Station 14 just went to emergency rationing. Supervisor is fielding calls from three district councils." },
+            { "speaker": "protagonist", "text": "How bad?" },
+            { "speaker": "coworker", "text": "Bad enough that people are asking who authorized your field investigation. I'm handling it. Just... be close to something." }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "red",
+      "min": 7,
+      "max": 9,
+      "beats": [
+        {
+          "afterStop": 1,
+          "lines": [
+            { "speaker": "coworker", "text": "RELAY-7, respond." },
+            { "speaker": "protagonist", "text": "I'm here." },
+            { "speaker": "coworker", "text": "Three more stations dark. Command wants you to come back. I told them you're close to something. Are you close to something?" },
+            { "speaker": "protagonist", "text": "Yes." },
+            { "speaker": "coworker", "text": "Then keep going. I'll hold them off." }
+          ]
+        },
+        {
+          "afterStop": 3,
+          "lines": [
+            { "speaker": "coworker", "text": "RELAY-7." },
+            { "speaker": "protagonist", "text": "Jay." },
+            { "speaker": "coworker", "text": "People are scared. I can hear it on the SCADA feeds. The station AIs are starting to compete for remaining capacity. Load-balancing algorithms running against each other." },
+            { "speaker": "protagonist", "text": "That's the cascade. If I don't get to the source—" },
+            { "speaker": "coworker", "text": "I know what happens. Go." }
+          ]
+        }
+      ]
+    }
+  ]
+}

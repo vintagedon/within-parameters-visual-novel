@@ -13,7 +13,7 @@
     },
     {
       "id": "coworker",
-      "name": "CHEN",
+      "name": "JAY CHEN",
       "role": "Station Dispatch",
       "defaultExpression": "neutral",
       "expressions": {
@@ -24,18 +24,51 @@
       "nameColor": "#00d4ff"
     },
     {
-      "id": "npc-1",
-      "name": "STATION REP",
-      "role": "Community Representative",
+      "id": "supervisor",
+      "name": "TORRES",
+      "role": "Supervisor",
       "defaultExpression": "neutral",
       "expressions": {
-        "neutral": "npc1-neutral",
-        "hostile": "npc1-hostile"
+        "neutral": "supervisor-neutral",
+        "dismissive": "supervisor-dismissive"
+      },
+      "nameColor": "#ffb74d"
+    },
+    {
+      "id": "aguilar",
+      "name": "AGUILAR",
+      "role": "Warden",
+      "defaultExpression": "neutral",
+      "expressions": {
+        "neutral": "aguilar-neutral",
+        "stern": "aguilar-stern"
       },
       "nameColor": "#ff9800"
     },
     {
-      "id": "npc-2",
+      "id": "dex",
+      "name": "DEX",
+      "role": "Scrapper",
+      "defaultExpression": "neutral",
+      "expressions": {
+        "neutral": "dex-neutral",
+        "wary": "dex-wary"
+      },
+      "nameColor": "#7ddf64"
+    },
+    {
+      "id": "sato",
+      "name": "SATO",
+      "role": "Elder",
+      "defaultExpression": "neutral",
+      "expressions": {
+        "neutral": "sato-neutral",
+        "serene": "sato-serene"
+      },
+      "nameColor": "#c9a7ff"
+    },
+    {
+      "id": "engineer",
       "name": "ENGINEER",
       "role": "Infrastructure Engineer",
       "defaultExpression": "neutral",
@@ -44,6 +77,14 @@
         "worried": "npc2-worried"
       },
       "nameColor": "#ff9800"
+    },
+    {
+      "id": "archive",
+      "name": "ARCHIVE",
+      "role": "Archive AI",
+      "defaultExpression": "none",
+      "expressions": {},
+      "nameColor": "#ff5252"
     },
     {
       "id": "narrator",
@@ -62,6 +103,14 @@
     { "key": "coworker-neutral", "path": "portraits/coworker-neutral.png", "placeholderColor": "#0d2035" },
     { "key": "coworker-concerned", "path": "portraits/coworker-concerned.png", "placeholderColor": "#0d2035" },
     { "key": "coworker-urgent", "path": "portraits/coworker-urgent.png", "placeholderColor": "#0d2035" },
+    { "key": "supervisor-neutral", "path": "portraits/supervisor-neutral.png", "placeholderColor": "#2a2210" },
+    { "key": "supervisor-dismissive", "path": "portraits/supervisor-dismissive.png", "placeholderColor": "#2a2210" },
+    { "key": "aguilar-neutral", "path": "portraits/aguilar-neutral.png", "placeholderColor": "#201a10" },
+    { "key": "aguilar-stern", "path": "portraits/aguilar-stern.png", "placeholderColor": "#201a10" },
+    { "key": "dex-neutral", "path": "portraits/dex-neutral.png", "placeholderColor": "#10200f" },
+    { "key": "dex-wary", "path": "portraits/dex-wary.png", "placeholderColor": "#10200f" },
+    { "key": "sato-neutral", "path": "portraits/sato-neutral.png", "placeholderColor": "#1a1024" },
+    { "key": "sato-serene", "path": "portraits/sato-serene.png", "placeholderColor": "#1a1024" },
     { "key": "npc1-neutral", "path": "portraits/npc1-neutral.png", "placeholderColor": "#201a10" },
     { "key": "npc1-hostile", "path": "portraits/npc1-hostile.png", "placeholderColor": "#201a10" },
     { "key": "npc2-neutral", "path": "portraits/npc2-neutral.png", "placeholderColor": "#151a20" },

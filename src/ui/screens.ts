@@ -14,7 +14,7 @@
  * @module ui/screens
  */
 
-import type { SaveSlot, PersistentData, GameState, CommunityRunState, RewardOption, GameConfig } from "../types/index";
+import type { SaveSlot, PersistentData, GameState, CommunityRunState, RewardOption, GameConfig, FoundDocument } from "../types/index";
 import {
   createButton,
   createSwitch,
@@ -36,6 +36,7 @@ let settingsScreen: HTMLElement;
 let rewardOverlay: HTMLElement;
 let commsOverlay: HTMLElement;
 let dossierScreen: HTMLElement;
+let documentOverlay: HTMLElement;
 
 // ─── Init all screen overlays ─────────────────────────────────────────────────
 
@@ -108,6 +109,17 @@ export function initScreens(root: HTMLElement): void {
     <div id="comms-overlay" class="hidden">
       <div class="gui-panel gui-panel--warning wp-comms-panel" id="comms-panel-body"></div>
     </div>
+
+    <!-- Found Document Overlay -->
+    <div id="document-overlay" class="hidden">
+      <div class="gui-panel gui-panel--info wp-document-panel">
+        <div class="gui-panel__header">
+          <div class="gui-panel__title" id="document-title"></div>
+        </div>
+        <div class="wp-document-body" id="document-body"></div>
+        <div class="gui-panel__footer" id="document-footer"></div>
+      </div>
+    </div>
   `;
 
   const wrapper = document.createElement('div');
@@ -123,6 +135,7 @@ export function initScreens(root: HTMLElement): void {
   rewardOverlay = document.getElementById('reward-overlay')!;
   commsOverlay = document.getElementById('comms-overlay')!;
   dossierScreen = document.getElementById('dossier-screen')!;
+  documentOverlay = document.getElementById('document-overlay')!;
 }
 
 // ─── Title Screen ─────────────────────────────────────────────────────────────
@@ -207,20 +220,32 @@ export function showDossierScreen(
   body.innerHTML = '';
   footer.innerHTML = '';
 
-  // Identity row: portrait block (placeholder color, no image load → no 404) + name/callsign
+  // Identity row: portrait (resolved image, colored block fallback) + name/callsign
   const identity = document.createElement('div');
   identity.className = 'wp-dossier-identity';
 
   const portrait = document.createElement('div');
   portrait.className = 'wp-dossier-portrait';
-  portrait.style.background = view.portraitPlaceholderColor;
   const initials = view.fullName
     .split(' ')
     .map((w) => w[0] ?? '')
     .join('')
     .slice(0, 2)
     .toUpperCase();
-  portrait.textContent = initials;
+
+  // Attempt the resolved portrait image; fall back to the placeholder-color
+  // block with initials only if the file is missing.
+  const portraitImg = document.createElement('img');
+  portraitImg.alt = view.fullName;
+  portraitImg.onload = () => {
+    portrait.style.background = '';
+    portrait.appendChild(portraitImg);
+  };
+  portraitImg.onerror = () => {
+    portrait.textContent = initials;
+  };
+  portraitImg.src = `/assets/portraits/${view.portraitKey}.png`;
+  portrait.style.background = view.portraitPlaceholderColor;
 
   const namehead = document.createElement('div');
   namehead.className = 'wp-dossier-namehead';
@@ -491,8 +516,10 @@ export function showEndingScreen(
   typeLabel.textContent = ENDING_SUBTITLES[endingType] ?? '';
   titleEl.textContent = ENDING_TITLES[endingType] ?? 'THE END';
 
-  // Pre-existing rapport-modified community narrative epilogue (stays above the breakdown).
-  epilogueEl.innerHTML = buildEpilogue(endingType, state.communities);
+  // Rapport-modified community narrative epilogue (stays above the
+  // breakdown). The ending is the persisted outcome's, never recomputed.
+  const persistedEnding = state.outcome?.ending ?? endingType;
+  epilogueEl.innerHTML = buildEpilogue(persistedEnding, state);
 
   // Score breakdown (additive): grade, final score, component rows, reroll
   // penalty line (only when rerollCount > 0), backstory epilogue line, and the
@@ -520,25 +547,32 @@ export function showEndingScreen(
 }
 
 /**
- * Builds the end-of-run score breakdown HTML. The numeric decomposition comes
- * from buildScoreBreakdown (scoring.ts — single source of truth, sums to the raw
- * score); the backstory/trait lines come from chargen. The reroll-penalty line
- * is shown only when rerollCount > 0.
+ * Builds the end-of-run score breakdown HTML. Numbers come from the persisted
+ * outcome (state.outcome) — the single ending authority — including its frozen
+ * components and multiplier, so the breakdown never recomputes an ending from
+ * post-charge state. Legacy states without a persisted outcome (development
+ * hooks) fall back to the live decomposition. The backstory/trait lines come
+ * from chargen. The reroll-penalty line shows only when rerollCount > 0.
  */
 function buildScoreBreakdownHtml(
   state: GameState,
   config: GameConfig,
   pool: ProtagonistPool
 ): string {
-  const bd = buildScoreBreakdown(state, config, state.rerollCount);
-  const protagonist = state.protagonist;
-
-  const rows = bd.components
+  const persisted = state.outcome;
+  const fallback = () => buildScoreBreakdown(state, config, state.rerollCount);
+  const bd = persisted ?? fallback();
+  const componentRows =
+    persisted?.components ?? fallback().components;
+  const rows = componentRows
     .map(
       (c) =>
         `<div class="wp-score-row"><span class="wp-score-row-label">${escapeHtml(c.label)}</span><span class="wp-score-row-value">${c.value}</span></div>`
     )
     .join('');
+
+  const rerollCount = state.rerollCount;
+  const multiplier = bd.multiplier ?? Math.pow(config.rerollMultiplier, rerollCount);
 
   const capNote =
     bd.rawScoreClamped < bd.rawScore
@@ -546,14 +580,14 @@ function buildScoreBreakdownHtml(
       : '';
 
   const penaltyLine =
-    bd.rerollCount > 0
-      ? `<div class="wp-score-penalty">Reroll penalty: ${bd.rerollCount} reroll${bd.rerollCount > 1 ? 's' : ''} &rarr; &times;${Math.round(bd.multiplier * 100)}%</div>`
+    rerollCount > 0
+      ? `<div class="wp-score-penalty">Reroll penalty: ${rerollCount} reroll${rerollCount > 1 ? 's' : ''} &rarr; &times;${Math.round(multiplier * 100)}%</div>`
       : '';
 
-  const bsLine = backstoryEpilogue(protagonist, pool, bd.ending);
+  const bsLine = backstoryEpilogue(state.protagonist, pool, bd.ending);
   const bsHtml = bsLine ? `<p class="wp-score-backstory">${escapeHtml(bsLine)}</p>` : '';
 
-  const traitLines = [protagonist.positiveTrait, protagonist.negativeTrait]
+  const traitLines = [state.protagonist.positiveTrait, state.protagonist.negativeTrait]
     .map((id) => traitEpilogueLine(id))
     .filter((line): line is string => line !== null)
     .map((line) => `<p class="wp-score-traitline">${escapeHtml(line)}</p>`)
@@ -580,47 +614,70 @@ function buildScoreBreakdownHtml(
   `;
 }
 
-/** Generates epilogue HTML from the run's community outcome data. Named communities appear as styled spans. Three branches: clock-failure, destruction, correction. */
-function buildEpilogue(
-  endingType: string,
-  communities: CommunityRunState[]
+/**
+ * Generates the rapport-modified epilogue from the run's community outcome
+ * data (M3 section 6): base text, one inserted line per visited community
+ * keyed to helped / ignored / harmed, then the closing. Clock-failure carries
+ * no community modifiers. The ending comes from the persisted outcome — this
+ * path never recomputes one. Exported for the live-path checks (pure string
+ * assembly, no DOM).
+ */
+export function buildEpilogue(
+  endingType: 'clock-failure' | 'destruction' | 'correction',
+  state: GameState
 ): string {
-  const helped = communities.filter((c) => c.state === 'helped');
-  const harmed = communities.filter((c) => c.state === 'harmed');
-  const ignored = communities.filter((c) => c.state === 'ignored');
-
+  const ending = state.outcome?.ending ?? endingType;
+  const communities = state.communities;
   const communitySpan = (name: string) =>
-    `<span class="ending-community">${name}</span>`;
+    `<span class="ending-community">${escapeHtml(name)}</span>`;
+  const desc = (d: string) => escapeHtml(stripLeadingArticle(d));
 
-  if (endingType === 'clock-failure') {
-    const losses = communities.map((c) => communitySpan(c.community.name)).join(', ') || 'the settlements along your route';
-    return `<p>The intrusion clock ran out. The archive AI's salvage protocol accelerated beyond containment, stripping infrastructure from ${losses} before any intervention could be mounted. You never made it to the facility.</p><p>The grid went dark in segments. People adapted — they always do. But they would have adapted differently if you'd arrived in time.</p>`;
+  if (ending === 'clock-failure') {
+    return `<p>The intrusion clock ran out. The archive's salvage protocol completed its current cycle before you reached the facility. You heard the grid failures over comms as you walked. Station after station going dark. Jay stopped transmitting after the third one. There was nothing left to correct by the time you arrived.</p>`;
   }
 
-  if (endingType === 'destruction') {
-    let text = `<p>You reached the facility. You found the archive. What you brought with you wasn't enough to correct it — only to destroy it.</p>`;
-    if (harmed.length > 0) {
-      text += `<p>The route cost you: ${harmed.map((c) => communitySpan(c.community.name)).join(', ')} were worse off for your passing. That sat with you as you made the call.</p>`;
+  if (ending === 'destruction') {
+    let text =
+      `<p>The archive core went offline. The salvage signal stopped. The relay network stabilized within hours, but the nodes that had already been stripped were gone. Rebuilding would take years, and some communities wouldn't survive the gap.</p>`;
+    for (const c of communities) {
+      const name = communitySpan(c.community.name);
+      if (c.state === 'helped') {
+        text += `<p>${name}'s ${desc(c.community.description)} held. The relay work you did on your way through gave them enough redundancy to survive the transition.</p>`;
+      } else if (c.state === 'harmed') {
+        text += `<p>${name} collapsed three days after you passed through. The ${desc(c.community.description)} lost its backup systems. By the time repair crews arrived, the population had already relocated.</p>`;
+      } else {
+        text += `<p>${name} managed. Barely. The ${desc(c.community.description)} rationed through the worst of it, but the damage will take months to repair.</p>`;
+      }
     }
-    if (helped.length > 0) {
-      text += `<p>${helped.map((c) => communitySpan(c.community.name)).join(' and ')} had reason to remember you differently. It was something.</p>`;
-    }
-    text += `<p>The archive's micro-reactor was breached. The core failed. No more salvage signal. No more cannibalized relays. The grid stabilized — or will, eventually, in the segments that still had power to stabilize.</p>`;
+    text += `<p>You filed the report. Dispatch acknowledged. Supervisor Torres asked if there was anything else at the facility worth salvaging. You told him there had been.</p>`;
+    text += `<p>The archive's knowledge, seven years of preserved research and documentation, was destroyed with it. You know what was in there now. You couldn't save it. You filed that in the report too.</p>`;
     return text;
   }
 
   // Correction
-  let text = `<p>You reached the facility with enough documentation to remap the archive's operational scope. The AI accepted the correction — not because it understood, but because the new parameters were valid within its framework. It resumed its original function: preserve and index. It stopped cannibalizing the relay network because the relay network was now within its definition of "infrastructure to protect."</p>`;
-  if (helped.length > 0) {
-    text += `<p>${helped.map((c) => communitySpan(c.community.name)).join(', ')} — the communities that gave you something along the way — received the first clean relay connections in three years. The archive's grid access was re-scoped to serve the network it had been dismantling.</p>`;
+  let text =
+    `<p>The archive updated its topology map and revised its operational parameters. The salvage operations ceased within the hour. Maintenance drones that had been stripping infrastructure reversed course, carrying components back toward their points of origin. Not all of them. Not enough. But some.</p>`;
+  text += `<p>The archive began routing its processing capacity toward the network it now recognized as its actual responsibility: the relay grid that forty thousand people depended on.</p>`;
+  for (const c of communities) {
+    const name = communitySpan(c.community.name);
+    if (c.state === 'helped') {
+      text += `<p>${name}'s ${desc(c.community.description)} was already stable when the archive's repair drones arrived. The bypass work you did held. They were the first to receive archive-indexed maintenance documentation, the kind of technical knowledge that hadn't existed underground since the collapse.</p>`;
+    } else if (c.state === 'harmed') {
+      text += `<p>${name} was too far gone. The ${desc(c.community.description)} had already failed by the time the archive's priorities shifted. The repair drones bypassed the empty corridors. Some corrections come too late.</p>`;
+    } else {
+      text += `<p>${name} received archive repair assistance within the week. The ${desc(c.community.description)} was restored to pre-salvage capacity. They asked dispatch who authorized the investigation. Nobody had a satisfying answer.</p>`;
+    }
   }
-  if (harmed.length > 0) {
-    text += `<p>${harmed.map((c) => communitySpan(c.community.name)).join(' and ')} didn't benefit from your choices on the way in. The route matters. You knew that now in a way the briefing hadn't conveyed.</p>`;
-  }
-  if (ignored.length > 0 && helped.length === 0) {
-    text += `<p>The communities along your route got a working relay network. Whether they knew who to thank was less clear.</p>`;
-  }
+  text += `<p>You filed the report. Dispatch acknowledged. Jay met you at the monitoring station with two cups of whatever they were calling coffee this week. 'So,' he said. 'Tuesday.' You drank the coffee. It was terrible. It was the best coffee you'd ever had.</p>`;
   return text;
+}
+
+/** Drops a leading indefinite article so descriptions interpolate cleanly
+ *  into sentences that carry their own article. Tolerates missing
+ *  descriptions (legacy/dev states). */
+function stripLeadingArticle(d: string | undefined): string {
+  if (!d) return 'community';
+  return d.replace(/^(a|an)\s+/i, '');
 }
 
 export function hideEndingScreen(): void {
@@ -723,7 +780,16 @@ export function hideRewardOverlay(): void {
 
 // ─── Comms Overlay ────────────────────────────────────────────────────────────
 
-export function showCommsOverlay(text: string, onDismiss: () => void): void {
+/** One rendered exchange line: speaker label plus text. */
+export interface CommsLineView {
+  speaker: string;
+  text: string;
+}
+
+/** Presents a coworker comms beat: the ordered exchange renders as
+ *  speaker-labeled lines inside the warning panel; ACKNOWLEDGE dismisses it
+ *  and continues the run. */
+export function showCommsOverlay(lines: CommsLineView[], onDismiss: () => void): void {
   const panel = document.getElementById('comms-panel-body')!;
   panel.innerHTML = '';
 
@@ -733,10 +799,18 @@ export function showCommsOverlay(text: string, onDismiss: () => void): void {
   title.className = 'gui-panel__title wp-comms-title';
   title.textContent = '⚡ Incoming Comms';
   header.appendChild(title);
+  panel.appendChild(header);
 
-  const body = document.createElement('div');
-  body.className = 'wp-comms-text';
-  body.textContent = text;
+  for (const line of lines) {
+    const row = document.createElement('div');
+    row.className = 'wp-comms-text';
+    const who = document.createElement('span');
+    who.className = 'wp-comms-speaker';
+    who.textContent = `${line.speaker}: `;
+    row.appendChild(who);
+    row.appendChild(document.createTextNode(line.text));
+    panel.appendChild(row);
+  }
 
   const footer = document.createElement('div');
   footer.className = 'gui-panel__footer';
@@ -750,9 +824,6 @@ export function showCommsOverlay(text: string, onDismiss: () => void): void {
     },
   });
   footer.appendChild(dismiss.el);
-
-  panel.appendChild(header);
-  panel.appendChild(body);
   panel.appendChild(footer);
 
   commsOverlay.classList.remove('hidden');
@@ -760,4 +831,40 @@ export function showCommsOverlay(text: string, onDismiss: () => void): void {
 
 export function hideCommsOverlay(): void {
   commsOverlay.classList.add('hidden');
+}
+
+// ─── Found Document Overlay ───────────────────────────────────────────────────
+
+/**
+ * Presents a found document during the event it is attached to. The full
+ * preformatted body renders in a scrollable panel; ACKNOWLEDGE dismisses it
+ * and continues (the runner applies the knowledge gain on continue, exactly
+ * once per event, suppressed by the Distracted trait).
+ */
+export function showDocumentOverlay(doc: FoundDocument, onContinue: () => void): void {
+  const title = document.getElementById('document-title')!;
+  const body = document.getElementById('document-body')!;
+  const footer = document.getElementById('document-footer')!;
+  title.textContent = doc.title;
+  body.textContent = doc.body;
+  footer.innerHTML = '';
+
+  const ack = createButton({
+    label: 'ACKNOWLEDGE',
+    accent: 'info',
+    variant: 'outline',
+    onClick: () => {
+      hideDocumentOverlay();
+      onContinue();
+    },
+  });
+  footer.appendChild(ack.el);
+
+  // Reset scroll so long documents start at the top.
+  documentOverlay.scrollTo(0, 0);
+  documentOverlay.classList.remove('hidden');
+}
+
+export function hideDocumentOverlay(): void {
+  documentOverlay.classList.add('hidden');
 }

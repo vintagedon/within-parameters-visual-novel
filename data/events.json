@@ -1,121 +1,125 @@
 {
   "events": [
     {
-      "id": "event-community-water-relay",
+      "id": "CE-01",
       "category": "community",
-      "name": "Water Relay Dispute",
-      "entryScene": "evt-wrd-arrive",
-      "rewardScene": "evt-wrd-reward",
+      "name": "Water Relay Failure",
+      "entryScene": "evt-ce01-arrive",
+      "rewardScene": "evt-ce01-reward",
+      "foundDocumentIds": ["FD-01", "FD-02"],
       "scenes": [
         {
-          "id": "evt-wrd-arrive",
+          "id": "evt-ce01-arrive",
           "beat": "journey",
           "background": "bg-station-alpha",
           "dialogue": [
             {
               "speaker": "narrator",
-              "text": "The station concourse. A group of residents have gathered around the relay junction access panel — the kind of gathering that means the panel is either broken or they want it to be."
+              "text": "The station's water recycling system is failing. The archive's drones stripped a critical pump relay three nights ago. The station AI reports the system as nominal, because the relay was outside its monitoring scope. Residents are rationing water."
             },
             {
-              "speaker": "npc-1",
-              "expression": "neutral",
-              "text": "REP: You're dispatch? Good. The archive's drones cut our water relay node three nights ago. We've been on emergency reserves."
+              "speaker": "aguilar",
+              "expression": "stern",
+              "text": "AGUILAR: You're dispatch? Good. The archive's bots took our water relay. We've been on reserves for three days. Population two hundred and six, supply days four, at current rationing."
+            },
+            {
+              "speaker": "protagonist",
+              "text": "Show me the junction."
             }
           ],
-          "next": "evt-wrd-situation"
+          "next": "evt-ce01-situation"
         },
         {
-          "id": "evt-wrd-situation",
+          "id": "evt-ce01-situation",
           "beat": "journey",
           "background": "bg-station-alpha",
           "dialogue": [
             {
-              "speaker": "protagonist",
-              "text": "I can restore partial function using bypass components. It won't be full capacity, but it'll run until the primary node is recovered."
+              "speaker": "narrator",
+              "text": "Aguilar meets you at the relay junction. Brief, transactional. The stripped relay housing is clean, almost surgical."
             },
             {
-              "speaker": "npc-1",
-              "expression": "neutral",
-              "text": "REP: We've also got a secondary junction that's been intermittent for months. If you have the parts and the time—"
+              "speaker": "protagonist",
+              "text": "I can restore this. Full capacity takes components I'd have to leave here. Partial keeps the crisis stopped without emptying my kit."
             }
           ],
           "choices": [
             {
-              "label": "Restore the water relay and address the secondary junction [2 resources]",
-              "nextScene": "evt-wrd-consequence-helped",
-              "statChanges": { "knowledge": 0, "consumables": -2, "rapport": 0, "clock": 0 },
-              "communityEffect": "helped",
-              "condition": { "stat": "consumables", "min": 2 }
+              "label": "Restore the relay to full capacity",
+              "nextScene": "evt-ce01-a",
+              "statChanges": { "knowledge": 1, "consumables": -2, "rapport": 0, "clock": 0 },
+              "communityEffect": "helped"
             },
             {
-              "label": "Restore the water relay only — keep moving",
-              "nextScene": "evt-wrd-consequence-partial",
-              "statChanges": { "knowledge": 1, "consumables": -1, "rapport": 0, "clock": 0 }
+              "label": "Partial fix, keep moving",
+              "nextScene": "evt-ce01-b",
+              "statChanges": { "knowledge": 1, "consumables": -1, "rapport": 0, "clock": 0 },
+              "communityEffect": "helped"
             },
             {
-              "label": "Document the situation and continue — you can't spare the resources",
-              "nextScene": "evt-wrd-consequence-ignored",
+              "label": "Document the fault and continue",
+              "nextScene": "evt-ce01-c",
               "statChanges": { "knowledge": 2, "consumables": 0, "rapport": 0, "clock": 0 }
             }
           ]
         },
         {
-          "id": "evt-wrd-consequence-helped",
+          "id": "evt-ce01-a",
           "beat": "journey",
           "background": "bg-station-alpha",
           "dialogue": [
             {
               "speaker": "narrator",
-              "text": "Two hours of work. The water relay comes back online at full capacity. The secondary junction stops intermittent-faulting."
+              "text": "Two hours of work. The water relay comes back online at full capacity, and the rationing board comes off the wall."
             },
             {
-              "speaker": "npc-1",
+              "speaker": "aguilar",
               "expression": "neutral",
-              "text": "REP: We'll remember this. If your route comes back through here, there's a standing offer of shelter and supplies."
+              "text": "AGUILAR: We'll log this. If your route comes back through, there's a standing resource allocation for relay personnel."
             }
           ],
-          "next": "evt-wrd-reward"
+          "next": "evt-ce01-reward"
         },
         {
-          "id": "evt-wrd-consequence-partial",
+          "id": "evt-ce01-b",
           "beat": "journey",
           "background": "bg-station-alpha",
           "dialogue": [
             {
               "speaker": "narrator",
-              "text": "The water relay comes back at 60% capacity. Enough. The secondary junction will have to wait."
+              "text": "The relay comes back at sixty percent capacity. Enough to stop the crisis. Not enough to forget it."
             },
             {
-              "speaker": "npc-1",
+              "speaker": "aguilar",
               "expression": "neutral",
-              "text": "REP: Understood. Thank you for what you could do."
+              "text": "AGUILAR: Understood. Thank you for what you could do. The allocation stands, at reduced weight."
             }
           ],
-          "next": "evt-wrd-reward"
+          "next": "evt-ce01-reward"
         },
         {
-          "id": "evt-wrd-consequence-ignored",
+          "id": "evt-ce01-c",
           "beat": "journey",
           "background": "bg-station-alpha",
           "dialogue": [
             {
               "speaker": "narrator",
-              "text": "You log the fault, reference number and timestamp, and explain the situation. The representative's expression doesn't change."
+              "text": "You log the fault, reference number and timestamp, and explain the situation. Aguilar's expression doesn't change."
             },
             {
-              "speaker": "npc-1",
-              "expression": "hostile",
-              "text": "REP: So we wait."
+              "speaker": "aguilar",
+              "expression": "stern",
+              "text": "AGUILAR: So we wait."
             },
             {
               "speaker": "protagonist",
-              "text": "The documentation will help when repair teams come through."
+              "text": "The documentation helps when repair crews come through."
             }
           ],
-          "next": "evt-wrd-reward"
+          "next": "evt-ce01-reward"
         },
         {
-          "id": "evt-wrd-reward",
+          "id": "evt-ce01-reward",
           "beat": "journey",
           "background": "bg-station-alpha",
           "dialogue": [
@@ -129,120 +133,136 @@
       "rewards": [
         {
           "type": "consumable",
-          "label": "Salvaged Components",
-          "description": "The station's maintenance cache — relay parts they can spare.",
+          "label": "Standing Allocation",
+          "description": "Aguilar releases relay-grade components from the station's controlled stock.",
           "baseEffect": { "consumables": 2 }
         },
         {
           "type": "knowledge",
-          "label": "Network Topology Data",
-          "description": "The community's hand-drawn maps of the local relay network — invaluable for what comes next.",
-          "baseEffect": { "knowledge": 3 }
+          "label": "Rationing Board Records",
+          "description": "Six days of consumption data showing exactly when and where the archive's bots drew power for the strip.",
+          "baseEffect": { "knowledge": 2 }
         },
         {
           "type": "clock-reduction",
-          "label": "Reroute Window",
-          "description": "You identify a path that confuses the archive's monitoring sweep, buying {amount} clock units.",
+          "label": "Service Corridor",
+          "description": "Aguilar opens a monitored maintenance corridor the archive's sweep ignores, buying {amount} clock units.",
           "baseEffect": { "clock": -1 }
         }
       ]
     },
 
     {
-      "id": "event-community-power-dispute",
+      "id": "CE-02",
       "category": "community",
-      "name": "Generator Allocation",
-      "entryScene": "evt-gpd-arrive",
-      "rewardScene": "evt-gpd-reward",
+      "name": "Generator Allocation Dispute",
+      "entryScene": "evt-ce02-arrive",
+      "rewardScene": "evt-ce02-reward",
       "scenes": [
         {
-          "id": "evt-gpd-arrive",
+          "id": "evt-ce02-arrive",
           "beat": "journey",
           "background": "bg-station-beta",
           "dialogue": [
             {
               "speaker": "narrator",
-              "text": "Two adjacent communities share a generator hub. The archive AI's salvage drones took one of the two distribution nodes. Now they're arguing over who gets primary access to what remains."
+              "text": "Two adjacent communities share a generator hub. The archive took one of the two distribution nodes. Now they're arguing over who gets primary access to what remains."
             },
             {
-              "speaker": "npc-2",
+              "speaker": "engineer",
               "expression": "worried",
               "text": "ENGINEER: Medical equipment has priority. I've been saying it for three days."
             },
             {
-              "speaker": "npc-1",
-              "expression": "hostile",
-              "text": "REP: And we have three hundred people on pump-dependent water filtration. What's the triage protocol for dehydration?"
+              "speaker": "aguilar",
+              "expression": "stern",
+              "text": "AGUILAR: And we have three hundred people on pump-dependent water filtration. What's the triage protocol for dehydration?"
+            },
+            {
+              "speaker": "dex",
+              "expression": "wary",
+              "text": "DEX: Been watching this for a week. Nobody's wrong. That's the problem."
             }
           ],
-          "next": "evt-gpd-situation"
+          "next": "evt-ce02-situation"
         },
         {
-          "id": "evt-gpd-situation",
+          "id": "evt-ce02-situation",
           "beat": "journey",
           "background": "bg-station-beta",
           "dialogue": [
             {
               "speaker": "protagonist",
-              "text": "I can't restore the missing node. But I can reconfigure the distribution system to run both loads on the remaining node at reduced efficiency — about 70% capacity each."
+              "text": "I can't restore the missing node. But I can reconfigure the distribution system to run both loads on the remaining node at reduced efficiency."
             },
             {
-              "speaker": "npc-2",
+              "speaker": "engineer",
               "expression": "neutral",
-              "text": "ENGINEER: 70% keeps the medical equipment running."
+              "text": "ENGINEER: Seventy percent each keeps the medical equipment running."
             },
             {
-              "speaker": "npc-1",
+              "speaker": "aguilar",
               "expression": "neutral",
-              "text": "REP: 70% keeps the filtration pumps running. Do it."
+              "text": "AGUILAR: Seventy percent keeps the filtration pumps running. Do it."
             }
           ],
           "choices": [
             {
-              "label": "Reconfigure the distribution — compromise solution [Knowledge 3 to do this efficiently]",
-              "nextScene": "evt-gpd-consequence-helped",
+              "label": "Reconfigure the distribution efficiently",
+              "nextScene": "evt-ce02-a",
               "statChanges": { "knowledge": 0, "consumables": -1, "rapport": 0, "clock": 0 },
               "communityEffect": "helped",
               "condition": { "stat": "knowledge", "min": 3 }
             },
             {
-              "label": "Attempt reconfiguration anyway — you'll make it work",
-              "nextScene": "evt-gpd-consequence-partial",
-              "statChanges": { "knowledge": 0, "consumables": -2, "rapport": 0, "clock": 0 }
+              "label": "Force the reconfiguration through",
+              "nextScene": "evt-ce02-b",
+              "statChanges": { "knowledge": 0, "consumables": -2, "rapport": 0, "clock": 0 },
+              "communityEffect": "helped"
             },
             {
-              "label": "Arbitrate and move on — no time for the technical fix",
-              "nextScene": "evt-gpd-consequence-ignored",
+              "label": "Arbitrate a rotation and move on",
+              "nextScene": "evt-ce02-c",
               "statChanges": { "knowledge": 1, "consumables": 0, "rapport": 0, "clock": 0 }
             }
           ]
         },
         {
-          "id": "evt-gpd-consequence-helped",
+          "id": "evt-ce02-a",
           "beat": "journey",
           "background": "bg-station-beta",
           "dialogue": [
             {
               "speaker": "narrator",
-              "text": "The reconfiguration takes twenty minutes. Efficient work. Both communities get their reduced-capacity load. Nobody is happy, but nobody's medical equipment or water filtration is failing."
+              "text": "You recognize the distribution architecture on sight. The reconfiguration takes twenty minutes of efficient work. Both communities get their reduced-capacity load, and nobody's medical equipment or water filtration is failing."
+            },
+            {
+              "speaker": "dex",
+              "expression": "neutral",
+              "text": "DEX: Clean. You want route intel for the eastern tunnels, I owe you one anyway."
             }
           ],
-          "next": "evt-gpd-reward"
+          "next": "evt-ce02-reward"
         },
         {
-          "id": "evt-gpd-consequence-partial",
+          "id": "evt-ce02-b",
           "beat": "journey",
           "background": "bg-station-beta",
           "dialogue": [
             {
               "speaker": "narrator",
-              "text": "The reconfiguration works, but it takes longer and costs more components than it should. The distribution holds at about 65% each. Close enough."
+              "text": "The reconfiguration works, but it takes longer and costs more components than it should have. The distribution holds at sixty-five percent each. Close enough."
+            },
+            {
+              "speaker": "dex",
+              "expression": "wary",
+              "text": "DEX: Ugly, but it'll hold. Route intel's still on offer, if you're going east."
             }
           ],
-          "next": "evt-gpd-reward"
+          "next": "evt-ce02-reward"
         },
         {
-          "id": "evt-gpd-consequence-ignored",
+          "id": "evt-ce02-c",
           "beat": "journey",
           "background": "bg-station-beta",
           "dialogue": [
@@ -251,19 +271,24 @@
               "text": "You set the distribution to alternate in six-hour blocks. Neither side is satisfied, but neither side is losing essential services. You log the situation and move."
             },
             {
-              "speaker": "npc-1",
-              "expression": "hostile",
-              "text": "REP: Dispatch will hear about this."
+              "speaker": "aguilar",
+              "expression": "stern",
+              "text": "AGUILAR: Dispatch will hear about this."
             },
             {
               "speaker": "protagonist",
               "text": "I hope so. Tell them what the archive took."
+            },
+            {
+              "speaker": "dex",
+              "expression": "neutral",
+              "text": "DEX: For what it's worth, you read the room right. Eastern tunnel intel's yours if you want it."
             }
           ],
-          "next": "evt-gpd-reward"
+          "next": "evt-ce02-reward"
         },
         {
-          "id": "evt-gpd-reward",
+          "id": "evt-ce02-reward",
           "beat": "journey",
           "background": "bg-station-beta",
           "dialogue": [
@@ -277,108 +302,137 @@
       "rewards": [
         {
           "type": "consumable",
-          "label": "Spare Parts Cache",
-          "description": "The engineering cache — components they can spare given what you did for them.",
+          "label": "Engineering Cache",
+          "description": "The station engineer's spare components, released with both communities' grudging blessing.",
           "baseEffect": { "consumables": 2 }
         },
         {
           "type": "knowledge",
-          "label": "Archive Salvage Logs",
-          "description": "A record of exactly what the archive took and when. Useful documentation for arguing scope violation.",
-          "baseEffect": { "knowledge": 3 }
+          "label": "Dex's Route Intel",
+          "description": "The scrapper's hand-corrected maps of the eastern maintenance network, marks where the bots work and when.",
+          "baseEffect": { "knowledge": 2 }
         },
         {
           "type": "clock-reduction",
-          "label": "Monitoring Blind Spot",
-          "description": "The engineer knows the archive's patrol schedule. You gain {amount} clock units by routing around it.",
+          "label": "Dead Power Run",
+          "description": "Dex knows a decommissioned feeder the archive's monitoring sweep never covers, buying {amount} clock units.",
           "baseEffect": { "clock": -1 }
         }
       ]
     },
 
     {
-      "id": "event-transit-infrastructure",
-      "category": "transit",
-      "name": "Compromised Junction",
-      "entryScene": "evt-cj-arrive",
-      "rewardScene": "evt-cj-reward",
+      "id": "CE-03",
+      "category": "community",
+      "name": "Refugee Influx",
+      "entryScene": "evt-ce03-arrive",
+      "rewardScene": "evt-ce03-reward",
       "scenes": [
         {
-          "id": "evt-cj-arrive",
+          "id": "evt-ce03-arrive",
           "beat": "journey",
-          "background": "bg-maintenance",
+          "background": "bg-station-alpha",
           "dialogue": [
             {
               "speaker": "narrator",
-              "text": "Maintenance junction 7-C. The archive's salvage drones were here recently — fresh scoring on the conduit housing, one relay node missing, another hanging loose by its data cables."
+              "text": "Residents from a downstream station have arrived, fleeing degrading conditions caused by the archive's salvage cascade. They have firsthand accounts of what's happening further along your route."
             },
             {
-              "speaker": "protagonist",
-              "text": "The loose node is still partially connected. If I don't secure it, the next salvage pass will take it. If I do secure it, I lose time — and the archive's monitoring system will log the interference."
+              "speaker": "sato",
+              "expression": "serene",
+              "text": "SATO: The station AI allocated additional ventilation to the intake area before they arrived. It anticipated the load increase from atmospheric sensor data. That's what it does. It keeps the air moving."
+            }
+          ],
+          "next": "evt-ce03-situation"
+        },
+        {
+          "id": "evt-ce03-situation",
+          "beat": "journey",
+          "background": "bg-station-alpha",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "Sato is organizing the newcomers with calm efficiency. The receiving station needs help managing the influx, and the refugees know things."
+            },
+            {
+              "speaker": "sato",
+              "expression": "neutral",
+              "text": "SATO: They describe systematic component removal. Not random scavenging. Bot activity unlike anything the tunnel runners report."
             }
           ],
           "choices": [
             {
-              "label": "Secure the node and ghost the monitoring log — costs resources but buys time",
-              "nextScene": "evt-cj-consequence-secure",
-              "statChanges": { "knowledge": 1, "consumables": -1, "rapport": 0, "clock": 0 }
+              "label": "Help stabilize the station and debrief the refugees",
+              "nextScene": "evt-ce03-a",
+              "statChanges": { "knowledge": 2, "consumables": -1, "rapport": 0, "clock": 0 },
+              "communityEffect": "helped"
             },
             {
-              "label": "Secure the node and accept the monitoring flag — clock impact",
-              "nextScene": "evt-cj-consequence-flagged",
-              "statChanges": { "knowledge": 2, "consumables": 0, "rapport": 0, "clock": 1 }
+              "label": "Debrief the refugees only",
+              "nextScene": "evt-ce03-b",
+              "statChanges": { "knowledge": 2, "consumables": 0, "rapport": 0, "clock": 0 }
             },
             {
-              "label": "Document and continue — you need the time more than the node",
-              "nextScene": "evt-cj-consequence-skip",
-              "statChanges": { "knowledge": 1, "consumables": 0, "rapport": 0, "clock": 0 }
+              "label": "Move through without stopping",
+              "nextScene": "evt-ce03-c",
+              "statChanges": { "knowledge": 0, "consumables": 0, "rapport": 0, "clock": 0 }
             }
           ]
         },
         {
-          "id": "evt-cj-consequence-secure",
+          "id": "evt-ce03-a",
           "beat": "journey",
-          "background": "bg-maintenance",
+          "background": "bg-station-alpha",
           "dialogue": [
             {
               "speaker": "narrator",
-              "text": "You secure the node and run a monitoring ghost — a fake status ping that will hold for about six hours. Long enough for the community downstream to know their junction is stable."
+              "text": "You spend a cycle on relay work, stabilizing the receiving station's systems under the increased load. In exchange, the refugees talk freely."
+            },
+            {
+              "speaker": "sato",
+              "expression": "serene",
+              "text": "SATO: You have their gratitude and their information. The section they fled is three stops further along your route. Consider what they left behind."
             }
           ],
-          "next": "evt-cj-reward"
+          "next": "evt-ce03-reward"
         },
         {
-          "id": "evt-cj-consequence-flagged",
+          "id": "evt-ce03-b",
           "beat": "journey",
-          "background": "bg-maintenance",
+          "background": "bg-station-alpha",
           "dialogue": [
             {
               "speaker": "narrator",
-              "text": "The node is secured. The archive logs a maintenance interference event. You feel the clock accelerate slightly — it's been tracking you since the second stop."
+              "text": "You interview the refugees. The intelligence is the same, and so is the warning."
+            },
+            {
+              "speaker": "sato",
+              "expression": "neutral",
+              "text": "SATO: You have your information. They need someone to fix the lighting in the intake corridor."
             }
           ],
-          "next": "evt-cj-reward"
+          "next": "evt-ce03-reward"
         },
         {
-          "id": "evt-cj-consequence-skip",
+          "id": "evt-ce03-c",
           "beat": "journey",
-          "background": "bg-maintenance",
+          "background": "bg-station-alpha",
           "dialogue": [
             {
               "speaker": "narrator",
-              "text": "The node will be gone on the next salvage pass. You log it and keep moving. Documentation is better than nothing."
+              "text": "You keep your pace and your components. The intake corridor's lights stay dark behind you as you pass."
             }
           ],
-          "next": "evt-cj-reward"
+          "next": "evt-ce03-reward"
         },
         {
-          "id": "evt-cj-reward",
+          "id": "evt-ce03-reward",
           "beat": "journey",
-          "background": "bg-maintenance",
+          "background": "bg-station-alpha",
           "dialogue": [
             {
               "speaker": "narrator",
-              "text": "The maintenance junction is behind you."
+              "text": "The route continues."
             }
           ]
         }
@@ -386,107 +440,1071 @@
       "rewards": [
         {
           "type": "consumable",
-          "label": "Recovered Components",
-          "description": "Parts from the loose relay node — salvage from salvage.",
+          "label": "Refugee Salvage",
+          "description": "Components the newcomers carried out of their failing station, traded for the work you did.",
           "baseEffect": { "consumables": 2 }
         },
         {
           "type": "knowledge",
-          "label": "Salvage Pattern Data",
-          "description": "The scoring patterns on the conduit reveal the archive's collection priorities. Useful for building the scope violation argument.",
-          "baseEffect": { "knowledge": 3 }
+          "label": "Firsthand Accounts",
+          "description": "Consistent testimony from the refugees: the bots strip methodically, at night, always toward the facility.",
+          "baseEffect": { "knowledge": 2 }
         },
         {
           "type": "clock-reduction",
-          "label": "Monitoring Gap",
-          "description": "You exploit a latency in the archive's monitoring sweep to gain {amount} clock units.",
+          "label": "Cleared Passage",
+          "description": "Sato's community clears and staffs a shortcut through their section, gaining {amount} clock units.",
           "baseEffect": { "clock": -1 }
         }
       ]
     },
 
     {
-      "id": "event-approach-perimeter",
-      "category": "approach",
-      "name": "Perimeter Systems",
-      "entryScene": "evt-ps-arrive",
-      "rewardScene": "evt-ps-reward",
+      "id": "CE-04",
+      "category": "community",
+      "name": "Station AI Anomaly",
+      "entryScene": "evt-ce04-arrive",
+      "rewardScene": "evt-ce04-reward",
+      "foundDocumentIds": ["FD-08"],
       "scenes": [
         {
-          "id": "evt-ps-arrive",
+          "id": "evt-ce04-arrive",
           "beat": "journey",
-          "background": "bg-approach",
+          "background": "bg-station-beta",
           "dialogue": [
             {
               "speaker": "narrator",
-              "text": "The facility perimeter begins here. Automated monitoring, salvage drone staging, and — you note — a secondary access corridor the original schematics marked as decommissioned."
+              "text": "A station AI is behaving erratically: opening and closing doors in sequence, cycling ventilation between zones, running maintenance checks on equipment that doesn't exist anymore. The equipment it's checking was removed by the archive's bots, but its asset registry hasn't been updated. It's trying to service ghosts."
             },
             {
+              "speaker": "dex",
+              "expression": "wary",
+              "text": "DEX: Been watching this one for days. Trade's simple: you fix it, I get a station that stops cycling air like it's drunk. Residents have gotten used to it. It's getting worse."
+            }
+          ],
+          "next": "evt-ce04-situation"
+        },
+        {
+          "id": "evt-ce04-situation",
+          "beat": "journey",
+          "background": "bg-station-beta",
+          "dialogue": [
+            {
               "speaker": "narrator",
-              "text": "It doesn't look decommissioned. The lock reads as active. The archive repurposed it."
+              "text": "Doors cycle. Ventilation hums and stops. The station AI's confusion is manifesting as physical infrastructure behavior."
+            },
+            {
+              "speaker": "protagonist",
+              "text": "Its asset registry still lists every component the archive stripped. If I patch the registry to match reality, the behavior should stop. If I just watch, I learn the pattern but the ghosts stay."
             }
           ],
           "choices": [
             {
-              "label": "Access the secondary corridor — investigate what the archive is using it for [Knowledge 5]",
-              "nextScene": "evt-ps-consequence-investigate",
+              "label": "Update the AI's asset registry",
+              "nextScene": "evt-ce04-a",
+              "statChanges": { "knowledge": 3, "consumables": -1, "rapport": 0, "clock": 0 },
+              "communityEffect": "helped"
+            },
+            {
+              "label": "Observe and document the pattern",
+              "nextScene": "evt-ce04-b",
+              "statChanges": { "knowledge": 2, "consumables": 0, "rapport": 0, "clock": 0 }
+            },
+            {
+              "label": "Ignore it and move on",
+              "nextScene": "evt-ce04-c",
+              "statChanges": { "knowledge": 0, "consumables": 0, "rapport": 0, "clock": 0 }
+            }
+          ]
+        },
+        {
+          "id": "evt-ce04-a",
+          "beat": "journey",
+          "background": "bg-station-beta",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "You patch the asset registry. The AI stabilizes immediately, and the doors hold. The registry's missing-equipment list tells its own story: a systematic harvest radiating outward from the maintenance tunnels."
+            },
+            {
+              "speaker": "protagonist",
+              "text": "This is the first concrete evidence of the archive's method. Every strip, timestamped by the victim's own system."
+            },
+            {
+              "speaker": "dex",
+              "expression": "neutral",
+              "text": "DEX: Knew it was a pattern. Didn't want to be right."
+            }
+          ],
+          "next": "evt-ce04-reward"
+        },
+        {
+          "id": "evt-ce04-b",
+          "beat": "journey",
+          "background": "bg-station-beta",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "You document the behavior pattern without intervention. The information is useful but incomplete. The doors keep cycling behind you."
+            }
+          ],
+          "next": "evt-ce04-reward"
+        },
+        {
+          "id": "evt-ce04-c",
+          "beat": "journey",
+          "background": "bg-station-beta",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "You move on. The doors keep cycling."
+            }
+          ],
+          "next": "evt-ce04-reward"
+        },
+        {
+          "id": "evt-ce04-reward",
+          "beat": "journey",
+          "background": "bg-station-beta",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "The route continues."
+            }
+          ]
+        }
+      ],
+      "rewards": [
+        {
+          "type": "consumable",
+          "label": "Dex's Trade",
+          "description": "Components from the scrapper's personal stash, payment for quiet work.",
+          "baseEffect": { "consumables": 2 }
+        },
+        {
+          "type": "knowledge",
+          "label": "Registry Discrepancies",
+          "description": "The station AI's full maintenance history, cross-referenced against what actually remains.",
+          "baseEffect": { "knowledge": 2 }
+        },
+        {
+          "type": "clock-reduction",
+          "label": "Blind Vent Zone",
+          "description": "Dex shows you a ventilation dead zone the archive's sweep treats as background noise, worth {amount} clock units.",
+          "baseEffect": { "clock": -1 }
+        }
+      ]
+    },
+
+    {
+      "id": "CE-05",
+      "category": "community",
+      "name": "Power Rerouting Dilemma",
+      "entryScene": "evt-ce05-arrive",
+      "rewardScene": "evt-ce05-reward",
+      "scenes": [
+        {
+          "id": "evt-ce05-arrive",
+          "beat": "journey",
+          "background": "bg-maintenance",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "A junction point where you can reroute power to stabilize a struggling station, or keep power flowing toward the facility approach corridor, making your own route easier. The choice is visible and the consequences are immediate."
+            },
+            {
+              "speaker": "dex",
+              "expression": "neutral",
+              "text": "DEX: This feeds the district's backup grid. The archive tapped it two days ago; it's pulling forty percent of the output toward the facility corridor. I can show you the tap."
+            }
+          ],
+          "next": "evt-ce05-situation"
+        },
+        {
+          "id": "evt-ce05-situation",
+          "beat": "journey",
+          "background": "bg-maintenance",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "The junction hums. Cutting the archive's tap restores the district's backup capacity. Leaving it means fewer obstacles on your own approach."
+            },
+            {
+              "speaker": "protagonist",
+              "text": "The tap's architecture is documented, if you know how to read it. Read it right, and you can reroute power and cover the traces."
+            }
+          ],
+          "choices": [
+            {
+              "label": "Reroute power to the district",
+              "nextScene": "evt-ce05-a",
               "statChanges": { "knowledge": 0, "consumables": -1, "rapport": 0, "clock": 0 },
-              "condition": { "stat": "knowledge", "min": 5 }
+              "communityEffect": "helped"
             },
             {
-              "label": "Bypass the perimeter via maintenance access — faster but costs resources",
-              "nextScene": "evt-ps-consequence-bypass",
-              "statChanges": { "knowledge": 1, "consumables": -1, "rapport": 0, "clock": 0 }
+              "label": "Leave the routing as it is",
+              "nextScene": "evt-ce05-b",
+              "statChanges": { "knowledge": 1, "consumables": 0, "rapport": 0, "clock": 0 },
+              "communityEffect": "harmed"
             },
             {
-              "label": "Use primary access — present maintenance credentials and walk in",
-              "nextScene": "evt-ps-consequence-direct",
+              "label": "Reroute and sabotage the archive's tap",
+              "nextScene": "evt-ce05-c",
+              "statChanges": { "knowledge": 0, "consumables": -1, "rapport": 0, "clock": -1 },
+              "communityEffect": "helped",
+              "condition": { "stat": "knowledge", "min": 4 }
+            }
+          ]
+        },
+        {
+          "id": "evt-ce05-a",
+          "beat": "journey",
+          "background": "bg-maintenance",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "You disconnect the archive's tap and bridge the circuit with a module from your kit. Full power flows back to the district's backup grid."
+            },
+            {
+              "speaker": "dex",
+              "expression": "neutral",
+              "text": "DEX: The district owes you one. Might not know it, but they do."
+            }
+          ],
+          "next": "evt-ce05-reward"
+        },
+        {
+          "id": "evt-ce05-b",
+          "beat": "journey",
+          "background": "bg-maintenance",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "You leave the archive's tap in place. More power on your route means fewer obstacles between you and the facility."
+            },
+            {
+              "speaker": "dex",
+              "expression": "wary",
+              "text": "DEX: Your call, Relay. He logs it in his own records, whatever those are for."
+            },
+            {
+              "speaker": "narrator",
+              "text": "Somewhere behind you, a backup grid runs at sixty percent. It will not be enough, later, when it is needed."
+            }
+          ],
+          "next": "evt-ce05-reward"
+        },
+        {
+          "id": "evt-ce05-c",
+          "beat": "journey",
+          "background": "bg-maintenance",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "You recognize the tap's monitoring architecture and sabotage its reporting while you reroute. Power restored, traces cold."
+            },
+            {
+              "speaker": "protagonist",
+              "text": "The archive's sweep won't flag this junction for a full maintenance cycle. That's time. That's clock."
+            }
+          ],
+          "next": "evt-ce05-reward"
+        },
+        {
+          "id": "evt-ce05-reward",
+          "beat": "journey",
+          "background": "bg-maintenance",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "The junction is behind you. The route continues."
+            }
+          ]
+        }
+      ],
+      "rewards": [
+        {
+          "type": "consumable",
+          "label": "Junction Locker",
+          "description": "A maintenance locker at the junction, opened with the district's standing permission.",
+          "baseEffect": { "consumables": 2 }
+        },
+        {
+          "type": "knowledge",
+          "label": "Load Flow Analysis",
+          "description": "The archive's power draw, mapped: magnitude, schedule, and destination bearing.",
+          "baseEffect": { "knowledge": 2 }
+        },
+        {
+          "type": "clock-reduction",
+          "label": "Sabotaged Sweep",
+          "description": "The monitoring you corrupted buys {amount} clock units before the archive notices the junction went quiet.",
+          "baseEffect": { "clock": -1 }
+        }
+      ]
+    },
+
+    {
+      "id": "TE-01",
+      "category": "transit",
+      "name": "Cut the Feed",
+      "entryScene": "evt-te01-arrive",
+      "rewardScene": "evt-te01-reward",
+      "scenes": [
+        {
+          "id": "evt-te01-arrive",
+          "beat": "journey",
+          "background": "bg-maintenance",
+          "dialogue": [
+            {
+              "speaker": "protagonist",
+              "text": "Junction 4-B feeds the district's secondary filtration loop. The conduit crosses the tunnel here, blocking the crawl. If I cut it, I get a clean bypass module and the path clears. The district loses redundancy."
+            },
+            {
+              "speaker": "narrator",
+              "text": "No one is here. No one will know why their backup failed, when it fails. You will."
+            }
+          ],
+          "choices": [
+            {
+              "label": "Cut the conduit and take the module",
+              "nextScene": "evt-te01-a",
+              "statChanges": { "knowledge": 0, "consumables": 1, "rapport": 0, "clock": 0 },
+              "communityEffect": "harmed"
+            },
+            {
+              "label": "Reroute around the obstruction",
+              "nextScene": "evt-te01-b",
+              "statChanges": { "knowledge": 0, "consumables": -1, "rapport": 0, "clock": 0 }
+            },
+            {
+              "label": "Clear the obstruction by hand",
+              "nextScene": "evt-te01-c",
               "statChanges": { "knowledge": 0, "consumables": 0, "rapport": 0, "clock": 1 }
             }
           ]
         },
         {
-          "id": "evt-ps-consequence-investigate",
+          "id": "evt-te01-a",
           "beat": "journey",
-          "background": "bg-approach",
+          "background": "bg-maintenance",
+          "dialogue": [
+            {
+              "speaker": "protagonist",
+              "text": "Clean cut. The module goes in the kit. The district's filtration drops to single-loop. They won't notice until something else fails."
+            }
+          ],
+          "next": "evt-te01-reward"
+        },
+        {
+          "id": "evt-te01-b",
+          "beat": "journey",
+          "background": "bg-maintenance",
+          "dialogue": [
+            {
+              "speaker": "protagonist",
+              "text": "Spent a module to bridge around the obstruction. The district keeps their backup. My kit's lighter."
+            }
+          ],
+          "next": "evt-te01-reward"
+        },
+        {
+          "id": "evt-te01-c",
+          "beat": "journey",
+          "background": "bg-maintenance",
+          "dialogue": [
+            {
+              "speaker": "protagonist",
+              "text": "Twenty minutes of crawling through conduit brackets. The path's clear. The conduit's intact. My clock isn't."
+            }
+          ],
+          "next": "evt-te01-reward"
+        },
+        {
+          "id": "evt-te01-reward",
+          "beat": "journey",
+          "background": "bg-maintenance",
           "dialogue": [
             {
               "speaker": "narrator",
-              "text": "The secondary corridor leads to an indexing cache — the archive has been building a physical backup of its network topology maps here. Your current maps versus the archive's maps. The discrepancy is substantial and well-documented."
+              "text": "The tunnel continues."
+            }
+          ]
+        }
+      ],
+      "rewards": [
+        {
+          "type": "consumable",
+          "label": "Sidewall Cache",
+          "description": "A technician's hide-from-the-clock cache, sealed into the tunnel wall years ago.",
+          "baseEffect": { "consumables": 2 }
+        },
+        {
+          "type": "knowledge",
+          "label": "Conduit Manifest",
+          "description": "Stamped ratings on the stripped feeds, a record of what the archive considers worth taking.",
+          "baseEffect": { "knowledge": 2 }
+        },
+        {
+          "type": "clock-reduction",
+          "label": "Quiet Section",
+          "description": "A stretch of tunnel the archive's sweep crosses slowly, buying {amount} clock units.",
+          "baseEffect": { "clock": -1 }
+        }
+      ]
+    },
+
+    {
+      "id": "TE-02",
+      "category": "transit",
+      "name": "Blocked Corridor",
+      "entryScene": "evt-te02-arrive",
+      "rewardScene": "evt-te02-reward",
+      "foundDocumentIds": ["FD-03", "FD-04"],
+      "scenes": [
+        {
+          "id": "evt-te02-arrive",
+          "beat": "journey",
+          "background": "bg-maintenance",
+          "dialogue": [
+            {
+              "speaker": "protagonist",
+              "text": "The bots cleared a path here. Not for humans, for themselves. The clearance is tight but passable. The depot on the left looks untouched."
+            },
+            {
+              "speaker": "narrator",
+              "text": "A collapsed section has been partially cleared by the archive's bots, creating a path that's usable but unstable. An intact depot nearby may still hold something."
+            }
+          ],
+          "choices": [
+            {
+              "label": "Search the depot",
+              "nextScene": "evt-te02-a",
+              "statChanges": { "knowledge": 1, "consumables": 1, "rapport": 0, "clock": 0 }
+            },
+            {
+              "label": "Stabilize the passage and push through",
+              "nextScene": "evt-te02-b",
+              "statChanges": { "knowledge": 0, "consumables": -1, "rapport": 0, "clock": 0 }
+            },
+            {
+              "label": "Find an alternate path",
+              "nextScene": "evt-te02-c",
+              "statChanges": { "knowledge": 1, "consumables": 0, "rapport": 0, "clock": 1 }
+            }
+          ]
+        },
+        {
+          "id": "evt-te02-a",
+          "beat": "journey",
+          "background": "bg-maintenance",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "The archive's bots have been here, but only took what matched their parts manifest. Everything else is still on the shelves: components, and maintenance records worth more than the components."
+            }
+          ],
+          "next": "evt-te02-reward"
+        },
+        {
+          "id": "evt-te02-b",
+          "beat": "journey",
+          "background": "bg-maintenance",
+          "dialogue": [
+            {
+              "speaker": "protagonist",
+              "text": "Used a module to shore up the passage. Clean transit, no surprises."
+            }
+          ],
+          "next": "evt-te02-reward"
+        },
+        {
+          "id": "evt-te02-c",
+          "beat": "journey",
+          "background": "bg-maintenance",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "The longer route costs time, but the infrastructure patterns along it reveal the archive's expansion strategy: every new run terminates closer to the facility."
+            }
+          ],
+          "next": "evt-te02-reward"
+        },
+        {
+          "id": "evt-te02-reward",
+          "beat": "journey",
+          "background": "bg-maintenance",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "The corridor is behind you."
+            }
+          ]
+        }
+      ],
+      "rewards": [
+        {
+          "type": "consumable",
+          "label": "Depot Shelving",
+          "description": "Unclaimed components from the depot shelves, still in their factory grease.",
+          "baseEffect": { "consumables": 2 }
+        },
+        {
+          "type": "knowledge",
+          "label": "Maintenance Records",
+          "description": "The depot's paper trail: who maintained what, and when it stopped being maintained.",
+          "baseEffect": { "knowledge": 2 }
+        },
+        {
+          "type": "clock-reduction",
+          "label": "Bot-Cleared Lane",
+          "description": "The bots' own cleared lane, predictable and unmonitored, worth {amount} clock units.",
+          "baseEffect": { "clock": -1 }
+        }
+      ]
+    },
+
+    {
+      "id": "TE-03",
+      "category": "transit",
+      "name": "Stripped Junction",
+      "entryScene": "evt-te03-arrive",
+      "rewardScene": "evt-te03-reward",
+      "scenes": [
+        {
+          "id": "evt-te03-arrive",
+          "beat": "journey",
+          "background": "bg-maintenance",
+          "dialogue": [
+            {
+              "speaker": "protagonist",
+              "text": "Maintenance depot 9-F. The archive's bots cleaned out the primary storage racks, but the floor-level cabinets are untouched. Either the bots' inventory scan doesn't go that low, or these components don't match the archive's parts manifest."
+            }
+          ],
+          "choices": [
+            {
+              "label": "Take everything from the cabinets",
+              "nextScene": "evt-te03-a",
+              "statChanges": { "knowledge": 0, "consumables": 2, "rapport": 0, "clock": 0 },
+              "communityEffect": "harmed"
+            },
+            {
+              "label": "Take selectively, reading the inventory logic",
+              "nextScene": "evt-te03-b",
+              "statChanges": { "knowledge": 1, "consumables": 1, "rapport": 0, "clock": 0 },
+              "condition": { "stat": "knowledge", "min": 3 }
+            },
+            {
+              "label": "Document the depot and pass through",
+              "nextScene": "evt-te03-c",
+              "statChanges": { "knowledge": 2, "consumables": 0, "rapport": 0, "clock": 0 }
+            }
+          ]
+        },
+        {
+          "id": "evt-te03-a",
+          "beat": "journey",
+          "background": "bg-maintenance",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "Two bypass modules from the cabinet. But your removal will create an inventory discrepancy the archive's system will notice. When it dispatches bots to investigate, the nearest inhabited infrastructure gets scanned."
             },
             {
               "speaker": "protagonist",
-              "text": "This is the argument. Seven years of drift, logged and timestamped by the archive's own system."
+              "text": "Not my problem and entirely my problem. Both are true."
             }
           ],
-          "next": "evt-ps-reward"
+          "next": "evt-te03-reward"
         },
         {
-          "id": "evt-ps-consequence-bypass",
+          "id": "evt-te03-b",
+          "beat": "journey",
+          "background": "bg-maintenance",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "You know enough about the archive's inventory logic to take one module without triggering a discrepancy flag. The depot's maintenance logs round out the intelligence."
+            }
+          ],
+          "next": "evt-te03-reward"
+        },
+        {
+          "id": "evt-te03-c",
+          "beat": "journey",
+          "background": "bg-maintenance",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "You photograph the depot layout and the archive's sorting patterns. Pure intelligence value. The components stay."
+            }
+          ],
+          "next": "evt-te03-reward"
+        },
+        {
+          "id": "evt-te03-reward",
+          "beat": "journey",
+          "background": "bg-maintenance",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "The depot is behind you."
+            }
+          ]
+        }
+      ],
+      "rewards": [
+        {
+          "type": "consumable",
+          "label": "Floor Cabinets",
+          "description": "Whatever the manifest missed: seals, bridges, two intact bypass modules.",
+          "baseEffect": { "consumables": 2 }
+        },
+        {
+          "type": "knowledge",
+          "label": "Sorting Patterns",
+          "description": "The archive's take order, reconstructed from what remains and what's gone.",
+          "baseEffect": { "knowledge": 2 }
+        },
+        {
+          "type": "clock-reduction",
+          "label": "Inventory Lag",
+          "description": "The depot sits in a zone the archive re-inventories slowly, worth {amount} clock units.",
+          "baseEffect": { "clock": -1 }
+        }
+      ]
+    },
+
+    {
+      "id": "TE-04",
+      "category": "transit",
+      "name": "Terminal Access",
+      "entryScene": "evt-te04-arrive",
+      "rewardScene": "evt-te04-reward",
+      "foundDocumentIds": ["FD-05", "FD-06"],
+      "scenes": [
+        {
+          "id": "evt-te04-arrive",
+          "beat": "journey",
+          "background": "bg-maintenance",
+          "dialogue": [
+            {
+              "speaker": "protagonist",
+              "text": "Terminal 7-K. Still powered. Still connected. The screen shows a login prompt I don't recognize, but the hardware interface is standard. If I can get past the authentication layer, this terminal can show me what the archive has been doing from its own perspective."
+            }
+          ],
+          "choices": [
+            {
+              "label": "Interface using a bypass module",
+              "nextScene": "evt-te04-a",
+              "statChanges": { "knowledge": 3, "consumables": -1, "rapport": 0, "clock": 0 }
+            },
+            {
+              "label": "Brute-force the query",
+              "nextScene": "evt-te04-b",
+              "statChanges": { "knowledge": 2, "consumables": 0, "rapport": 0, "clock": 1 }
+            },
+            {
+              "label": "Log the terminal location and move on",
+              "nextScene": "evt-te04-c",
+              "statChanges": { "knowledge": 1, "consumables": 0, "rapport": 0, "clock": 0 }
+            }
+          ]
+        },
+        {
+          "id": "evt-te04-a",
+          "beat": "journey",
+          "background": "bg-maintenance",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "You use a bypass module as an interface adapter. Clean access. The terminal shows the archive's activity logs, salvage manifests, network topology queries. This is the archive's diary, written in operational language."
+            },
+            {
+              "speaker": "protagonist",
+              "text": "Reconnection attempts. Millions of them. Timestamped, methodical, unceasing. It's been trying to reach a network that no longer exists since the week the sky took it."
+            }
+          ],
+          "next": "evt-te04-reward"
+        },
+        {
+          "id": "evt-te04-b",
+          "beat": "journey",
+          "background": "bg-maintenance",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "Cracking the authentication takes time. The clock ticks while you work. But the data is still there when you're through."
+            }
+          ],
+          "next": "evt-te04-reward"
+        },
+        {
+          "id": "evt-te04-c",
+          "beat": "journey",
+          "background": "bg-maintenance",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "You note the terminal's location for potential future use and read what the external display volunteers. Minimal, but real."
+            }
+          ],
+          "next": "evt-te04-reward"
+        },
+        {
+          "id": "evt-te04-reward",
+          "beat": "journey",
+          "background": "bg-maintenance",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "The terminal is behind you."
+            }
+          ]
+        }
+      ],
+      "rewards": [
+        {
+          "type": "consumable",
+          "label": "Interface Spares",
+          "description": "Adapter-grade components staged near the terminal by whoever used it last.",
+          "baseEffect": { "consumables": 2 }
+        },
+        {
+          "type": "knowledge",
+          "label": "Operational Logs",
+          "description": "The archive's own status reporting, unedited: priorities, projections, parameters.",
+          "baseEffect": { "knowledge": 2 }
+        },
+        {
+          "type": "clock-reduction",
+          "label": "Session Spoof",
+          "description": "You leave a false maintenance session running, muddying the archive's trace of you for {amount} clock units.",
+          "baseEffect": { "clock": -1 }
+        }
+      ]
+    },
+
+    {
+      "id": "AE-01",
+      "category": "approach",
+      "name": "Maintenance Crew Outpost",
+      "entryScene": "evt-ae01-arrive",
+      "rewardScene": "evt-ae01-reward",
+      "scenes": [
+        {
+          "id": "evt-ae01-arrive",
           "beat": "journey",
           "background": "bg-approach",
           "dialogue": [
             {
               "speaker": "narrator",
-              "text": "The maintenance access is clean. You reach the facility interior without triggering the monitoring log. The archive doesn't know you're inside yet."
+              "text": "The tonal shift. Bot activity is dense here. Infrastructure is alien. The world you know is behind you."
+            },
+            {
+              "speaker": "protagonist",
+              "text": "A camp. Three people, maybe four. Maintenance coveralls, not station uniforms. Independents. They've set up monitoring equipment aimed at the facility entrance."
+            },
+            {
+              "speaker": "narrator",
+              "text": "A small crew of independent techs has been camped near the facility perimeter for weeks, trying to understand what the archive is doing."
             }
           ],
-          "next": "evt-ps-reward"
+          "choices": [
+            {
+              "label": "Cooperate and share intelligence",
+              "nextScene": "evt-ae01-a",
+              "statChanges": { "knowledge": 2, "consumables": 1, "rapport": 0, "clock": 0 },
+              "condition": { "stat": "rapport", "min": 2 }
+            },
+            {
+              "label": "Trade information for route data",
+              "nextScene": "evt-ae01-b",
+              "statChanges": { "knowledge": 2, "consumables": 0, "rapport": 0, "clock": 0 }
+            },
+            {
+              "label": "Bypass the outpost",
+              "nextScene": "evt-ae01-c",
+              "statChanges": { "knowledge": 0, "consumables": 0, "rapport": 0, "clock": 1 }
+            }
+          ]
         },
         {
-          "id": "evt-ps-consequence-direct",
+          "id": "evt-ae01-a",
           "beat": "journey",
           "background": "bg-approach",
           "dialogue": [
             {
               "speaker": "narrator",
-              "text": "The archive's systems accept your credentials immediately. Of course they do — you're infrastructure personnel, and you're inside its definition of 'authorized access.' It also logs your entry, and you feel the intrusion clock tick forward."
+              "text": "The crew leader recognizes your callsign. Word traveled, through the communities, ahead of you."
+            },
+            {
+              "speaker": "engineer",
+              "expression": "neutral",
+              "text": "CREW LEADER: RELAY-7. We heard about the water relay. And the power reroute. You're the real thing."
+            },
+            {
+              "speaker": "narrator",
+              "text": "They share everything: patrol schedules, entry points, the archive's external monitoring gaps. They press a spare module into your hands."
             }
           ],
-          "next": "evt-ps-reward"
+          "next": "evt-ae01-reward"
         },
         {
-          "id": "evt-ps-reward",
+          "id": "evt-ae01-b",
+          "beat": "journey",
+          "background": "bg-approach",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "Trade. You share what you've learned about the archive's behavior; the crew shares facility approach data. Professional exchange, no warmth."
+            }
+          ],
+          "next": "evt-ae01-reward"
+        },
+        {
+          "id": "evt-ae01-c",
+          "beat": "journey",
+          "background": "bg-approach",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "You don't trust the camp. You go around. It costs time to find an alternate path, and the clock takes its fee."
+            }
+          ],
+          "next": "evt-ae01-reward"
+        },
+        {
+          "id": "evt-ae01-reward",
+          "beat": "journey",
+          "background": "bg-approach",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "The perimeter is close now."
+            }
+          ]
+        }
+      ],
+      "rewards": [
+        {
+          "type": "consumable",
+          "label": "Crew Resupply",
+          "description": "Field-repaired modules from the crew's bench, tested against the archive's own perimeter.",
+          "baseEffect": { "consumables": 2 }
+        },
+        {
+          "type": "knowledge",
+          "label": "Perimeter Survey",
+          "description": "Weeks of the crew's observations: drone schedules, sensor arcs, blind approaches.",
+          "baseEffect": { "knowledge": 2 }
+        },
+        {
+          "type": "clock-reduction",
+          "label": "Monitored Corridor",
+          "description": "The crew maps a corridor whose monitoring the archive itself disabled, buying {amount} clock units.",
+          "baseEffect": { "clock": -1 }
+        }
+      ]
+    },
+
+    {
+      "id": "AE-02",
+      "category": "approach",
+      "name": "Final Seal",
+      "entryScene": "evt-ae02-arrive",
+      "rewardScene": "evt-ae02-reward",
+      "scenes": [
+        {
+          "id": "evt-ae02-arrive",
+          "beat": "journey",
+          "background": "bg-approach",
+          "dialogue": [
+            {
+              "speaker": "protagonist",
+              "text": "The entrance. Pre-collapse hardened construction. The kind of door that was built to survive exactly the scenario that actually happened. The archive didn't add this lock. The people who built the facility did."
+            },
+            {
+              "speaker": "narrator",
+              "text": "The facility entrance is locked with original security. The archive's bots use maintenance-scale access points too small for a human."
+            }
+          ],
+          "choices": [
+            {
+              "label": "Recognize the system and find human access",
+              "nextScene": "evt-ae02-a",
+              "statChanges": { "knowledge": 1, "consumables": 0, "rapport": 0, "clock": 0 },
+              "condition": { "stat": "knowledge", "min": 5 }
+            },
+            {
+              "label": "Bypass the seal with components",
+              "nextScene": "evt-ae02-b",
+              "statChanges": { "knowledge": 0, "consumables": -2, "rapport": 0, "clock": 0 }
+            },
+            {
+              "label": "Search for an alternate entry",
+              "nextScene": "evt-ae02-c",
+              "statChanges": { "knowledge": 0, "consumables": 0, "rapport": 0, "clock": 2 }
+            }
+          ]
+        },
+        {
+          "id": "evt-ae02-a",
+          "beat": "journey",
+          "background": "bg-approach",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "You recognize the facility type from documentation accumulated along the way. Academic data centers of this era had human-scale emergency access, built to different standards than the primary entrance."
+            },
+            {
+              "speaker": "protagonist",
+              "text": "There. A maintenance hatch fifty meters west, sealed with a standard infrastructure lock my credentials can open."
+            }
+          ],
+          "next": "evt-ae02-reward"
+        },
+        {
+          "id": "evt-ae02-b",
+          "beat": "journey",
+          "background": "bg-approach",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "Brute-force. Two modules to bridge the security circuit. Expensive, but clean, and the door opens for you alone."
+            }
+          ],
+          "next": "evt-ae02-reward"
+        },
+        {
+          "id": "evt-ae02-c",
+          "beat": "journey",
+          "background": "bg-approach",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "You search for another way in. It takes time, and the clock ticks hard while you search. Eventually: a ventilation access that barely fits a human."
+            }
+          ],
+          "next": "evt-ae02-reward"
+        },
+        {
+          "id": "evt-ae02-reward",
+          "beat": "journey",
+          "background": "bg-approach",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "You are inside the perimeter."
+            }
+          ]
+        }
+      ],
+      "rewards": [
+        {
+          "type": "consumable",
+          "label": "Staging Cache",
+          "description": "A pre-positioned emergency cache the original builders left near the seal.",
+          "baseEffect": { "consumables": 2 }
+        },
+        {
+          "type": "knowledge",
+          "label": "Construction Records",
+          "description": "Facility-era documentation still legible at the entrance: what this place was for.",
+          "baseEffect": { "knowledge": 2 }
+        },
+        {
+          "type": "clock-reduction",
+          "label": "Unwatched Vestibule",
+          "description": "The seal's shadow breaks the archive's sensor arc, worth {amount} clock units.",
+          "baseEffect": { "clock": -1 }
+        }
+      ]
+    },
+
+    {
+      "id": "AE-03",
+      "category": "approach",
+      "name": "Signal Intercept",
+      "entryScene": "evt-ae03-arrive",
+      "rewardScene": "evt-ae03-reward",
+      "foundDocumentIds": ["FD-07"],
+      "scenes": [
+        {
+          "id": "evt-ae03-arrive",
+          "beat": "journey",
+          "background": "bg-approach",
+          "dialogue": [
+            {
+              "speaker": "protagonist",
+              "text": "My comms unit picks up a signal. Not on any frequency the relay network uses. Strong, clean, repeating. It's the archive, broadcasting. Not to anyone. To everywhere. A network handshake request on a loop."
+            },
+            {
+              "speaker": "narrator",
+              "text": "The signal is unencrypted; the archive never needed encryption, it was on a private network. It has been doing this for seven years."
+            }
+          ],
+          "choices": [
+            {
+              "label": "Decode the signal content",
+              "nextScene": "evt-ae03-a",
+              "statChanges": { "knowledge": 3, "consumables": 0, "rapport": 0, "clock": 0 },
+              "condition": { "stat": "knowledge", "min": 4 }
+            },
+            {
+              "label": "Jam the signal and disrupt archive operations",
+              "nextScene": "evt-ae03-b",
+              "statChanges": { "knowledge": 0, "consumables": -1, "rapport": 0, "clock": -1 }
+            },
+            {
+              "label": "Listen passively",
+              "nextScene": "evt-ae03-c",
+              "statChanges": { "knowledge": 1, "consumables": 0, "rapport": 0, "clock": 0 }
+            }
+          ]
+        },
+        {
+          "id": "evt-ae03-a",
+          "beat": "journey",
+          "background": "bg-approach",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "Your accumulated knowledge lets you parse the signal content. It's the archive's network topology query: a systematic scan of every address in its pre-collapse routing table, waiting for responses that will never come."
+            },
+            {
+              "speaker": "protagonist",
+              "text": "The signal includes the archive's self-assessment and operational objectives in machine-readable format. This is the rosetta stone for the confrontation."
+            }
+          ],
+          "next": "evt-ae03-reward"
+        },
+        {
+          "id": "evt-ae03-b",
+          "beat": "journey",
+          "background": "bg-approach",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "You use a module to generate interference. The archive's monitoring sweep loses coherence for a window. Clock reduction, bought with hardware."
+            }
+          ],
+          "next": "evt-ae03-reward"
+        },
+        {
+          "id": "evt-ae03-c",
+          "beat": "journey",
+          "background": "bg-approach",
+          "dialogue": [
+            {
+              "speaker": "narrator",
+              "text": "You listen. The signal itself tells you something: the archive is broadcasting, not receiving. It's still looking. Minimal, but real."
+            }
+          ],
+          "next": "evt-ae03-reward"
+        },
+        {
+          "id": "evt-ae03-reward",
           "beat": "journey",
           "background": "bg-approach",
           "dialogue": [
@@ -500,20 +1518,20 @@
       "rewards": [
         {
           "type": "consumable",
-          "label": "Perimeter Cache",
-          "description": "Emergency supplies stored at the perimeter checkpoint — left by whoever last serviced this facility.",
+          "label": "Signal Equipment",
+          "description": "Salvaged broadcast hardware staged near the intercept point, repurposed as kit.",
           "baseEffect": { "consumables": 2 }
         },
         {
           "type": "knowledge",
-          "label": "Archive Index Data",
-          "description": "The archive's own topology records — the discrepancy between its maps and reality, documented in its own format.",
-          "baseEffect": { "knowledge": 4 }
+          "label": "Handshake Protocol",
+          "description": "The archive's own query format, learned from listening to it ask a dead network for an answer.",
+          "baseEffect": { "knowledge": 2 }
         },
         {
           "type": "clock-reduction",
-          "label": "Monitoring Override",
-          "description": "You locate a monitoring gap in the archive's perimeter sweep. {amount} clock units suppressed.",
+          "label": "Broadcast Shadow",
+          "description": "Standing inside the archive's own signal shadow confuses its proximity sweep for {amount} clock units.",
           "baseEffect": { "clock": -1 }
         }
       ]

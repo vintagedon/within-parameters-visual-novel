@@ -18,6 +18,9 @@ import type {
   RewardOption,
   CharacterManifest,
   Character,
+  FoundDocument,
+  CommsBeatsData,
+  SaveSlot,
 } from './types/index';
 
 // Engine
@@ -35,10 +38,12 @@ import {
   type ProtagonistPool,
 } from './engine/chargen';
 import { createRng } from './engine/rng';
+import { createRunRng } from './engine/run-rng';
 import {
   autosave,
   saveToSlot,
   loadFromSlot,
+  loadSlot,
   getSlotSummaries,
   hasAutosave,
   loadPersistentData,
@@ -72,8 +77,10 @@ import {
   hideSettings,
   showRewardOverlay,
   showCommsOverlay,
+  showDocumentOverlay,
   showDossierScreen,
   hideDossierScreen,
+  type CommsLineView,
 } from './ui/screens';
 
 // Audio
@@ -85,6 +92,8 @@ let manifest: CharacterManifest;
 let scenesData: Scene[];
 let eventsData: EventDef[];
 let communitiesData: Community[];
+let documentsData: FoundDocument[];
+let commsBeatsData: CommsBeatsData;
 let pool: ProtagonistPool;
 
 let runner: SceneRunner | null = null;
@@ -105,7 +114,7 @@ async function boot(): Promise<void> {
   initScreens(document.body);
 
   // Load all data files in parallel
-  [config, manifest, scenesData, eventsData, { communities: communitiesData }, pool] =
+  [config, manifest, scenesData, eventsData, { communities: communitiesData }, pool, documentsData, commsBeatsData] =
     await Promise.all([
       fetch('/data/config.json').then((r) => r.json()) as Promise<GameConfig>,
       fetch('/data/characters.json').then((r) => r.json()) as Promise<CharacterManifest>,
@@ -113,6 +122,8 @@ async function boot(): Promise<void> {
       fetch('/data/events.json').then((r) => r.json()).then((d) => d.events) as Promise<EventDef[]>,
       fetch('/data/communities.json').then((r) => r.json()) as Promise<{ communities: Community[] }>,
       fetch('/data/protagonist-pool.json').then((r) => r.json()).then(parseProtagonistPool) as Promise<ProtagonistPool>,
+      fetch('/data/found-documents.json').then((r) => r.json()).then((d) => d.documents ?? []) as Promise<FoundDocument[]>,
+      fetch('/data/comms-beats.json').then((r) => r.json()) as Promise<CommsBeatsData>,
     ]);
 
   // Register backgrounds for layout crossfade
@@ -134,7 +145,7 @@ async function boot(): Promise<void> {
   initDialogue(layout.bottomBar, config);
 
   // Init HUD (hidden until game starts)
-  initHUD(layout.sidebar, config);
+  initHUD(layout.sidebar, config, () => openSaveMenu());
 
   // Show title screen
   Audio.playBGM('bgm-title', false);
@@ -146,19 +157,19 @@ async function boot(): Promise<void> {
       startNewGame();
     },
     onContinue: () => {
-      const state = loadFromSlot('auto');
-      if (state) {
+      const slot = loadSlot('auto');
+      if (slot) {
         hideTitleScreen();
-        startGameFromState(state);
+        startGameFromState(slot.state, slot.engine);
       }
     },
     onLoad: () => {
       showSaveLoadScreen('load', getSlotSummaries(), (slotId) => {
-        const state = loadFromSlot(slotId);
-        if (state) {
+        const slot = loadSlot(slotId);
+        if (slot) {
           hideSaveLoadScreen();
           hideTitleScreen();
-          startGameFromState(state);
+          startGameFromState(slot.state, slot.engine);
         }
       }, hideSaveLoadScreen);
     },
@@ -190,9 +201,9 @@ async function boot(): Promise<void> {
   const devEnv = (import.meta as { env?: { DEV?: boolean } }).env;
   if (devEnv?.DEV) {
     const sampleCommunities = [
-      { community: { name: 'Georgetown Hydro' }, state: 'helped', stop: 1 },
-      { community: { name: 'Foggy Bottom Relay' }, state: 'helped', stop: 2 },
-      { community: { name: 'Silver Spring Junction' }, state: 'harmed', stop: 3 },
+      { community: { name: 'Georgetown Hydro', description: 'a water reclamation community dependent on surface-fed filtration' }, state: 'helped', stop: 1 },
+      { community: { name: 'Foggy Bottom Relay', description: 'a transit workers\' cooperative maintaining the eastern tunnel network' }, state: 'helped', stop: 2 },
+      { community: { name: 'Silver Spring Junction', description: 'a small trading post at the intersection of three major tunnel routes' }, state: 'harmed', stop: 3 },
     ] as unknown as GameState['communities'];
     (window as unknown as {
       __wp?: {
@@ -204,7 +215,19 @@ async function boot(): Promise<void> {
       };
     }).__wp = {
       triggerComms: () => {
-        showCommsOverlay("CHEN: Clock is climbing. What's your status?", () => {});
+        // Renders a real beat from the loaded data (amber, after stop 1) so
+        // the surface is captured with production content.
+        const tier = commsBeatsData.commsBeats.find((t) => t.id === 'amber');
+        const beat = tier?.beats.find((b) => b.afterStop === 1) ?? tier?.beats[0];
+        if (!beat) return;
+        const lines: CommsLineView[] = beat.lines.map((line) => ({
+          speaker:
+            line.speaker === 'protagonist'
+              ? 'RELAY-7'
+              : characterMap.get(line.speaker)?.name ?? line.speaker.toUpperCase(),
+          text: line.text,
+        }));
+        showCommsOverlay(lines, () => {});
       },
       triggerEnding: () => {
         // Build a representative complete run state (committed protagonist,
@@ -269,10 +292,13 @@ function effectiveConfigFromState(state: GameState): GameConfig {
 }
 
 /** Single HUD refresh path: stats against the run's effective knowledge
- *  threshold (from the committed protagonist's configuration — Clear-Headed
- *  lowers it), plus the journey timeline. */
+ *  threshold, plus the journey timeline. When a runner is live its effective
+ *  config is the display authority — the same object the resolver and the
+ *  ending determination read — so the bar and the ending gate cannot diverge
+ *  (including under threshold-modifying traits like Clear-Headed). */
 function refreshHud(state: GameState): void {
-  updateStats(state, effectiveConfigFromState(state).knowledgeThreshold);
+  const effConfig = runner?.getEffectiveConfig() ?? effectiveConfigFromState(state);
+  updateStats(state, effConfig.knowledgeThreshold);
   updateTimeline(state.currentStop, config.journeyStops, state.communities);
 }
 
@@ -282,28 +308,51 @@ function startNewGame(): void {
   savePersistentData(persistent);
 
   const state = initNewGame(config, persistent.runsStarted);
-  const registry = buildSceneRegistry(scenesData, eventsData);
+  const registry = buildSceneRegistry(scenesData, eventsData, documentsData, commsBeatsData);
   clearDialogue();
-  // New game: supply the chargen pool + a seeded RNG so the runner can roll a
-  // protagonist and show the dossier before the lore card. The Playwright harness
-  // sets window.__wpSeed for deterministic captures; in normal play it is unset,
+  // New game: supply the chargen pool + the run's stateful RNG (one stream
+  // for the protagonist roll and everything after it: pool shuffles,
+  // community assignment, clock jitter). The Playwright harness sets
+  // window.__wpSeed for deterministic captures; in normal play it is unset,
   // so the seed is time+random (truly random per run). No-op in production.
   const harnessSeed = (window as unknown as { __wpSeed?: number }).__wpSeed;
   const seed = harnessSeed ?? ((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0);
+  const runRng = createRunRng(seed);
   runner = new SceneRunner(state, config, registry, communitiesData, buildRunnerCallbacks(), {
     pool,
-    rng: createRng(seed),
+    rng: runRng,
   });
   runner.beginNewRun();
 }
 
 /** Resume path for CONTINUE/LOAD — does NOT regenerate the protagonist. */
-function startGameFromState(state: GameState): void {
+function startGameFromState(state: GameState, slotEngine?: SaveSlot['engine']): void {
   clearDialogue();
-  const registry = buildSceneRegistry(scenesData, eventsData);
+  const registry = buildSceneRegistry(scenesData, eventsData, documentsData, commsBeatsData);
   const effConfig = effectiveConfigFromState(state);
-  runner = new SceneRunner(state, effConfig, registry, communitiesData, buildRunnerCallbacks());
+  const runRng = createRunRng(0);
+  runner = new SceneRunner(state, effConfig, registry, communitiesData, buildRunnerCallbacks(), undefined, runRng);
+  if (slotEngine) {
+    runner.restoreEngine(slotEngine);
+  }
   runner.start();
+}
+
+/** Manual save surface (gate 4.7): reachable from the HUD during a run. */
+function openSaveMenu(): void {
+  if (!runner) return;
+  showSaveLoadScreen('save', getSlotSummaries(), (slotId) => {
+    if (slotId === 'auto') return; // autosave slot is not manually writable
+    const state = runner!.getState();
+    saveToSlot(
+      slotId,
+      state,
+      state.currentScene,
+      state.currentBeat,
+      runner!.snapshot() ?? undefined
+    );
+    hideSaveLoadScreen();
+  }, hideSaveLoadScreen);
 }
 
 function buildRunnerCallbacks(): SceneRunnerCallbacks {
@@ -385,13 +434,13 @@ function buildRunnerCallbacks(): SceneRunnerCallbacks {
                 startNewGame();
               },
               onContinue: () => {
-                const s = loadFromSlot('auto');
-                if (s) { hideTitleScreen(); startGameFromState(s); }
+                const slot = loadSlot('auto');
+                if (slot) { hideTitleScreen(); startGameFromState(slot.state, slot.engine); }
               },
               onLoad: () => {
                 showSaveLoadScreen('load', getSlotSummaries(), (slotId) => {
-                  const s = loadFromSlot(slotId);
-                  if (s) { hideSaveLoadScreen(); hideTitleScreen(); startGameFromState(s); }
+                  const slot = loadSlot(slotId);
+                  if (slot) { hideSaveLoadScreen(); hideTitleScreen(); startGameFromState(slot.state, slot.engine); }
                 }, hideSaveLoadScreen);
               },
               onSettings: () => {
@@ -407,12 +456,21 @@ function buildRunnerCallbacks(): SceneRunnerCallbacks {
       );
     },
 
-    onCommsInterrupt(currentState, onContinue) {
-      const rapport = deriveRapport(currentState);
-      const msg = rapport >= 0
-        ? `CHEN: Clock is climbing. What's your status?`
-        : `CHEN: Clock is climbing and I'm getting reports from the communities along your route. What's happening out there?`;
-      showCommsOverlay(msg, onContinue);
+    onCommsInterrupt(currentState, beat, _tierId, onContinue) {
+      // Comms speakers keep the callsign: Jay addresses RELAY-7 and the
+      // protagonist's rolled name never appears on the comms channel.
+      const lines: CommsLineView[] = beat.lines.map((line) => ({
+        speaker:
+          line.speaker === 'protagonist'
+            ? currentState.protagonist.callsign
+            : characterMap.get(line.speaker)?.name ?? line.speaker.toUpperCase(),
+        text: line.text,
+      }));
+      showCommsOverlay(lines, onContinue);
+    },
+
+    onFoundDocument(doc, onContinue) {
+      showDocumentOverlay(doc, onContinue);
     },
   };
 }
@@ -427,8 +485,15 @@ function runDialogueSequence(
   if (lineIndex >= scene.dialogue.length) {
     // All lines done — show choices or complete scene
     if (scene.choices && scene.choices.length > 0) {
-      const currentState = runner?.getState() ?? state;
-      renderChoices(scene.choices, currentState, (choiceIndex) => {
+      // Runner-resolved views: effective costs, gates, and trait restrictions.
+      // Falls back to plain labels only when no runner exists (not reachable
+      // in normal play; keeps the function total).
+      const views = runner?.getChoiceViews(scene) ?? scene.choices.map((c, i) => ({
+        index: i,
+        label: c.label,
+        enabled: true,
+      }));
+      renderChoices(views, (choiceIndex) => {
         runner?.selectChoice(scene, choiceIndex);
       });
     } else {
@@ -441,7 +506,18 @@ function runDialogueSequence(
   }
 
   const line = scene.dialogue[lineIndex]!;
-  const character = characterMap.get(line.speaker) ?? null;
+  let character = characterMap.get(line.speaker) ?? null;
+
+  // Internal-monologue headers carry the generated protagonist's first name
+  // (character-generation.md: headers are "[First]:"). Comms channels keep
+  // the RELAY-7 callsign, and the dialogue bar shows no protagonist portrait
+  // (updatePortrait), so this is the only protagonist-name surface here.
+  if (line.speaker === 'protagonist' && state.protagonist.name) {
+    const first = state.protagonist.name.split(' ')[0] ?? null;
+    if (first && character) {
+      character = { ...character, name: first };
+    }
+  }
 
   // Handle per-line triggers
   if (line.background) setBackground(line.background);

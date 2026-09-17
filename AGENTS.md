@@ -5,10 +5,10 @@ Entry point for AI coding agents working on this repository.
 ## Project Identity
 
 **Domain:** Game Development / Visual Novel / Roguelike
-**Repository:** https://github.com/radioastronomyio/within-parameters-visual-novel
+**Repository:** https://github.com/vintagedon/within-parameters-visual-novel
 **Purpose:** A roguelike visual novel set in a post-solar-storm underground civilization where narrow maintenance AIs govern humanity using operational logic never designed for the task. The player is a randomly generated relay technician investigating an archive AI that is cannibalizing inhabited infrastructure in a relentless attempt to reconnect to an internet that no longer exists. Portfolio piece targeting Azure Static Web Apps and itch.io publication.
 
-**Methodology:** This project uses [SpecSmith](https://github.com/radioastronomyio/specsmith). Specs define outcomes and verification criteria; agents implement from specs.
+**Methodology:** This project uses [SpecSmith](https://github.com/vintagedon/specsmith). Specs define outcomes and verification criteria; agents implement from specs.
 
 **Stack:** Vite + TypeScript (strict mode), vanilla DOM manipulation, CSS custom properties, localStorage saves
 
@@ -19,22 +19,23 @@ All agent-executed specs produce work on feature branches. Never commit directly
 ### Branch Lifecycle
 
 1. **Before starting work:** `git checkout -b agent/{spec-name}` from `main` (e.g., `agent/wp-sweep` for `wp-sweep-spec.md`). If the spec specifies a branch name, use that instead.
-2. **During work:** Commit as needed with conventional commit messages. Commits are local only.
-3. **When finished:** Commit all deliverables. Do not push. Do not create a PR. Report completion.
-4. **Orchestrator reviews** the branch locally, then pushes and merges (or discards).
+2. **During work:** Commit as needed with conventional commit messages. One commit per gate where the spec defines gates.
+3. **When finished:** Commit all deliverables, then run the spec closeout: push the working branch and open exactly one pull request against `main`. Do not merge; merge authority is the operator's alone.
+4. **Orchestrator** reviews the pull request, then merges (or discards).
 
 ### Rules
 
 - One branch per spec. Do not reuse branches across specs.
-- Do not push to `origin`. The orchestrator handles all pushes.
+- Push only the working branch the spec opened. Never push to `main`, never force-push.
+- Exactly one pull request per working branch; a later push updates it in place.
 - Do not modify files outside the scope defined in the spec.
 - Generated output (heatmaps, CSVs, build artifacts) follows the spec's instructions for whether to commit or gitignore. When the spec is silent, gitignore generated output.
 - If the branch already exists, stop and report the conflict. Do not force-create or overwrite.
 
 ## Current State
 
-**Phase:** Phase 2, Content Design & Balance
-**Date:** April 2026
+**Phase:** Phase 3, Complete Playable Run (on placeholders)
+**Date:** September 2026
 
 ### Locked
 
@@ -45,37 +46,41 @@ All agent-executed specs produce work on feature branches. Never commit directly
 - Scoring system: 103 hard cap, 8% multiplicative reroll penalty, S/A/B/C/D/F grades, diminishing returns on surplus
 - Clock reduction cap: max 2 segments per reward regardless of rapport
 - Art direction style, concept drafts complete (10 scenes, 1 UI mockup)
-- Tech stack: Vite + TypeScript, vanilla DOM (no framework)
+- Tech stack: Vite + TypeScript, vanilla DOM (GameUI framework vendored under `vendor/gameui/`)
 - Engine spec: `spec/archive/engine-spec.md` (the authoritative build reference)
-- Engine build: all 22 source files built, five bugs patched, end-to-end functional with placeholder assets
+- Engine build: all source files built, end-to-end functional with placeholder assets
 - Journey structure: 5 modular stops (2 community, 2 transit, 1 approach) + fixed facility entry
 - Event pool: 12 events (5 community, 4 transit, 3 approach), draw 5 per run, no repeats
 - NPC cast: protagonist (random), Jay Chen (coworker), Torres (supervisor), Aguilar (authority), Dex (scrapper), Sato (believer)
 - Consumable identity: bypass module
+- Single ending authority: the persisted state-derived outcome (`GameState.outcome`); thresholds and costs read the effective (trait-adjusted) config
+- Choice resolution: every player choice routes through the validated resolver (`src/engine/resolution.ts`); the browser and the simulator agree (4608-resolution matrix)
 
 ### Complete
 
-- Engine build: all 22 source files, five bugs patched, end-to-end functional with placeholder assets
+- Engine build: all source files, five bugs patched, end-to-end functional with placeholder assets
 - Balance simulator (`simulation/`): Monte Carlo engine, heuristic agent, 640k-run validation
-- Balance sweep v1: 33 configs tested, identified 3 structural failures (scoring compression, P6 too strong, N7 doesn't scale)
-- Balance sweep v2: structural fixes applied, 38 configs tested (33 structured + 5 exploratory), winning config found (6/6 validation criteria)
-- Balance parameters locked: `kt=11, kr=0, ct=1, starting_modules=6, jitter_chance=0.35`
-- SpecSmith retrospective specs written (01-04) with case study
+- Balance sweeps v1/v2 and the locked winning config
+- Spec 04 complete playable run: live resolver wiring, single ending authority, 12-event production pool, found documents, three-tier comms beats, M3 scenes/NPCs/epilogues, asset packaging, manual save with exact resume, complete-run verification (37 natural runs; review surface at `docs/verification/2026-09-16-complete-run-verification.md`)
+- Placeholder art: 19 portraits, 13 backgrounds via `simulation/generate_placeholders.py`; asset manifest pipeline operational
+- Verification harnesses: live-path checks (`npm run test:live`), mutation checks, event audit, replay parity, screenshot regression (11 baselines), complete-run and preview checks (Playwright)
 
 ### Ready for Agent Execution
 
-- Code commenting and repo cleanup (spec at `spec/2026-05-18-spec-05-code-commenting-and-cleanup.md`): dual-audience commenting on all source files, interior README fixes
-- Content build: translating approved design docs into engine JSON
-- Placeholder art generation complete (9 portraits, 13 backgrounds via `simulation/generate_placeholders.py`)
-- Asset manifest pipeline operational (`assets/asset-manifest.csv`)
+- Presentation/theming unit: GameUI framework migration follow-up and industrial theme (mechanics, content, thresholds, and the outcome authority are frozen by spec 04)
 
 ### Not Started
 
-- Production JSON content (scenes.json, events.json rewrite with full content)
-- Playwright smoke tests against live dev server
 - Production art (NB2 finals from NightCafe concepts)
 - Cutscenes (Seedance 1.5 Pro)
-- Integration, polish, and deployment
+- Launch verification (WP Spec 05; dispatch awaits operator approval of the spec 04 review surface)
+
+### Known Open Findings (spec 04 review surface)
+
+- F-05: run length ~5-15 min vs the 25-35 min target (content volume gap)
+- F-06: red comms tier nearly unreachable at the authored trigger points
+- F-03: two SFX source files absent (non-blocking)
+- See `docs/verification/2026-09-16-complete-run-verification.md` for the full list and operator questions
 
 ## Key Documents
 
@@ -114,8 +119,8 @@ All agent-executed specs produce work on feature branches. Never commit directly
 
 | Stat | Type | Starting | Function |
 |------|------|----------|----------|
-| Knowledge | Accumulator | 0 | Gates choices, determines ending (threshold: 8, modified by Clear-Headed to 6) |
-| Bypass Modules | Spendable | 5 (trait-modified) | Spent on event choices, community help, facility fix (cost: 2, modified by Fragile Kit to 3) |
+| Knowledge | Accumulator | 0 | Gates choices, determines ending (threshold: 11, modified by Clear-Headed to 10) |
+| Bypass Modules | Spendable | 6 (trait-modified) | Spent on event choices, community help, facility fix (cost: 2, modified by Fragile Kit to 3) |
 | Rapport | Derived | 0 (trait-modified) | Helped minus harmed communities. Scales clock reduction (capped at 2). Determines epilogue quality. |
 | Intrusion Clock | Counter | 0 | Ticks each stop (base 1 + jitter). Max 10. Fills = loss. Only reduced via clock reduction reward. |
 
@@ -153,7 +158,7 @@ After stop 5, Beat 5 (Facility Penetration) begins as fixed narrative content.
 
 ## Architecture
 
-### Source Layout (22 files)
+### Source Layout (24 files)
 
 ```
 src/
@@ -161,20 +166,34 @@ src/
     index.ts, scene.ts, event.ts, state.ts, characters.ts
   engine/
     game-state.ts   # Immutable stat mutations (return new GameState)
-    scene-runner.ts  # Beat transitions, dialogue sequencing
+    scene-runner.ts  # Beat transitions, choice resolution, ending authority
     event-system.ts  # Zone-filtered pool draw, reward cycle
     save-manager.ts  # localStorage serialization, slot management
+    resolution.ts    # Validated choice resolver (simulator port; live path)
+    scoring.ts       # Locked scoring cascade and ending determination
+    traits.ts        # Effective-config trait pipeline
+    chargen.ts       # Random protagonist rolls, dossier view
+    rng.ts, run-rng.ts  # Seeded RNG; stateful variant for exact resume
+    replay-harness.ts, live-checks.ts  # Node verification harnesses
   ui/
     layout.ts     # Three-pane DOM (viewport 65% + sidebar 35% + bottom bar 33%)
     dialogue.ts   # Typewriter effect, skip-on-click, portraits, choices
-    hud.ts        # Stat bars, intrusion clock, location timeline
-    screens.ts    # Title, save/load modal, ending, lore card, settings
+    hud.ts        # Stat bars, intrusion clock, location timeline, SAVE action
+    screens.ts    # Title, save/load modal, dossier, ending, documents, comms
+    gameui.ts     # Vendored framework bindings
   audio/
     audio-manager.ts  # BGM crossfade, SFX, mute persistence
   styles.css
   main.ts         # Bootstrap: load data, init engine, attach DOM
 data/
-  config.json, scenes.json, events.json, communities.json, characters.json
+  config.json, scenes.json, events.json, communities.json, characters.json,
+  protagonist-pool.json, found-documents.json, comms-beats.json
+scripts/
+  run-replay.mjs, run-live-checks.mjs, run-mutation-checks.mjs,
+  audit-events.py, check-dist-assets.mjs
+tests/
+  capture.py (screenshot regression), complete_run.py (natural runs),
+  preview_check.py (built-package HTTP check)
 ```
 
 ### Key Design Patterns

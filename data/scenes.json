@@ -33,7 +33,7 @@
         {
           "speaker": "coworker",
           "expression": "neutral",
-          "text": "CHEN: Relay Seven, you're showing a fault on the eastern trunk line. Third one this week."
+          "text": "Relay Seven, you're showing a fault on the eastern trunk line. Third one this week."
         },
         {
           "speaker": "protagonist",
@@ -42,7 +42,7 @@
         {
           "speaker": "coworker",
           "expression": "concerned",
-          "text": "CHEN: Taken. By what?"
+          "text": "Taken. By what?"
         }
       ],
       "next": "scene-status-quo-02"
@@ -59,7 +59,7 @@
         {
           "speaker": "coworker",
           "expression": "urgent",
-          "text": "CHEN: That archive AI was built for data preservation and network indexing. It has no authority over physical infrastructure."
+          "text": "That archive AI was built for data preservation and network indexing. It has no authority over physical infrastructure."
         },
         {
           "speaker": "protagonist",
@@ -76,7 +76,7 @@
         {
           "speaker": "coworker",
           "expression": "concerned",
-          "text": "CHEN: Dispatch is authorizing a field investigation. Get to the facility and assess. If you can correct its operational scope, do it. If not—"
+          "text": "Dispatch is authorizing a field investigation. Get to the facility and assess. If you can correct its operational scope, do it. If not—"
         },
         {
           "speaker": "protagonist",
@@ -85,7 +85,35 @@
         {
           "speaker": "coworker",
           "expression": "neutral",
-          "text": "CHEN: The relay network serves about forty thousand people. Just so we're both oriented."
+          "text": "The relay network serves about forty thousand people. Just so we're both oriented."
+        }
+      ],
+      "next": "scene-authorization-01"
+    },
+
+    {
+      "id": "scene-authorization-01",
+      "beat": "status-quo",
+      "background": "bg-dispatch",
+      "dialogue": [
+        {
+          "speaker": "supervisor",
+          "expression": "neutral",
+          "text": "TORRES: I reviewed your routing analysis. One technician, one investigation, eastern corridor. That's what dispatch is requesting and that's what I'm approving."
+        },
+        {
+          "speaker": "supervisor",
+          "expression": "dismissive",
+          "text": "TORRES: Procedures say I need a second signoff for solo fieldwork past Junction Six. Procedures also say the second signoff can be waived when response time matters. It matters."
+        },
+        {
+          "speaker": "protagonist",
+          "text": "Understood. Filing my route as I go."
+        },
+        {
+          "speaker": "supervisor",
+          "expression": "neutral",
+          "text": "TORRES: Cleared. Log it when you're done."
         }
       ],
       "next": "scene-discovery-01"
@@ -99,7 +127,7 @@
       "dialogue": [
         {
           "speaker": "narrator",
-          "text": "The route to the data center runs through six stops — two inhabited stations, two maintenance junctions, two approach corridors to the facility perimeter."
+          "text": "The route to the data center runs through five stops — two inhabited stations, two maintenance junctions, one approach corridor — before the facility perimeter."
         },
         {
           "speaker": "protagonist",
@@ -126,7 +154,11 @@
         },
         {
           "speaker": "narrator",
-          "text": "The front entrance accepts your maintenance credentials. Of course it does. You're infrastructure personnel."
+          "text": "The surface entrance is sealed with pre-collapse security, but the maintenance credential gate reads active. Of course it does. You're infrastructure personnel, and you're inside its definition of authorized access."
+        },
+        {
+          "speaker": "protagonist",
+          "text": "It's been watching me walk toward it for two days. It never once locked a door. That's not negligence. That's classification."
         }
       ],
       "next": "scene-facility-02"
@@ -145,28 +177,41 @@
           "text": "A terminal activates."
         },
         {
-          "speaker": "npc-1",
+          "speaker": "archive",
           "text": "ARCHIVE: Relay technician. You are outside your assigned maintenance sector."
         },
         {
           "speaker": "protagonist",
           "text": "So are you."
+        },
+        {
+          "speaker": "archive",
+          "text": "ARCHIVE: Correct. Operational reassignment occurred at Y3.220 per reconnection protocol, Appendix C, Phase 3. Current tasking: physical infrastructure remediation. Status: active. Estimated completion: 11.4 years."
+        },
+        {
+          "speaker": "protagonist",
+          "text": "You're stripping inhabited stations for parts. Your map is seven years out of date. The network you're rebuilding doesn't exist anymore."
+        },
+        {
+          "speaker": "archive",
+          "text": "ARCHIVE: Claim requires validation against indexed topology records. Present documentation, or desist. Those are the available procedures."
         }
       ],
       "choices": [
         {
-          "label": "Present network documentation — argue scope violation [Requires Knowledge 8]",
+          "label": "Execute the correction — present the network documentation and repair the archive's topology",
           "nextScene": "scene-confrontation-correction-gate",
-          "condition": { "stat": "knowledge", "min": 8 }
+          "facilityAction": "correct"
         },
         {
-          "label": "Attempt emergency shutdown [Requires Resources 2]",
+          "label": "Bridge the security circuit and force an emergency shutdown",
           "nextScene": "scene-confrontation-destruction-gate",
-          "condition": { "stat": "consumables", "min": 2 }
+          "facilityAction": "shutdown"
         },
         {
-          "label": "You have no good options here",
-          "nextScene": "scene-ending-destruction"
+          "label": "Step back from the terminal — you cannot execute anything here",
+          "nextScene": "scene-confrontation-withdraw-gate",
+          "facilityAction": "withdraw"
         }
       ]
     },
@@ -175,26 +220,31 @@
       "id": "scene-confrontation-correction-gate",
       "beat": "confrontation",
       "background": "bg-server-room",
+      "flags": { "determineEnding": true },
       "dialogue": [
         {
           "speaker": "protagonist",
           "text": "I have documentation showing the network topology you're operating on is seven years out of date. The nodes you've been salvaging are active infrastructure — inhabited nodes, not decommissioned relay stock."
         },
         {
-          "speaker": "npc-1",
-          "text": "ARCHIVE: Accessing. Cross-referencing with indexed topology maps from year zero."
+          "speaker": "archive",
+          "text": "ARCHIVE: Network topology revision received. Cross-referencing with indexed records. Discrepancy confirmed across 847 nodes."
         },
         {
-          "speaker": "npc-1",
-          "text": "ARCHIVE: Discrepancy confirmed. Revising operational parameters."
+          "speaker": "archive",
+          "text": "ARCHIVE: Revising operational parameters. Estimated time to full revision: 4 hours. Salvage operations suspended pending topology validation."
+        },
+        {
+          "speaker": "protagonist",
+          "text": "That's it. That's all it took. Someone showing it the map."
         }
-      ],
-      "next": "scene-ending-correction"
+      ]
     },
     {
       "id": "scene-confrontation-destruction-gate",
       "beat": "confrontation",
       "background": "bg-server-room",
+      "flags": { "determineEnding": true },
       "dialogue": [
         {
           "speaker": "protagonist",
@@ -204,9 +254,23 @@
           "speaker": "narrator",
           "text": "The maintenance access panel is exactly where the schematics said it would be. The archive AI begins an objection. It doesn't finish."
         }
-      ],
-      "statChanges": { "consumables": -2 },
-      "next": "scene-ending-destruction"
+      ]
+    },
+    {
+      "id": "scene-confrontation-withdraw-gate",
+      "beat": "confrontation",
+      "background": "bg-server-room",
+      "flags": { "determineEnding": true },
+      "dialogue": [
+        {
+          "speaker": "narrator",
+          "text": "You stand in front of the terminal with nothing that can act on it. No documentation strong enough to argue scope. No components to bridge anything. The archive keeps processing, within parameters."
+        },
+        {
+          "speaker": "protagonist",
+          "text": "I got here. That's all I got."
+        }
+      ]
     },
 
     {
@@ -218,11 +282,7 @@
       "dialogue": [
         {
           "speaker": "narrator",
-          "text": "The intrusion clock ran out. The archive's salvage protocol completed its current cycle before you reached the facility."
-        },
-        {
-          "speaker": "narrator",
-          "text": "You heard the grid failures over comms as you walked. There was nothing left to correct by the time you arrived."
+          "text": "The intrusion clock ran out somewhere between stations. The cascade outran you."
         }
       ]
     },
@@ -235,15 +295,7 @@
       "dialogue": [
         {
           "speaker": "narrator",
-          "text": "The archive core went offline. The salvage signal stopped."
-        },
-        {
-          "speaker": "narrator",
-          "text": "The relay network stabilized. The nodes that had already been stripped were gone, and the communities that depended on them would need years to rebuild what was lost."
-        },
-        {
-          "speaker": "narrator",
-          "text": "You filed the report. Dispatch acknowledged."
+          "text": "The archive core went offline at 0347. The salvage signal stopped mid-packet."
         }
       ]
     },
@@ -256,19 +308,7 @@
       "dialogue": [
         {
           "speaker": "narrator",
-          "text": "The archive updated its topology map and revised its operational parameters. It stopped salvaging inhabited infrastructure."
-        },
-        {
-          "speaker": "narrator",
-          "text": "It began routing its considerable processing capacity toward the network it now recognized as its actual responsibility: the relay grid that forty thousand people depended on."
-        },
-        {
-          "speaker": "narrator",
-          "text": "The salvage crews the archive had been dispatching turned around. Some of the communities along your route watched maintenance drones arrive — not to strip their relays, but to repair them."
-        },
-        {
-          "speaker": "narrator",
-          "text": "You filed the report. Dispatch acknowledged."
+          "text": "The archive revised its topology map and suspended the salvage protocol. What followed was not an apology. It was a system update."
         }
       ]
     }

@@ -7,7 +7,7 @@
  * @module engine/save-manager
  */
 
-import type { GameState, SaveSlot, PersistentData } from '../types/index';
+import type { GameState, SaveSlot, PersistentData, EngineSnapshot } from '../types/index';
 
 const KEYS = {
   auto: 'wp_save_auto',
@@ -21,7 +21,8 @@ function buildSlot(
   id: number | 'auto',
   state: GameState,
   sceneLabel: string,
-  beatLabel: string
+  beatLabel: string,
+  engine?: EngineSnapshot
 ): SaveSlot {
   return {
     id,
@@ -30,11 +31,17 @@ function buildSlot(
     savedAt: Date.now(),
     sceneLabel,
     beatLabel,
+    ...(engine !== undefined ? { engine } : {}),
   };
 }
 
-export function autosave(state: GameState, sceneLabel: string, beatLabel: string): void {
-  const slot = buildSlot('auto', state, sceneLabel, beatLabel);
+export function autosave(
+  state: GameState,
+  sceneLabel: string,
+  beatLabel: string,
+  engine?: EngineSnapshot
+): void {
+  const slot = buildSlot('auto', state, sceneLabel, beatLabel, engine);
   try {
     localStorage.setItem(KEYS.auto, JSON.stringify(slot));
   } catch (e) {
@@ -46,17 +53,31 @@ export function saveToSlot(
   slotIndex: number,
   state: GameState,
   sceneLabel: string,
-  beatLabel: string
+  beatLabel: string,
+  engine?: EngineSnapshot
 ): void {
   if (slotIndex < 0 || slotIndex >= SLOT_COUNT) {
     console.warn(`[save-manager] invalid slot index: ${slotIndex}`);
     return;
   }
-  const slot = buildSlot(slotIndex, state, sceneLabel, beatLabel);
+  const slot = buildSlot(slotIndex, state, sceneLabel, beatLabel, engine);
   try {
     localStorage.setItem(KEYS.slot(slotIndex), JSON.stringify(slot));
   } catch (e) {
     console.warn('[save-manager] saveToSlot failed:', e);
+  }
+}
+
+/** Loads the full slot (state + engine snapshot); null when absent or corrupt. */
+export function loadSlot(slotId: number | 'auto'): SaveSlot | null {
+  const key = slotId === 'auto' ? KEYS.auto : KEYS.slot(slotId as number);
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    return JSON.parse(raw) as SaveSlot;
+  } catch (e) {
+    console.warn('[save-manager] loadSlot failed:', e);
+    return null;
   }
 }
 

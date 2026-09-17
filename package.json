@@ -10,6 +10,9 @@
     "replay": "node scripts/run-replay.mjs 5000",
     "replay:fast": "node scripts/run-replay.mjs 2000",
     "replay:full": "node scripts/run-replay.mjs 10000",
+    "test:live": "node scripts/run-live-checks.mjs",
+    "test:mutation": "node scripts/run-mutation-checks.mjs",
+    "audit:events": "/opt/agents/venv/bin/python scripts/audit-events.py",
     "test:screens": "/opt/agents/venv/bin/python tests/capture.py",
     "test:screens:check": "/opt/agents/venv/bin/python tests/capture.py --check"
   },

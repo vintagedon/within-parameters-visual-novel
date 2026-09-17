@@ -16,7 +16,7 @@
 # Repository   : within-parameters-visual-novel
 # Author       : VintageDon (https://github.com/vintagedon/)
 # Created      : YYYY-MM-DD
-# Link         : https://github.com/radioastronomyio/within-parameters-visual-novel
+# Link         : https://github.com/vintagedon/within-parameters-visual-novel
 # =============================================================================
 #
 # DESCRIPTION

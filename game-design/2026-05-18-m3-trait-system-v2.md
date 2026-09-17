@@ -10,7 +10,7 @@
 
 | Item | v1 | v2 | Rationale |
 |------|----|----|-----------|
-| N7 Exhausted | Base tick 2 instead of 1 | Jitter forced to 1 (always ticks) | v1 guaranteed clock-out at exactly 10 after 5 stops, before jitter. Mathematically unwinnable. v2 raises average from 7.5 to 10 (tight but survivable with clock reduction). |
+| N7 Exhausted | clockJitterChance +0.25 | Jitter chance 0.6 instead of 0.35 | v1 forced every tick and clocked out deterministically. v2 raises expected ticks over 5 stops from about 6.75 to 8 (survivable with clock reduction). |
 | P4 Steady Hand | Jitter forced to 0 | Jitter probability halved (25% instead of 50%) | v1 eliminated all clock variance, turning the game into a solved optimization puzzle. v2 reduces variance without removing it. |
 | Clock reduction | No cap, scales with rapport | Hard cap at 2 segments per reward | v1 allowed rapport 4+ to erase 3+ segments in a single reward, trivializing the loss condition via exponential feedback loop. |
 | N2 Rough Touch | +1 module cost per community event | +1 per module spent at community events | v1 exactly offset P1 Well-Supplied (+2 modules across 2 events = +2 cost). v2 scales with investment: a 2-module choice costs 3. |
@@ -23,14 +23,14 @@
 
 | # | Name | Axis | Effect |
 |---|------|------|--------|
-| P1 | **Well-Supplied** | starting resources | +2 starting bypass modules (7 total) |
-| P2 | **Quick Study** | knowledge income | +1 knowledge from knowledge rewards (3 instead of 2) |
+| P1 | **Well-Supplied** | starting resources | +2 starting bypass modules (8 total) |
+| P2 | **Quick Study** | knowledge income | +1 knowledge from knowledge rewards (nets 1 instead of 0 under the locked -2 reward bonus) |
 | P3 | **Networked** | social baseline | +1 starting rapport |
-| P4 | **Steady Hand** | clock variance | Jitter probability halved: 25% chance of +1 instead of 50% |
+| P4 | **Steady Hand** | clock variance | Jitter probability halved: 17.5% chance of +1 instead of 35% |
 | P5 | **Field Expedient** | reward efficiency | +1 modules from consumable rewards (3 instead of 2) |
-| P6 | **Clear-Headed** | competence gates | Knowledge check thresholds -2 (confrontation: 6 instead of 8) |
+| P6 | **Clear-Headed** | competence gates | Knowledge threshold -1 (confrontation: 10 instead of 11) |
 | P7 | **Light Foot** | transit safety | Transit event choices: no bonus clock costs |
-| P8 | **Practiced** | spending efficiency | First module spent per event: cost -1 (min 0). Once per event. |
+| P8 | **Practiced** | spending efficiency | First module spent per stop: cost -1 (min 0). Once per stop. |
 
 ---
 
@@ -44,7 +44,7 @@
 | N4 | **Distracted** | passive knowledge | Found documents: +0 knowledge (readable for flavor, no stat gain) |
 | N5 | **Lone Wolf** | social scaling | Rapport-to-clock-reduction scaling: halved (0.25 instead of 0.5) |
 | N6 | **Fragile Kit** | endgame cost | Facility fix costs 3 modules instead of 2 |
-| N7 | **Exhausted** | clock variance | Jitter forced to 1 (always ticks; 5 stops = 5 base + 5 jitter = 10 exactly at ceiling) |
+| N7 | **Exhausted** | clock variance | Jitter chance +0.25 (0.6 under the locked 0.35 base; 5 stops expect about 8 ticks) |
 | N8 | **Stubborn** | choice restriction | Must choose highest-cost option at community events |
 
 ---
@@ -137,16 +137,16 @@ Distribution unchanged from v1. The revised traits maintain the same interaction
 
 ```json
 {
-  "startingConsumables": 5,
+  "startingConsumables": 6,
   "startingKnowledge": 0,
   "clockMax": 10,
   "clockBaseTick": 1,
-  "clockJitterChance": 0.5,
+  "clockJitterChance": 0.35,
   "clockJitterAmount": 1,
   "clockReductionBase": 1,
   "clockReductionMax": 2,
   "rapportClockScale": 0.5,
-  "knowledgeGoodEndingThreshold": 8,
+  "knowledgeGoodEndingThreshold": 11,
   "consumableFixCost": 2,
   "journeyStops": 5,
   "zoneMap": {
@@ -188,12 +188,12 @@ Traits modify these at game start:
 |-------|----------|--------|
 | P1 Well-Supplied | startingConsumables | +2 |
 | P3 Networked | startingRapport | +1 |
-| P4 Steady Hand | clockJitterChance | ×0.5 (0.25) |
-| P6 Clear-Headed | knowledgeGoodEndingThreshold | -2 |
-| N2 Rough Touch | communityModuleCostMultiplier | +1 per module |
+| P4 Steady Hand | clockJitterChance | ×0.5 (0.175) |
+| P6 Clear-Headed | knowledgeGoodEndingThreshold | -1 |
+| N2 Rough Touch | community consumable costs | +1 flat |
 | N5 Lone Wolf | rapportClockScale | ×0.5 (0.25) |
 | N6 Fragile Kit | consumableFixCost | +1 |
-| N7 Exhausted | clockJitterChance | SET 1.0 (always ticks) |
+| N7 Exhausted | clockJitterChance | +0.25 (0.6) |
 
 ---
 

@@ -9,39 +9,62 @@
 
 import type {
   Scene,
+  Choice,
   GameState,
   GameConfig,
   EventDef,
   Community,
   RewardOption,
   ProtagonistIdentity,
+  RunOutcome,
+  FoundDocument,
+  CommsBeatsData,
+  CommsBeatDef,
+  DialogueLine,
 } from '../types/index';
 import {
   applyStatChanges,
-  setCommunityState,
   addToHistory,
   addCommunity,
   advanceStop,
   markClockFailure,
   tickClock,
   isClockFull,
+  setFlag,
 } from './game-state';
-import { scoreRun } from './scoring';
+import { scoreRun, buildScoreBreakdown } from './scoring';
 import { buildEffectiveConfig } from './traits';
 import { generateProtagonist, type ProtagonistPool } from './chargen';
 import type { Rng } from './rng';
+import type { RunRng } from './run-rng';
+import type { EngineSnapshot } from '../types/index';
+import {
+  calcEffectiveConsumableCost,
+  applyChoiceEffects,
+  applyFoundDocument,
+} from './resolution';
+import type { EventCategory } from '../types/index';
 import {
   initEventPool,
   drawEvent,
   getRewardsForStop,
   applyReward,
   buildCommunityRunState,
-  shouldTriggerComms,
   type EventPoolState,
 } from './event-system';
 import { autosave } from './save-manager';
 
 // ─── Callbacks the UI provides ───────────────────────────────────────────────
+
+/** Player-facing view of a choice: resolved label, selectability, and reason. */
+export interface ChoiceView {
+  index: number;
+  /** Display label with the effective (trait-adjusted) cost resolved in. */
+  label: string;
+  enabled: boolean;
+  /** Why the choice is unavailable, for tooltips. */
+  reason?: string | undefined;
+}
 
 export interface SceneRunnerCallbacks {
   /** Start rendering a scene (set background, BGM, begin dialogue) */
@@ -56,7 +79,20 @@ export interface SceneRunnerCallbacks {
     state: GameState
   ): void;
   /** Show a comms interrupt beat between stops */
-  onCommsInterrupt(state: GameState, onContinue: () => void): void;
+  onCommsInterrupt(
+    state: GameState,
+    beat: CommsBeatDef,
+    tierId: string,
+    onContinue: () => void
+  ): void;
+  /**
+   * Show a found document during the event it is attached to (before the
+   * reward cycle). The runner hands over the document and a continue
+   * callback; acknowledging the document is the read: the runner applies
+   * the knowledge gain via applyFoundDocument exactly once per event when
+   * the UI calls onContinue.
+   */
+  onFoundDocument?(doc: FoundDocument, onContinue: () => void): void;
   /**
    * Show the chargen dossier for a candidate protagonist (spec 03). The UI
    * builds the dossier view from the candidate and binds DEPLOY/REROLL to the
@@ -76,16 +112,24 @@ export interface SceneRunnerCallbacks {
 export interface SceneRegistry {
   scenes: Map<string, Scene>;
   events: Map<string, EventDef>;
+  /** Found documents by FD id (empty map when none loaded). */
+  documents: Map<string, FoundDocument>;
+  /** Comms beats (null when not loaded). */
+  commsBeats: CommsBeatsData | null;
 }
 
 /** Indexes scenes and events by ID for O(1) lookups. Event scenes are injected into this registry at runtime (see runStop). */
 export function buildSceneRegistry(
   scenes: Scene[],
-  events: EventDef[]
+  events: EventDef[],
+  documents: FoundDocument[] = [],
+  commsBeats: CommsBeatsData | null = null
 ): SceneRegistry {
   return {
     scenes: new Map(scenes.map((s) => [s.id, s])),
     events: new Map(events.map((e) => [e.id, e])),
+    documents: new Map(documents.map((d) => [d.id, d])),
+    commsBeats,
   };
 }
 
@@ -103,11 +147,26 @@ export class SceneRunner {
   private eventPool: EventPoolState | null = null;
   private pendingResolve: (() => void) | null = null;
 
+  /**
+   * Whether the Practiced (P8) per-stop discount is still available for the
+   * current stop. Resets on stop advance (not on event entry), matching the
+   * resolver's per-stop contract.
+   */
+  private practicedAvailable = true;
+
   // Chargen phase state (spec 03). Present only when the runner was constructed
   // for a new game (chargen pool + rng supplied). Resume runners omit it.
   private chargen: { pool: ProtagonistPool; rng: Rng } | null;
   private candidate: ProtagonistIdentity | null = null;
   private candidateRerollCount = 0;
+
+  /**
+   * The run's stateful RNG (event pool shuffles, community assignment,
+   * clock jitter). Same stream as the chargen rng on new-game runners;
+   * supplied separately on resume runners so a saved run continues the exact
+   * stream an uninterrupted run would have consumed.
+   */
+  private runRng: RunRng | null;
 
   constructor(
     initialState: GameState,
@@ -115,7 +174,8 @@ export class SceneRunner {
     registry: SceneRegistry,
     communities: Community[],
     callbacks: SceneRunnerCallbacks,
-    chargen?: { pool: ProtagonistPool; rng: Rng }
+    chargen?: { pool: ProtagonistPool; rng: Rng },
+    runRng?: RunRng
   ) {
     this.state = initialState;
     this.config = config;
@@ -123,10 +183,74 @@ export class SceneRunner {
     this.communities = communities;
     this.callbacks = callbacks;
     this.chargen = chargen ?? null;
+    this.runRng = runRng ?? (chargen?.rng as RunRng | undefined) ?? null;
   }
 
   getState(): GameState {
     return this.state;
+  }
+
+  // ─── Engine snapshot (exact resume, gate 4.7) ────────────────────────────
+
+  /**
+   * Captures the serializable engine state that GameState alone cannot
+   * carry: the run RNG stream position, the per-stop Practiced availability,
+   * and the event-pool ordering. Ride this on a save slot to make a resumed
+   * run continue the exact stream an uninterrupted run would have taken.
+   */
+  snapshot(): EngineSnapshot | null {
+    return {
+      rngState: this.runRng?.getState() ?? 0,
+      practicedAvailable: this.practicedAvailable,
+      eventPool: this.eventPool
+        ? {
+            community: this.eventPool.byZone.community.map((e) => e.id),
+            transit: this.eventPool.byZone.transit.map((e) => e.id),
+            approach: this.eventPool.byZone.approach.map((e) => e.id),
+            availableCommunities: this.eventPool.availableCommunities.map((c) => c.id),
+            usedEventIds: Array.from(this.eventPool.usedEventIds),
+          }
+        : null,
+    };
+  }
+
+  /**
+   * Restores an engine snapshot: RNG stream, Practiced availability, and the
+   * event pool ordering. Re-injects the active event's scenes and pending
+   * reward tracking so a mid-event resume continues where the save left off.
+   */
+  restoreEngine(snap: EngineSnapshot): void {
+    this.runRng?.setState(snap.rngState);
+    this.practicedAvailable = snap.practicedAvailable;
+    if (snap.eventPool) {
+      const byId = (id: string) => this.registry.events.get(id)!;
+      const communityById = (id: string) =>
+        this.communities.find((c) => c.id === id) ?? {
+          id,
+          name: id,
+          description: 'an unrecorded community',
+        };
+      this.eventPool = {
+        byZone: {
+          community: snap.eventPool.community.map(byId),
+          transit: snap.eventPool.transit.map(byId),
+          approach: snap.eventPool.approach.map(byId),
+        },
+        availableCommunities: snap.eventPool.availableCommunities.map(communityById),
+        usedEventIds: new Set(snap.eventPool.usedEventIds),
+      };
+    }
+    // Mid-event resume: re-register the event's scenes and reward tracking.
+    const activeId = this.state.activeEventId;
+    if (activeId) {
+      const event = this.registry.events.get(activeId);
+      if (event) {
+        for (const scene of event.scenes) {
+          this.registry.scenes.set(scene.id, scene);
+        }
+        this._pendingEventForStop = { event, stop: this.state.currentStop };
+      }
+    }
   }
 
   // ─── Entry point ─────────────────────────────────────────────────────────
@@ -217,7 +341,7 @@ export class SceneRunner {
 
     // Autosave if flagged
     if (scene.flags?.autosave) {
-      autosave(this.state, scene.id, scene.beat);
+      autosave(this.state, scene.id, scene.beat, this.snapshot() ?? undefined);
     }
 
     // Check if this scene enters the event phase
@@ -247,9 +371,18 @@ export class SceneRunner {
       return;
     }
 
-    // If it's an ending scene, trigger the ending handler
-    if (scene.flags?.isEnding && scene.flags.endingType) {
-      this.callbacks.onEnding(scene.flags.endingType, this.state);
+    // If it's an ending scene, trigger the ending handler from the persisted
+    // computed outcome — never from the scene's authored endingType.
+    if (scene.flags?.isEnding) {
+      const ending = this.persistedOutcome().ending;
+      this.callbacks.onEnding(ending, this.state);
+      return;
+    }
+
+    // Facility intervention consequence: compute, persist, and route on the
+    // state-derived outcome.
+    if (scene.flags?.determineEnding) {
+      this.triggerEnding();
       return;
     }
 
@@ -261,6 +394,160 @@ export class SceneRunner {
 
   // ─── Choice Selection (called by UI) ─────────────────────────────────────
 
+  /**
+   * Presentation view of one choice: the label the player sees (with the
+   * effective, trait-adjusted module cost resolved into it) and whether the
+   * choice is selectable. The affordability decision here, the label here,
+   * and the deduction in selectChoice all read the same effective value via
+   * calcEffectiveConsumableCost.
+   */
+  getChoiceViews(scene: Scene): ChoiceView[] {
+    const choices = scene.choices ?? [];
+    const category = this.activeEventCategory();
+    const forcedIndex = this.stubbornForcedIndex(scene, choices, category);
+
+    return choices.map((choice, i) => {
+      let label = choice.label;
+      let enabled = true;
+      let reason: string | undefined;
+
+      // Facility intervention: gates, costs, and labels all resolve from the
+      // effective config. No authored literal thresholds or costs exist here.
+      if (choice.facilityAction) {
+        const fixCost = this.config.consumableFixCost;
+        const threshold = this.config.knowledgeThreshold;
+        const canAfford = this.state.stats.consumables >= fixCost;
+        const correctionCapable = this.state.stats.knowledge >= threshold && canAfford;
+        if (choice.facilityAction === 'correct') {
+          label = `${label} [Knowledge ${threshold}] [${fixCost} modules]`;
+          if (!correctionCapable) {
+            enabled = false;
+            reason = `Requires knowledge ${threshold} and ${fixCost} modules`;
+          }
+        } else if (choice.facilityAction === 'shutdown') {
+          label = `${label} [${fixCost} modules]`;
+          if (correctionCapable) {
+            enabled = false;
+            reason = 'The correction is executable';
+          } else if (!canAfford) {
+            enabled = false;
+            reason = `Requires ${fixCost} modules`;
+          }
+        } else {
+          // withdraw: only when nothing else can be executed
+          if (canAfford) {
+            enabled = false;
+            reason = 'You can still act';
+          }
+        }
+        return { index: i, label, enabled, reason };
+      }
+
+      // Authored knowledge/rapport gate (event-specific values).
+      if (choice.condition) {
+        const { stat, min } = choice.condition;
+        const value =
+          stat === 'knowledge'
+            ? this.state.stats.knowledge
+            : stat === 'consumables'
+              ? this.state.stats.consumables
+              : this.state.stats.rapport;
+        if (value < min) {
+          enabled = false;
+          reason = `Requires ${stat} ${min}`;
+        } else if (stat !== 'consumables') {
+          label = `${label} [${stat === 'knowledge' ? 'Knowledge' : 'Rapport'} ${min}]`;
+        }
+      }
+
+      // Effective module cost under trait flags (Rough Touch / Practiced).
+      const spend = choice.statChanges?.consumables ?? 0;
+      if (category !== null && spend < 0) {
+        const { cost } = calcEffectiveConsumableCost(
+          spend,
+          this.config,
+          category,
+          this.practicedAvailable
+        );
+        label = `${label} [${cost} module${cost === 1 ? '' : 's'}]`;
+        if (this.state.stats.consumables < cost) {
+          enabled = false;
+          reason = `Requires ${cost} modules`;
+        }
+      }
+
+      // Stubborn (N8): at community events only the forced choice is selectable.
+      if (forcedIndex !== null && i !== forcedIndex) {
+        enabled = false;
+        reason = 'Stubborn: choice is forced';
+      }
+
+      return { index: i, label, enabled, reason };
+    });
+  }
+
+  /**
+   * The runner's effective (trait-adjusted) configuration — the same object
+   * the resolver and the ending determination read. Exposed so the HUD and
+   * any other player-facing surface agree with what is charged and gated.
+   */
+  getEffectiveConfig(): GameConfig {
+    return this.config;
+  }
+
+  /** Category of the active event, or null outside the event phase. */
+  private activeEventCategory(): EventCategory | null {
+    const id = this.state.activeEventId;
+    if (!id) return null;
+    return this.registry.events.get(id)?.category ?? null;
+  }
+
+  /**
+   * Stubborn (N8) forced choice index at community events, mirroring the
+   * simulator's agent override: among gate-eligible, affordable choices the
+   * highest-cost spending choice is forced; if none spend, the lowest-cost;
+   * with no eligible choice at all, the first choice. Returns null when
+   * Stubborn is off or the event is not a community event.
+   */
+  private stubbornForcedIndex(scene: Scene, choices: Scene['choices'], category: EventCategory | null): number | null {
+    if (!this.config.stubborn || category !== 'community' || !choices || choices.length === 0) {
+      return null;
+    }
+    const eligible: Array<{ index: number; cost: number; spend: number }> = [];
+    for (let i = 0; i < choices.length; i++) {
+      const choice = choices[i]!;
+      if (choice.condition) {
+        const { stat, min } = choice.condition;
+        const value =
+          stat === 'knowledge'
+            ? this.state.stats.knowledge
+            : stat === 'consumables'
+              ? this.state.stats.consumables
+              : this.state.stats.rapport;
+        if (value < min) continue;
+      }
+      const spend = choice.statChanges?.consumables ?? 0;
+      const { cost } =
+        spend < 0
+          ? calcEffectiveConsumableCost(spend, this.config, category, this.practicedAvailable)
+          : { cost: 0 };
+      if (cost > this.state.stats.consumables) continue;
+      eligible.push({ index: i, cost, spend });
+    }
+    if (eligible.length === 0) return 0;
+    const spending = eligible.filter((e) => e.spend <= 0);
+    const pool = spending.length > 0 ? spending : eligible;
+    return pool.reduce((best, e) =>
+      spending.length > 0
+        ? Math.abs(e.spend) > Math.abs(best.spend)
+          ? e
+          : best
+        : e.cost < best.cost
+          ? e
+          : best
+    ).index;
+  }
+
   selectChoice(scene: Scene, choiceIndex: number): void {
     const choice = scene.choices?.[choiceIndex];
     if (!choice) {
@@ -268,17 +555,41 @@ export class SceneRunner {
       return;
     }
 
-    // Apply stat changes
-    if (choice.statChanges) {
-      this.state = applyStatChanges(this.state, choice.statChanges);
+    if (choice.facilityAction) {
+      this.selectFacilityAction(choice);
+      return;
     }
 
-    // Apply community effect
-    if (choice.communityEffect && this.state.currentStop > 0) {
-      this.state = setCommunityState(
+    const category = this.activeEventCategory();
+    if (category !== null) {
+      // Event-phase choice: resolve through the validated resolver so trait
+      // flags (Rough Touch, Practiced, Light Foot, Tunnel Nerves) take effect
+      // identically in headless and interactive play.
+      const sc = choice.statChanges ?? {};
+      const communityEffect =
+        choice.communityEffect === 'helped' || choice.communityEffect === 'harmed'
+          ? choice.communityEffect
+          : 'none';
+      const resolution = applyChoiceEffects(
         this.state,
-        this.state.currentStop,
-        choice.communityEffect
+        {
+          knowledge: sc.knowledge ?? 0,
+          consumables: sc.consumables ?? 0,
+          clock: sc.clock ?? 0,
+          communityEffect,
+        },
+        this.config,
+        category,
+        this.practicedAvailable
+      );
+      this.state = resolution.state;
+      this.practicedAvailable = resolution.practicedRemaining;
+    } else if (choice.statChanges && Object.values(choice.statChanges).some((v) => v)) {
+      // Outside the event phase, authored deltas have no trait category and
+      // must not be applied raw. Facility costs route through the effective
+      // config; any other authored delta here is a content defect.
+      console.warn(
+        `[scene-runner] Non-event choice "${scene.id}#${choiceIndex}" carries statChanges; ignored (author costs via the effective config instead)`
       );
     }
 
@@ -290,8 +601,9 @@ export class SceneRunner {
 
   private enterEventPhase(): void {
     const allEvents = Array.from(this.registry.events.values());
-    this.eventPool = initEventPool(allEvents, this.config, this.communities);
+    this.eventPool = initEventPool(allEvents, this.config, this.communities, this.runRng ?? undefined);
     this.state = { ...this.state, currentStop: 1 };
+    this.practicedAvailable = true;
     this.runNextStop();
   }
 
@@ -306,15 +618,37 @@ export class SceneRunner {
       return;
     }
 
-    // Check comms interrupt
-    if (shouldTriggerComms(stop, this.state.clock)) {
-      this.callbacks.onCommsInterrupt(this.state, () => {
+    // Comms interrupt: beats fire after specific stops complete, with the
+    // tier selected from the live clock at trigger time. Both the timing
+    // (afterStop) and the bands (min/max) come from data.
+    const beat = this.pendingCommsBeat(stop);
+    if (beat) {
+      this.callbacks.onCommsInterrupt(this.state, beat.beat, beat.tierId, () => {
         this.runStop(stop);
       });
       return;
     }
 
     this.runStop(stop);
+  }
+
+  /**
+   * The comms beat pending for this transition, if any: a beat whose
+   * afterStop equals the just-completed stop (stop - 1), from the tier whose
+   * band contains the live clock.
+   */
+  private pendingCommsBeat(nextStop: number): { beat: CommsBeatDef; tierId: string } | null {
+    const data = this.registry.commsBeats;
+    if (!data) return null;
+    const completed = nextStop - 1;
+    for (const tier of data.commsBeats) {
+      if (this.state.clock.current < tier.min || this.state.clock.current > tier.max) {
+        continue;
+      }
+      const beat = tier.beats.find((b) => b.afterStop === completed);
+      if (beat) return { beat, tierId: tier.id };
+    }
+    return null;
   }
 
   /**
@@ -368,6 +702,35 @@ export class SceneRunner {
   }
 
   private showRewards(event: EventDef, stop: number): void {
+    // Found documents surface here, before the reward cycle. Acknowledging
+    // the document is the read: the +1 knowledge (suppressed by Distracted)
+    // applies exactly once per event via applyFoundDocument.
+    const docIds = event.foundDocumentIds ?? [];
+    const readFlag = `fd-read-${event.id}`;
+    if (docIds.length > 0 && !this.state.flags[readFlag]) {
+      const docId = docIds[(this.state.runNumber + stop) % docIds.length]!;
+      const doc = this.registry.documents.get(docId);
+      if (doc) {
+        const presentRewards = (): void => {
+          this.state = applyFoundDocument(this.state, this.config);
+          this.state = setFlag(this.state, readFlag);
+          this.callbacks.onStateUpdate(this.state);
+          this.presentRewards(event, stop);
+        };
+        if (this.callbacks.onFoundDocument) {
+          this.callbacks.onFoundDocument(doc, presentRewards);
+          return;
+        }
+        // No document surface wired (headless defaults): apply and continue.
+        presentRewards();
+        return;
+      }
+    }
+
+    this.presentRewards(event, stop);
+  }
+
+  private presentRewards(event: EventDef, stop: number): void {
     const rewards = getRewardsForStop(event, this.state, this.config);
 
     this.callbacks.onRewardChoice(rewards, (rewardIndex: number) => {
@@ -377,19 +740,21 @@ export class SceneRunner {
       this.state = applyReward(reward, this.state, this.config);
 
       // Tick the clock
-      this.state = tickClock(this.state, this.config);
+      this.state = tickClock(this.state, this.config, this.runRng ?? undefined);
       this.callbacks.onStateUpdate(this.state);
 
       // Check loss condition
       if (isClockFull(this.state, this.config)) {
         this.state = markClockFailure(this.state);
-        this.state = { ...this.state, outcome: scoreRun(this.state, this.config) };
-        this.callbacks.onEnding('clock-failure', this.state);
+        const outcome = this.persistedOutcome();
+        this.callbacks.onEnding(outcome.ending, this.state);
         return;
       }
 
-      // Advance to next stop (advanceStop increments currentStop)
+      // Advance to next stop (advanceStop increments currentStop). The
+      // Practiced discount resets on stop advance, not on event entry.
       this.state = advanceStop(this.state, event.id);
+      this.practicedAvailable = true;
       this._pendingEventForStop = null;
 
       this.runNextStop();
@@ -398,11 +763,54 @@ export class SceneRunner {
 
   // ─── Facility / Confrontation ─────────────────────────────────────────────
 
-  /** Called from facility scene when the confrontation gate is reached */
+  /**
+   * Computes, persists, and routes on the single authoritative outcome.
+   * Ending determination is the existing state-based derivation in scoring.ts
+   * against the effective (trait-adjusted) config — never a literal threshold
+   * and never a scene's authored endingType. The frozen cascade components
+   * ride on the outcome so the score breakdown renders the persisted value
+   * instead of recomputing an ending from post-charge state.
+   */
+  private persistedOutcome(): RunOutcome {
+    if (!this.state.outcome) {
+      const outcome = scoreRun(this.state, this.config);
+      const breakdown = buildScoreBreakdown(this.state, this.config, this.state.rerollCount);
+      const merged: RunOutcome = {
+        ...outcome,
+        components: breakdown.components,
+        multiplier: breakdown.multiplier,
+      };
+      this.state = { ...this.state, outcome: merged };
+      return merged;
+    }
+    return this.state.outcome;
+  }
+
+  /** Called when a determineEnding scene completes (and by the ending paths). */
   triggerEnding(): void {
-    this.state = { ...this.state, outcome: scoreRun(this.state, this.config) };
-    const endingType = this.state.outcome?.ending ?? 'destruction';
-    const endingSceneId = `scene-ending-${endingType}`;
+    const outcome = this.persistedOutcome();
+    const endingSceneId = `scene-ending-${outcome.ending}`;
     this.loadScene(endingSceneId);
+  }
+
+  /**
+   * Executes a facility intervention choice. The outcome is computed and
+   * persisted from the pre-charge (arrival) state — exactly the state the
+   * simulator's determine_ending sees — and the effective repair cost is then
+   * charged exactly once, here at the point of repair. No ending path or
+   * score breakdown deducts it again: the breakdown was already frozen into
+   * the persisted outcome, computed against the arrival state.
+   */
+  private selectFacilityAction(choice: Choice): void {
+    const fixCost = this.config.consumableFixCost;
+    const charges = choice.facilityAction === 'correct' || choice.facilityAction === 'shutdown';
+
+    this.persistedOutcome();
+    if (charges) {
+      this.state = applyStatChanges(this.state, { consumables: -fixCost });
+    }
+
+    this.callbacks.onStateUpdate(this.state);
+    this.loadScene(choice.nextScene);
   }
 }
