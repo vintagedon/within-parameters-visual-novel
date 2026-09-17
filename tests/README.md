@@ -25,6 +25,8 @@ Playwright (Chromium headless) regression harness for the GameUI-migrated UI. Th
 | Script | Purpose |
 |--------|---------|
 | [`capture.py`](capture.py) | Capture neon baselines + run framework/network/console assertions. Supports `--check` for regression comparison against committed `.sha1` sidecars. |
+| [`complete_run.py`](complete_run.py) | Gate 4.8 verification: complete natural runs against the production build (`vite preview`), no dev hooks, seeds recorded. Covers endings, reroll, documents, comms tiers, save/resume; reads HTTP status from responses; hash-guards `baseline/`. |
+| [`preview_check.py`](preview_check.py) | Gate 4.7 verification: a run segment against the production build with zero failed same-origin asset requests by HTTP status. |
 
 ## Running
 
@@ -33,9 +35,16 @@ Playwright (Chromium headless) regression harness for the GameUI-migrated UI. Th
 npm run test:screens           # capture baselines (via the venv python)
 npm run test:screens:check     # regression check against committed .sha1 sidecars
 
+# Node-side checks (no browser):
+npm run test:live              # live-path checks driving the real SceneRunner
+npm run test:mutation          # mutation discrimination checks
+npm run audit:events           # events.json vs simulation/game_data.py audit
+
 # Or directly:
 /opt/agents/venv/bin/python tests/capture.py
 /opt/agents/venv/bin/python tests/capture.py --check
+npm run build && /opt/agents/venv/bin/python tests/preview_check.py
+npm run build && /opt/agents/venv/bin/python tests/complete_run.py
 ```
 
 **Harness environment limitation:** this harness is an ML01 estate tool. It depends on the ML01 shared venv at `/opt/agents/venv` (hardcoded interpreter path) and on whatever Playwright version that venv carries — the Playwright version is not pinned or declared anywhere in this repository. Runs on other hosts require adapting the interpreter path and providing a Playwright install themselves.

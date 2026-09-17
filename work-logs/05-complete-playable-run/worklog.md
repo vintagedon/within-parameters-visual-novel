@@ -15,7 +15,7 @@ repo: "within-parameters-visual-novel"
 ---
 -->
 
-# WP Complete Playable Run — In-Repo Worklog
+# WP Complete Playable Run: In-Repo Worklog
 
 Per-gate checkpoint log. The central worklog (mirroring the spec filename with
 `spec` replaced by `worklog`) is written at closeout from this file.
@@ -34,7 +34,7 @@ Per-gate checkpoint log. The central worklog (mirroring the spec filename with
 - Operator interactions: none during gate 4.1 (Attended: No run; the empty
   record is stated here explicitly).
 
-## Gate 4.1 — Live choice resolution through the validated resolver
+## Gate 4.1: Live choice resolution through the validated resolver
 
 **Commit:** (recorded at closeout)
 
@@ -91,7 +91,7 @@ Per-gate checkpoint log. The central worklog (mirroring the spec filename with
   re-approval (art: commit) refreshes the moved set. Existing approved
   baselines otherwise unchanged (9 of 10 ok).
 
-## Gate 4.2 — A single authoritative ending outcome
+## Gate 4.2: A single authoritative ending outcome
 
 **Commit:** (recorded at closeout)
 
@@ -128,7 +128,7 @@ Per-gate checkpoint log. The central worklog (mirroring the spec filename with
 - Live-path checks: 12/12 passed. Gate 4.2 additions: threshold boundary
   below/at/above under Clear-Headed (k9 destruction, k10/k11 correction,
   narrative == independently scored == persisted in every case); the
-  knowledge-8 review probe (destruction everywhere, outcome non-null — the
+  knowledge-8 review probe (destruction everywhere, outcome non-null, the
   pre-change narrative/scored disagreement is gone); repair charged exactly
   once under Fragile Kit (5 -> 2 at fixCost 3; rawScore equals the pre-charge
   cascade, so no second deduction); clock-failure persisted and consumed
@@ -151,11 +151,11 @@ Per-gate checkpoint log. The central worklog (mirroring the spec filename with
   engine preserves that exactly by computing and persisting the outcome before
   charging the repair, then charging once at the point of repair. The player's
   post-ending inventory therefore reflects the intervention (arrival minus
-  fixCost) while the frozen breakdown reflects the arrival-state cascade —
+  fixCost) while the frozen breakdown reflects the arrival-state cascade,
   identical to simulator arithmetic for correction runs and consistent with
   the authored shutdown fiction for destruction runs.
 
-## Gate 4.3 — The 12-event production pool
+## Gate 4.3: The 12-event production pool
 
 **Commit:** (recorded at closeout)
 
@@ -198,7 +198,7 @@ Per-gate checkpoint log. The central worklog (mirroring the spec filename with
 **Findings raised:** none new (the event shortage that killed natural runs at
 stop 5 is resolved by filling the pool, not by duplication or fallback
 widening).
-## Gate 4.4 — Found documents
+## Gate 4.4: Found documents
 
 **Commit:** (recorded at closeout)
 
@@ -247,7 +247,7 @@ widening).
   overlay rendered the full FD-01 text (830 chars) with zero console errors
   and zero page errors.
 
-## Gate 4.5 — Comms beats
+## Gate 4.5: Comms beats
 
 **Commit:** (recorded at closeout)
 
@@ -282,7 +282,7 @@ widening).
 - Browser smoke (dev server, seeded, no dev hooks): full passage through
   comms interrupts with zero console errors.
 
-## Gate 4.6 — Scenes, NPCs, and rapport-modified epilogues
+## Gate 4.6: Scenes, NPCs, and rapport-modified epilogues
 
 **Commit:** (recorded at closeout)
 
@@ -304,7 +304,7 @@ widening).
   established `simulation/generate_placeholders.py` (which skips existing
   files): protagonist-female, protagonist-male, supervisor x2, aguilar x2,
   dex x2, sato x2. Manifest CSV refreshed: 32 placeholder, 4 replaced
-  (audio), 2 missing (sfx-click, sfx-alert — enumerated for gate 4.8).
+  (audio), 2 missing (sfx-click, sfx-alert, enumerated for gate 4.8).
 - `src/ui/screens.ts`: `buildEpilogue` now assembles the M3 epilogues:
   base, one line per visited community keyed to helped/ignored/harmed
   (leading article stripped from descriptions for interpolation), then the
@@ -313,7 +313,7 @@ widening).
   portrait image (initials block only as a missing-file fallback).
 - `src/main.ts`: internal-monologue headers show the generated
   protagonist's first name (comms keep RELAY-7; the dialogue bar shows no
-  protagonist portrait — frozen boundaries respected).
+  protagonist portrait, which are frozen boundaries).
 - `src/ui/dialogue.ts`: the archive speaker hides the portrait area.
 - `scripts/run-mutation-checks.mjs`: scratch copies now include vendor/.
 
@@ -333,7 +333,7 @@ widening).
 - `npm run audit:events` still exact; mutation checks still discriminate;
   `tsc --noEmit` clean.
 
-## Gate 4.7 — Asset packaging and save/resume
+## Gate 4.7: Asset packaging and save/resume
 
 **Commit:** be5e60b (plus art: baseline re-approval 4e9f199)
 
@@ -376,7 +376,7 @@ widening).
   same-seed score parity through a fresh runner (destruction 68 == 68).
 - Screenshots deterministic after re-approval (capture, check x2 green).
 
-## Gate 4.8 — Complete-run verification and review surface
+## Gate 4.8: Complete-run verification and review surface
 
 **Commit:** (recorded at closeout)
 
@@ -409,4 +409,54 @@ widening).
   min vs 25-35 target (volume gap); F-06 red comms tier nearly unreachable
   at authored triggers; F-07 FD-01 fixed-name artifact; F-08 destruction
   inventory accounting; F-09 project-brief disposition.
+
+## Gate 4.9: Documentation reconciliation
+
+**Commit:** (recorded at closeout)
+
+**Changes:**
+
+- `AGENTS.md`: repository URL corrected to the live remote
+  (vintagedon, verified against `git remote`); SpecSmith link corrected to
+  the verified live location (radioastronomyio/specsmith redirects to
+  vintagedon/specsmith, title-confirmed); Git Workflow now carries the
+  push-and-PR closeout posture (superseding the do-not-push text); the
+  Mechanics table reads threshold 11 / Clear-Headed 10 and starting
+  modules 6; Phase, Current State, Source Layout, and the spec queue
+  refreshed to the post-spec-04 estate, including the open-findings
+  pointer to the review surface.
+- `game-design/2026-05-18-m3-trait-system-v2.md`: pre-lock values
+  corrected to the validated implementation (config block aligned with
+  data/config.json: modules 6, jitter 0.35, threshold 11; P6 is -1 not -2;
+  P1 total 8; P2/P4 wording under the locked bonus and jitter; P8 is once
+  per stop; N7 is +0.25 jitter chance, not forced ticks; summary table
+  rows matched).
+- `game-design/m3-content-design-draft.md`: stat framework rows corrected
+  (threshold 11/Clear-Headed 10; starting 6; Fragile Kit 3).
+- `README.md`, `docs/documentation-standards/script-header-*.md`,
+  `docs/wp-specsmith-case-study.md`, `docs/README.md`: verified URLs
+  corrected; docs index gains the verification directory.
+- `data/README.md`, `tests/README.md`: contents refreshed to the
+  production data set and the full verification script inventory.
+- New `work-logs/05-complete-playable-run/README.md` (interior README
+  standard).
+- Review surface updated with F-10 (Spec 03 retraction, quoting the
+  archived worklog claim verbatim and linking
+  `staging/2026-09-13-project-review/natural-run.json` as counter-evidence;
+  the archived text itself is untouched) and F-11 (GameUI framework
+  repository URL unconfirmed: 404 at both the radioastronomyio and
+  vintagedon org paths, recorded rather than guessed).
+- Interpretation recorded: historical work logs (04-balance-validation)
+  that describe pre-lock values as part of their era's analysis are
+  records, not current-state claims, and were left as written; likewise
+  pre-existing em dashes in untouched prose of files whose sections I
+  edited were left alone. Authored prose in this run's documents contains
+  no em dashes.
+
+**Verification:**
+
+- No document outside historical work logs states a knowledge threshold
+  or starting module count contradicting `data/config.json` (grep clean).
+- `docs/project-brief.md` remains untracked and unmodified; F-09 carries
+  its disposition question.
 

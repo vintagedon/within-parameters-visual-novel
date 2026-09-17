@@ -16,7 +16,7 @@ related_documents:
 ---
 -->
 
-# Complete Run Verification — Gate 4.8 Review Surface
+# Complete Run Verification: Gate 4.8 Review Surface
 
 This is the approval artifact for WP Spec 04 (complete playable run on
 placeholders). Everything below is drawn from the evidence produced by the
@@ -101,7 +101,7 @@ Each finding carries an ID, a statement, file-and-row evidence, and a closed
 question. Confirming or denying the finding is an operator yes/no; follow-up
 work belongs to a future spec.
 
-### F-01 — No live/resolver outcome divergence remains
+### F-01: No live/resolver outcome divergence remains
 
 **Statement.** After gate 4.1, no trait combination produces a live outcome
 that differs from the resolver's.
@@ -116,7 +116,7 @@ were reproduced failing against the pre-change tree and pass now.
 **Closed question.** Accept the 4608/4608 matrix as sufficient evidence that
 the browser and the simulator now agree? (yes/no)
 
-### F-02 — No trait combination deadlocks a run
+### F-02: No trait combination deadlocks a run
 
 **Statement.** All 64 trait combinations complete runs without an
 unreachable or unaffordable choice deadlocking the player.
@@ -129,7 +129,7 @@ Exhausted jitter. Every event carries at least one free, ungated choice.
 **Closed question.** Accept 128/128 as sufficient deadlock evidence?
 (yes/no)
 
-### F-03 — Two audio source files remain absent; nothing blocks a run
+### F-03: Two audio source files remain absent; nothing blocks a run
 
 **Statement.** Exactly two manifest-referenced source files are absent:
 `sfx-click.mp3` and `sfx-alert.mp3`. No portrait or background is missing
@@ -145,7 +145,7 @@ zero failed requests across 37 runs, and zero requests for the sfx paths.
 **Closed question.** Source the two SFX files in the audio pass and keep the
 manifest as is? (yes/no)
 
-### F-04 — Every gated choice is reachable
+### F-04: Every gated choice is reachable
 
 **Statement.** No event contains a choice that is unreachable at every legal
 knowledge value.
@@ -161,7 +161,7 @@ difficulty shape.
 **Closed question.** Accept reachability-by-latest-draw as the standard?
 (yes/no)
 
-### F-05 — The 25-35 minute target is not met; the gap is content volume
+### F-05: The 25-35 minute target is not met; the gap is content volume
 
 **Statement.** A natural run currently exposes roughly 2,100-4,800 dialogue
 characters (median 3,380). At the locked typewriter speed (30 ms/char) that
@@ -180,7 +180,7 @@ retire the target, (b) commission a content expansion spec (more events,
 longer beats, more documents), or (c) slow presentation (typewriter, pacing)
 knowing it pads rather than adds? (a/b/c)
 
-### F-06 — The red comms tier is nearly unreachable at the authored trigger points
+### F-06: The red comms tier is nearly unreachable at the authored trigger points
 
 **Statement.** The red tier's beats (clock 7-9 at trigger) almost never fire
 in natural play. After stop 1 the clock cannot exceed 3 (one tick of at most
@@ -199,7 +199,7 @@ dead.
 **Closed question.** Rebalance the tier bands (for example green 0-2, amber
 3-5, red 6-9) or move a trigger later, in a content spec? (yes/no)
 
-### F-07 — FD-01 names a fixed protagonist under randomized rolls
+### F-07: FD-01 names a fixed protagonist under randomized rolls
 
 **Statement.** The first found document's title and body name "Unit
 Vasquez, M." holding the RELAY-7 credentials. Under randomized protagonists
@@ -213,7 +213,7 @@ every other roll.
 it as an in-world record of a previous RELAY-7 holder (which would need one
 line of framing text)? (slot-ify/keep-with-framing)
 
-### F-08 — Destruction runs reflect the intervention spend in the final inventory
+### F-08: Destruction runs reflect the intervention spend in the final inventory
 
 **Statement.** The outcome is computed and frozen from the arrival state
 (the state the simulator's ending determination sees), then the effective
@@ -232,7 +232,7 @@ cascade, untouched).
 **Closed question.** Confirm this accounting is the intended reading of the
 single-charge rule? (yes/no)
 
-### F-09 — Disposition question for untracked `docs/project-brief.md`
+### F-09: Disposition question for untracked `docs/project-brief.md`
 
 **Statement.** `docs/project-brief.md` is untracked and operator-owned. Per
 the spec it was neither committed, moved, nor deleted by this run.
@@ -242,6 +242,44 @@ no commit in this spec's chain touches it.
 
 **Closed question.** Where should it live: committed into `docs/`, moved to
 the platform docs tree, or left untracked? (commit/move/leave)
+
+### F-10: Spec 03 completion claim retracted
+
+**Statement.** The archived Spec 03 worklog's completion claim that a full
+run plays start to finish is retracted: the natural run in the 2026-09-13
+project review terminated before stop 5. The original text is unchanged in
+the archive; this retraction is the correction of record.
+
+**Evidence.** The claim, quoted verbatim from
+`/opt/agents/repos/work-logs/2026-06-25-wp-worklog-03-roguelike-layer.md`
+(row 56): "A full run plays start to finish with a generated character:
+dossier → lore → journey → ending → graded score, in the neon preset with
+placeholder portraits." Counter-evidence:
+`staging/2026-09-13-project-review/natural-run.json` (`pageErrors:
+["[event-system] No eligible events for stop 5"]`, seed 2027, four-event
+scaffold pool). The cause was a four-event pool against a five-stop
+journey; gate 4.3 filled the approved 12-event pool and every run in the
+table above completes.
+
+**Closed question.** Acknowledge the retraction as the corrected record?
+(yes/no)
+
+### F-11: GameUI framework repository URL unconfirmed
+
+**Statement.** The vendored framework doc names
+`github.com/radioastronomyio/gameui-browser-gaming-framework` as its source
+repository (three references). That URL returns 404, and no live location
+could be confirmed (a `vintagedon` owner was also checked and returns 404).
+Per the spec, the URL is recorded here rather than guessed at.
+
+**Evidence.** `vendor/gameui/VENDORED.md` rows 14, 21, 27. Checks performed
+2026-09-16: both the radioastronomyio and vintagedon org paths return HTTP
+404. (The SpecSmith link was verified live and redirects to
+`vintagedon/specsmith`; it and this repository's own URL were corrected in
+gate 4.9.)
+
+**Closed question.** Provide the framework repository's live URL for a
+follow-up docs correction? (provide/leave)
 
 ## Operator answer record
 
@@ -256,3 +294,5 @@ the platform docs tree, or left untracked? (commit/move/leave)
 | F-07 | FD-01 name handling | |
 | F-08 | Accounting confirmed | |
 | F-09 | project-brief disposition | |
+| F-10 | Retraction acknowledged | |
+| F-11 | Framework URL provided | |

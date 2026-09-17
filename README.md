@@ -72,12 +72,12 @@ The 64 trait combinations (8 positive × 8 negative, modifier-only, no new conte
 | Game Design Document | ✅ Complete | Mechanics locked, balance TBD |
 | Art direction bible | ✅ Complete | Hyperreal digital painting style locked |
 | Engine spec | ✅ Complete | Types, components, data schemas, build order |
-| Engine implementation | ✅ Complete | 22 source files, five bugs patched, functional with placeholders |
+| Engine implementation | ✅ Complete | 24 source files, resolver-wired, single ending authority, functional with placeholders |
 | Storyboard | ✅ Complete | Six-beat narrative structure locked |
 | Character generation | ✅ Complete | Random protagonist, 8+8 traits, scoring cascade |
 | Trait system v2 | ✅ Complete | GDR-validated, post-balance revision |
 | NPC profiles | ✅ Complete | 5 named NPCs + station AI voice guide |
-| Event pool | ✅ Complete | 12 events with dialogue, stat values, reward tables |
+| Event pool | ✅ Complete | 12 production events with M3 dialogue, audited against game_data.py |
 | Supporting content | ✅ Complete | Comms beats, found documents, ending epilogues |
 | Art assets | 🔄 In Progress | Concept drafts complete (10 scenes, 1 UI mockup) |
 | Balance simulator | ✅ Complete | 45M simulated runs, 6/6 validation criteria passed |
@@ -108,7 +108,7 @@ The 64 trait combinations (8 positive × 8 negative, modifier-only, no new conte
 within-parameters-visual-novel/
 ├── 📂 assets/                      # Art, audio, UI assets, repo infographics
 │   └── 📂 concept-artwork/         # NightCafe concept drafts (scenes 01-08, UI mockup)
-├── 📂 data/                        # Game data JSON (config, scenes, events, characters, communities)
+├── 📂 data/                        # Game data JSON (config, scenes, events, documents, comms, characters, communities)
 ├── 📂 docs/
 │   └── 📂 documentation-standards/ # Templates, tagging strategy, writing style guide
 ├── 📂 game-design/                 # GDD, storyboard, art bible, content specs, character gen
@@ -174,7 +174,7 @@ within-parameters-visual-novel/
 
 ```bash
 # Clone
-git clone https://github.com/radioastronomyio/within-parameters-visual-novel.git
+git clone https://github.com/vintagedon/within-parameters-visual-novel.git
 cd within-parameters-visual-novel
 
 # Install dependencies
@@ -199,7 +199,7 @@ Portfolio piece with intentional scope constraints and meaningful systems depth:
 | Run structure | 6 narrative beats + 5 modular journey stops |
 | Endings | 3 (clock loss, destruction, correction) with per-community rapport epilogues |
 | Protagonist variants | 64 trait combinations × 6 backstories × 128 name combos |
-| Event pool | 12 modular events (5 per run), three categories |
+| Event pool | 12 modular events (5 per run), three categories, audited mechanics |
 | NPCs | 5 named characters, station AI voice system |
 | Written content | 8 found documents, 3-tier comms beats, ending epilogues |
 | Environments | ~12-14 backgrounds, ~6-8 character portraits |
@@ -222,4 +222,4 @@ Last Updated: 2026-04-06 | Phase 2: Content Design & Balance
 
 ## Methodology
 
-This project uses the [SpecSmith](https://github.com/radioastronomyio/specsmith) specification methodology. Specs define outcomes and verification criteria; AI coding agents implement from specs. The `spec/` directory contains both the original implementation-prescriptive specs and SpecSmith canonical retrospectives showing what the outcome-driven versions would have looked like. See the [case study](docs/wp-specsmith-case-study.md) for details on how spec-driven development shaped this project.
+This project uses the [SpecSmith](https://github.com/vintagedon/specsmith) specification methodology. Specs define outcomes and verification criteria; AI coding agents implement from specs. The `spec/` directory contains both the original implementation-prescriptive specs and SpecSmith canonical retrospectives showing what the outcome-driven versions would have looked like. See the [case study](docs/wp-specsmith-case-study.md) for details on how spec-driven development shaped this project.

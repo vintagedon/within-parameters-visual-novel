@@ -33,7 +33,7 @@
     [Description of what this invocation does]
 
 .LINK
-    https://github.com/radioastronomyio/within-parameters-visual-novel
+    https://github.com/vintagedon/within-parameters-visual-novel
 #>
 
 # =============================================================================
