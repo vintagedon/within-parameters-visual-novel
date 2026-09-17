@@ -36,7 +36,7 @@ Per-gate checkpoint log. The central worklog (mirroring the spec filename with
 
 ## Gate 4.1: Live choice resolution through the validated resolver
 
-**Commit:** (recorded at closeout)
+**Commit:** 2cf6016
 
 **Changes:**
 
@@ -93,7 +93,7 @@ Per-gate checkpoint log. The central worklog (mirroring the spec filename with
 
 ## Gate 4.2: A single authoritative ending outcome
 
-**Commit:** (recorded at closeout)
+**Commit:** c83b3f3
 
 **Changes:**
 
@@ -157,7 +157,7 @@ Per-gate checkpoint log. The central worklog (mirroring the spec filename with
 
 ## Gate 4.3: The 12-event production pool
 
-**Commit:** (recorded at closeout)
+**Commit:** 499966d
 
 **Changes:**
 
@@ -200,7 +200,7 @@ stop 5 is resolved by filling the pool, not by duplication or fallback
 widening).
 ## Gate 4.4: Found documents
 
-**Commit:** (recorded at closeout)
+**Commit:** bfee4c2
 
 **Changes:**
 
@@ -249,7 +249,7 @@ widening).
 
 ## Gate 4.5: Comms beats
 
-**Commit:** (recorded at closeout)
+**Commit:** e5466e2
 
 **Changes:**
 
@@ -284,7 +284,7 @@ widening).
 
 ## Gate 4.6: Scenes, NPCs, and rapport-modified epilogues
 
-**Commit:** (recorded at closeout)
+**Commit:** 6e70c5b
 
 **Changes:**
 
@@ -335,7 +335,7 @@ widening).
 
 ## Gate 4.7: Asset packaging and save/resume
 
-**Commit:** be5e60b (plus art: baseline re-approval 4e9f199)
+**Commit:** be5e60b
 
 **Changes:**
 
@@ -378,7 +378,7 @@ widening).
 
 ## Gate 4.8: Complete-run verification and review surface
 
-**Commit:** (recorded at closeout)
+**Commit:** fecfb71
 
 **Changes:**
 
@@ -412,7 +412,7 @@ widening).
 
 ## Gate 4.9: Documentation reconciliation
 
-**Commit:** (recorded at closeout)
+**Commit:** ff796e9
 
 **Changes:**
 
@@ -460,3 +460,30 @@ widening).
 - `docs/project-brief.md` remains untracked and unmodified; F-09 carries
   its disposition question.
 
+## Gate 4.10: Closeout
+
+**Consistency pass (re-run at closeout):** `tsc --noEmit` clean; live-path
+checks 28/28; mutation checks discriminate (5 and 2 failing checks);
+event audit 36/36 exact; replay 6/6 criteria with 64/64 combos within 5pp;
+build ships 36/36 source-present manifest assets; preview segment zero
+failed requests by HTTP status; screenshot check all green; the
+complete-run set reproduced identically (11/11 coverage checks, same
+outcomes per seed, including seed 615's red-tier beat).
+
+**Harness note:** the screenshot check showed spurious regressions on
+03/07 while a complete-run browser verification ran concurrently on the
+same host; re-run in isolation it is deterministic and green. Run the
+screenshot check without concurrent browser load.
+
+**Publication:** branch pushed; exactly one pull request carries it,
+unmerged. Central worklog and registry row written; spec archived.
+
+**Archive-path note:** the spec's gate 4.10 text names
+`/opt/agents/repos/spec/2026-06/` as the archive destination while the
+closeout skill derives the month from the filename date (2026-09). The
+spec's explicit instruction was followed; recorded here and in the defect
+register as a spec-internal inconsistency.
+
+**Operator interactions:** none. The run put no question to the operator
+(Attended: No; all decisions were spec-pre-decided or executor-scope and
+are recorded above). An empty record, stated explicitly.
