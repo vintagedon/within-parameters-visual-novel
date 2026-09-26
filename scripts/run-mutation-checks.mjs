@@ -44,6 +44,18 @@ const MUTATIONS = [
     find: /const endingSceneId = `scene-ending-\$\{outcome\.ending\}`;/,
     replace: `const endingSceneId = 'scene-ending-correction'; // mutation: authored routing wins`,
   },
+  {
+    name: 'A1.1 restoreEngine drops the run RNG stream restoration',
+    file: 'src/engine/scene-runner.ts',
+    find: /this\.runRng\?\.setState\(snap\.rngState\);/,
+    replace: `// mutation: RNG stream restoration dropped`,
+  },
+  {
+    name: 'A1.1 restoreEngine drops the Practiced availability restoration',
+    file: 'src/engine/scene-runner.ts',
+    find: /this\.practicedAvailable = snap\.practicedAvailable;/,
+    replace: `// mutation: Practiced availability restoration dropped`,
+  },
 ];
 
 // ─── Runner ───────────────────────────────────────────────────────────────────

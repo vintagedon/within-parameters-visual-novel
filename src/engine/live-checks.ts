@@ -26,7 +26,7 @@ import type {
   EventCategory,
 } from '../types/index';
 import { initNewGame } from './game-state';
-import { SceneRunner, buildSceneRegistry, type SceneRunnerCallbacks, type ChoiceView } from './scene-runner';
+import { SceneRunner, buildSceneRegistry, type SceneRunnerCallbacks, type ChoiceView, type SceneRegistry } from './scene-runner';
 import { buildEffectiveConfig } from './traits';
 import { scoreRun } from './scoring';
 import { initEventPool, drawEvent } from './event-system';
@@ -35,18 +35,31 @@ import { createRunRng } from './run-rng';
 import { allCombinations } from './traits';
 import { applyChoiceEffects } from './resolution';
 import { buildEpilogue } from '../ui/screens';
+import { saveToSlot, loadSlot } from './save-manager';
 import type { RunOutcome, CommunityRunState } from '../types/index';
 
-// ─── Node environment shim (autosave touches localStorage) ───────────────────
+// ─── Node environment shim (real in-memory store: A1.1 saves through
+// ─── SaveManager and resumes from loadSlot, so writes must round-trip) ───────
 
-(globalThis as { localStorage?: Storage }).localStorage = {
-  getItem: () => null,
-  setItem: () => {},
-  removeItem: () => {},
-  clear: () => {},
-  key: () => null,
-  length: 0,
-} as unknown as Storage;
+(globalThis as { localStorage?: Storage }).localStorage = (() => {
+  const store = new Map<string, string>();
+  return {
+    getItem: (k: string) => (store.has(k) ? store.get(k)! : null),
+    setItem: (k: string, v: string) => {
+      store.set(k, String(v));
+    },
+    removeItem: (k: string) => {
+      store.delete(k);
+    },
+    clear: () => {
+      store.clear();
+    },
+    key: (i: number) => Array.from(store.keys())[i] ?? null,
+    get length() {
+      return store.size;
+    },
+  };
+})() as Storage;
 
 // ─── Check framework ──────────────────────────────────────────────────────────
 
@@ -100,11 +113,21 @@ function eventsByCategory(category: EventCategory): EventDef[] {
 
 interface Harness {
   runner: SceneRunner;
+  registry: SceneRegistry;
   queue: Scene[];
   pendingReward: { rewards: unknown[]; onSelect: (index: number) => void } | null;
   ending: { ending: string; state: GameState } | null;
   surfacedDocs: import('../types/index').FoundDocument[];
   commsFired: { afterStop: number; tierId: string; firstLine: string }[];
+  /** Comms beat caught mid-interrupt (hold mode): the save point for the
+   *  comms-window phase. onContinue has NOT been called. */
+  heldComms: { afterStop: number; tierId: string; firstLine: string; onContinue: () => void } | null;
+  /** Found document caught mid-surface (hold mode): the save point for the
+   *  document phase. onContinue has NOT been called (read not yet applied). */
+  heldDoc: { id: string; onContinue: () => void } | null;
+  /** Rewards actually applied through onSelect (not merely offered), so a
+   *  resumed run can be proven not to re-grant one. */
+  grantCount: number;
 }
 
 function makeHarness(opts: {
@@ -116,16 +139,35 @@ function makeHarness(opts: {
   rapport?: number;
   clock?: number;
   runSeed?: number;
+  /** Hold comms interrupts and document surfaces instead of auto-continuing. */
+  hold?: boolean;
   resume?: { state: GameState; engine: import('../types/index').EngineSnapshot };
+  /** Resume from a SaveManager slot exactly as the LOAD path does: fresh
+   *  registry from the repo data, effective config re-derived from the saved
+   *  protagonist (never from literals), stateless RNG, restoreEngine, and —
+   *  when autostart — start(). */
+  resumeSlot?: { slot: import('../types/index').SaveSlot; autostart: boolean };
 }): Harness {
-  const config = buildEffectiveConfig(baseConfig, opts.positive, opts.negative);
+  let config: ReturnType<typeof buildEffectiveConfig>;
   let state: GameState;
-  if (opts.resume) {
+  if (opts.resumeSlot) {
+    const p = opts.resumeSlot.slot.state.protagonist;
+    config =
+      p.positiveTrait && p.negativeTrait
+        ? buildEffectiveConfig(baseConfig, p.positiveTrait, p.negativeTrait)
+        : baseConfig;
+    state = opts.resumeSlot.slot.state;
+  } else if (opts.resume) {
+    config = buildEffectiveConfig(baseConfig, opts.positive, opts.negative);
     state = opts.resume.state;
   } else {
+    config = buildEffectiveConfig(baseConfig, opts.positive, opts.negative);
     state = initNewGame(config);
+    // Stamp the traits onto the run state exactly as deployProtagonist does,
+    // so a saved slot carries the protagonist the effective config came from.
     state = {
       ...state,
+      protagonist: { ...state.protagonist, positiveTrait: opts.positive, negativeTrait: opts.negative },
       stats: {
         ...state.stats,
         consumables: opts.consumables ?? config.startingConsumables,
@@ -140,29 +182,48 @@ function makeHarness(opts: {
   const queue: Scene[] = [];
   let pendingReward: Harness['pendingReward'] = null;
   let ending: Harness['ending'] = null;
+  let heldComms: Harness['heldComms'] = null;
+  let heldDoc: Harness['heldDoc'] = null;
   const surfacedDocs: import('../types/index').FoundDocument[] = [];
   const commsFired: { afterStop: number; tierId: string; firstLine: string }[] = [];
+  let grantCount = 0;
   const callbacks: SceneRunnerCallbacks = {
     onSceneStart: (scene) => {
       queue.push(scene);
     },
     onStateUpdate: () => {},
     onRewardChoice: (rewards, onSelect) => {
-      pendingReward = { rewards, onSelect };
+      pendingReward = {
+        rewards,
+        onSelect: (index: number) => {
+          grantCount++;
+          onSelect(index);
+        },
+      };
     },
     onEnding: (endingType, endingState) => {
       ending = { ending: endingType, state: endingState };
     },
     onCommsInterrupt: (_state, beat, tierId, onContinue) => {
       commsFired.push({ afterStop: beat.afterStop, tierId, firstLine: beat.lines[0]?.text ?? '' });
+      if (opts.hold) {
+        heldComms = { afterStop: beat.afterStop, tierId, firstLine: beat.lines[0]?.text ?? '', onContinue };
+        return;
+      }
       onContinue();
     },
     onFoundDocument: (doc, onContinue) => {
       surfacedDocs.push(doc);
+      if (opts.hold) {
+        heldDoc = { id: doc.id, onContinue };
+        return;
+      }
       onContinue();
     },
   };
-  const runRng = createRunRng(opts.resume ? 0 : (opts.runSeed ?? 12345));
+  const runRng = createRunRng(
+    opts.resume || opts.resumeSlot ? 0 : (opts.runSeed ?? 12345)
+  );
   const runner = new SceneRunner(
     state,
     config,
@@ -175,8 +236,17 @@ function makeHarness(opts: {
   if (opts.resume) {
     runner.restoreEngine(opts.resume.engine);
   }
+  if (opts.resumeSlot) {
+    if (opts.resumeSlot.slot.engine) {
+      runner.restoreEngine(opts.resumeSlot.slot.engine);
+    }
+    if (opts.resumeSlot.autostart) {
+      runner.start();
+    }
+  }
   return {
     runner,
+    registry,
     queue,
     get pendingReward() {
       return pendingReward;
@@ -195,6 +265,15 @@ function makeHarness(opts: {
     },
     get commsFired() {
       return commsFired;
+    },
+    get heldComms() {
+      return heldComms;
+    },
+    get heldDoc() {
+      return heldDoc;
+    },
+    get grantCount() {
+      return grantCount;
     },
   };
 }
@@ -258,6 +337,150 @@ function findChoiceIndex(
 function labelCost(view: ChoiceView): number | null {
   const m = view.label.match(/\[(\d+) modules?\]/);
   return m ? parseInt(m[1]!, 10) : null;
+}
+
+// ─── A1.1: save-phase machinery ───────────────────────────────────────────────
+
+/**
+ * Every phase in which SAVE is enabled during a run (amendment A1.1). The
+ * comms window is on the list — it is the phase whose save could not resume
+ * before this amendment (review finding R1). `reward-pick` and `document`
+ * are UI-unreachable (inset-covering overlays) but exercised at the engine
+ * level so a future UI change cannot silently reintroduce a broken resume;
+ * the phase policy for every entry is recorded in the amendment worklog.
+ */
+const SAVE_PHASES = [
+  'event-choice',
+  'event-consequence',
+  'reward-pick',
+  'document',
+  'comms',
+  'facility-entry',
+  'facility-choice',
+] as const;
+/** Fixture phases extend the UI list: a stop-3 choice point exercises a run
+ *  RNG stream that has already advanced through two stops of draws and ticks. */
+type SavePhase = (typeof SAVE_PHASES)[number] | 'stop3-choice';
+
+/** Events whose draw surfaces a found document at the reward cycle. */
+const documentedEvents = (): EventDef[] =>
+  eventsData.filter((e) => (e.foundDocumentIds ?? []).length > 0);
+
+/** Drives a run from the discovery scene to the named save point and returns
+ *  there. Hold phases (document, comms) leave the callback suspended: the
+ *  runner is exactly in the state a player saving through the real UI would
+ *  produce. Throws when the point is never reached. */
+function driveToSavePhase(h: Harness, phase: SavePhase): void {
+  h.runner.loadScene('scene-discovery-01');
+  for (let guard = 0; guard < 600; guard++) {
+    if (phase === 'comms' && h.heldComms) return;
+    if (phase === 'document' && h.heldDoc) return;
+    if (h.pendingReward) {
+      if (phase === 'reward-pick') return;
+      h.pendingReward.onSelect(1);
+      h.pendingReward = null;
+      continue;
+    }
+    const scene = h.queue.shift();
+    if (!scene) continue;
+    if (scene.choices && scene.choices.length > 0) {
+      if (phase === 'event-choice') return;
+      if (phase === 'stop3-choice' && h.runner.getState().currentStop === 3) return;
+      if (phase === 'facility-choice' && scene.id.startsWith('scene-facility')) return;
+      const views = h.runner.getChoiceViews(scene);
+      const idx = views.findIndex((v) => v.enabled);
+      assert(idx >= 0, `no enabled choice at ${scene.id} en route to ${phase}`);
+      h.runner.selectChoice(scene, idx);
+      if (phase === 'event-consequence') return;
+      continue;
+    }
+    if (phase === 'facility-entry' && scene.id === 'scene-facility-01') return;
+    h.runner.sceneComplete(scene);
+    if (h.runner.getState().activeEventId) h.runner.eventSceneComplete(scene.id);
+  }
+  throw new Error(`never reached the ${phase} save point`);
+}
+
+/** Saves through the real SaveManager surface and returns the loaded slot —
+ *  no assertion compares a value with a clone of itself: every resume check
+ *  reads the slot back out of storage. */
+function saveThroughManager(h: Harness): import('../types/index').SaveSlot {
+  const state = h.runner.getState();
+  saveToSlot(0, state, state.currentScene, state.currentBeat, h.runner.snapshot() ?? undefined);
+  const slot = loadSlot(0);
+  assert(slot !== null, 'SaveManager returned the written slot');
+  assert(slot!.engine !== undefined, 'slot carries an engine snapshot');
+  return slot!;
+}
+
+/** Asserts the restored set of the resume contract against a slot-loaded
+ *  runner: stats, clock, stop, communities, protagonist and traits, the
+ *  effective configuration re-derived from the saved protagonist, RNG state,
+ *  event pool and used ids, Practiced availability, reroll count, and the
+ *  persisted outcome. Snapshot fields are compared before start() so pool
+ *  advancement by the resumed flow cannot mask a restoration defect. */
+function assertRestoredContract(
+  saved: { state: GameState; engine: import('../types/index').EngineSnapshot },
+  h: Harness,
+  label: string
+): void {
+  const a = saved.state;
+  const b = h.runner.getState();
+  eq(b.stats.knowledge, a.stats.knowledge, `${label}: knowledge`);
+  eq(b.stats.consumables, a.stats.consumables, `${label}: consumables`);
+  eq(b.stats.rapport, a.stats.rapport, `${label}: rapport`);
+  eq(b.stats.startingRapport, a.stats.startingRapport, `${label}: startingRapport`);
+  eq(b.clock.current, a.clock.current, `${label}: clock`);
+  eq(b.clock.max, a.clock.max, `${label}: clock max`);
+  eq(b.currentStop, a.currentStop, `${label}: current stop`);
+  eq(b.activeEventId, a.activeEventId, `${label}: active event`);
+  eq(b.eventPhase, a.eventPhase, `${label}: event phase`);
+  eq(b.communities.length, a.communities.length, `${label}: community count`);
+  for (let i = 0; i < a.communities.length; i++) {
+    eq(b.communities[i]!.community.id, a.communities[i]!.community.id, `${label}: community ${i} id`);
+    eq(b.communities[i]!.state, a.communities[i]!.state, `${label}: community ${i} state`);
+    eq(b.communities[i]!.stop, a.communities[i]!.stop, `${label}: community ${i} stop`);
+  }
+  eq(JSON.stringify(b.protagonist), JSON.stringify(a.protagonist), `${label}: protagonist + traits`);
+  eq(b.rerollCount, a.rerollCount, `${label}: reroll count`);
+  eq(JSON.stringify(b.outcome), JSON.stringify(a.outcome), `${label}: persisted outcome`);
+  eq(JSON.stringify(b.usedEventIds), JSON.stringify(a.usedEventIds), `${label}: used event ids`);
+
+  // Effective configuration is derived from the saved protagonist's traits —
+  // the same derivation main.ts performs on LOAD — never from literals. The
+  // fixtures use threshold-modifying P6 so a hardcoded base config fails.
+  const p = a.protagonist;
+  const expected = buildEffectiveConfig(
+    baseConfig,
+    p.positiveTrait as PositiveTraitId,
+    p.negativeTrait as NegativeTraitId
+  );
+  eq(
+    h.runner.getEffectiveConfig().knowledgeThreshold,
+    expected.knowledgeThreshold,
+    `${label}: effective config re-derived from the saved protagonist`
+  );
+
+  // Snapshot restoration, pre-start: RNG stream, Practiced availability, pool.
+  const snap = h.runner.snapshot();
+  assert(snap !== null, `${label}: snapshot available`);
+  eq(snap!.rngState, saved.engine.rngState, `${label}: RNG stream state`);
+  eq(snap!.practicedAvailable, saved.engine.practicedAvailable, `${label}: Practiced availability`);
+  eq(
+    JSON.stringify(snap!.eventPool),
+    JSON.stringify(saved.engine.eventPool),
+    `${label}: event pool state`
+  );
+}
+
+/** Asserts the saved current scene resolves to a registered, renderable scene
+ *  after resume (the R1 failure mode: a stale event-scene id with nothing
+ *  registered renders nothing). */
+function assertSceneRegistered(h: Harness, label: string): void {
+  const id = h.runner.getState().currentScene;
+  const scene = h.registry.scenes.get(id);
+  assert(scene !== undefined, `${label}: current scene ${id} is registered`);
+  assert(Array.isArray(scene!.dialogue), `${label}: scene ${id} is renderable`);
 }
 
 // ─── Gate 4.1 checks ──────────────────────────────────────────────────────────
@@ -436,7 +659,7 @@ function pickFacilityAction(views: ChoiceView[], scene: Scene): number {
 }
 
 /** Drives a facility selection through to the fired ending. */
-function driveFacilityToEnding(h: Harness, knowledge: number, consumables: number): void {
+function driveFacilityToEnding(h: Harness): void {
   const { scene, views } = driveToFacilityChoice(h);
   const idx = pickFacilityAction(views, scene);
   h.runner.selectChoice(scene, idx);
@@ -446,8 +669,6 @@ function driveFacilityToEnding(h: Harness, knowledge: number, consumables: numbe
     if (!s) break;
     h.runner.sceneComplete(s);
   }
-  void knowledge;
-  void consumables;
   throw new Error('ending never fired');
 }
 
@@ -480,7 +701,7 @@ check('4.2 threshold boundary: below / at / above under Clear-Headed', () => {
     const events = eventsByCategory('community');
     const h = makeHarness({ positive: 'P6', negative: 'N4', events, knowledge, consumables: 6 });
     const preState = h.runner.getState();
-    driveFacilityToEnding(h, knowledge, 6);
+    driveFacilityToEnding(h);
     assertSingleOutcomeAuthority(
       h,
       preState,
@@ -500,7 +721,7 @@ check('4.2 knowledge-8 probe: narrative == scored == persisted, outcome non-null
   const h = makeHarness({ positive: 'P6', negative: 'N4', events, knowledge: 8, consumables: 4 });
   const config = h.runner.getEffectiveConfig();
   const preState = h.runner.getState();
-  driveFacilityToEnding(h, 8, 4);
+  driveFacilityToEnding(h);
   assertSingleOutcomeAuthority(h, preState, config, 'knowledge-8 probe');
   const outcome = h.ending!.state.outcome!;
   assert(outcome !== null, 'outcome non-null');
@@ -599,7 +820,7 @@ check('4.2 HUD threshold: display authority == ending authority', () => {
       knowledge,
       consumables: 6,
     });
-    driveFacilityToEnding(hh, knowledge, 6);
+    driveFacilityToEnding(hh);
     eq(
       hh.ending!.ending,
       want,
@@ -918,7 +1139,8 @@ check('4.6 epilogue: helped-heavy vs harmed-heavy differ line for line', () => {
   }
   assert(helped.includes('was already stable when the archive\'s repair drones arrived'), 'helped line text');
   assert(harmed.includes('was too far gone'), 'harmed line text');
-  assert(helped.includes('ignored' as unknown as string) === false || true, 'sanity');
+  assert(!helped.includes('was too far gone'), 'helped-heavy epilogue never carries the harmed line text');
+  assert(!harmed.includes('was already stable'), 'harmed-heavy epilogue never carries the helped line text');
 
   // Line-for-line divergence: same communities, different outcomes, the
   // per-community sentences differ.
@@ -1047,76 +1269,183 @@ function driveToCompletion(
   }
 }
 
-/** Mid-run save, full serialize/deserialize cycle, resume: field-by-field equality. */
-check('4.7 save/resume: restored state matches field by field', () => {
-  const seed = 90210;
-  const h = makeHarness({ positive: 'P2', negative: 'N4', events: eventsData, runSeed: seed });
-  // Drive into stop 3's choice and select it.
-  h.runner.loadScene('scene-discovery-01');
-  let stopsSeen = 0;
-  let saved: { state: GameState; engine: import('../types/index').EngineSnapshot } | null = null;
-  for (let guard = 0; guard < 1000 && !saved; guard++) {
-    if (h.pendingReward) {
-      h.pendingReward.onSelect(1);
-      h.pendingReward = null;
-      continue;
-    }
-    const scene = h.queue.shift();
-    if (!scene) continue;
-    if (scene.choices && scene.choices.length > 0) {
-      const views = h.runner.getChoiceViews(scene);
-      const idx = views.findIndex((v) => v.enabled);
-      if (idx >= 0) {
-        h.runner.selectChoice(scene, idx);
-        if (h.runner.getState().currentStop === 3) {
-          saved = {
-            state: h.runner.getState(),
-            engine: h.runner.snapshot()!,
-          };
-        }
-        continue;
-      }
-    }
-    h.runner.sceneComplete(scene);
-    if (h.runner.getState().activeEventId) h.runner.eventSceneComplete(scene.id);
-    const stop = h.runner.getState().currentStop;
-    if (stop > stopsSeen) stopsSeen = stop;
-  }
-  assert(saved !== null, 'reached a stop-3 save point');
-  const slot = JSON.parse(
-    JSON.stringify({
-      id: 0,
-      label: 'Slot 1',
-      state: saved!.state,
-      savedAt: 0,
-      sceneLabel: 'x',
-      beatLabel: 'y',
-      engine: saved!.engine,
-    })
-  ) as import('../types/index').SaveSlot;
+/**
+ * A1.1 resume contract: for every SAVE-enabled phase, save through the real
+ * SaveManager, discard the runner, rebuild one from the loaded slot exactly
+ * as the LOAD path does, and assert the restored set — stats, clock, stop,
+ * communities, protagonist and traits, the effective configuration
+ * re-derived from the saved protagonist (the fixtures use threshold-
+ * modifying P6 so a hardcoded base config fails), RNG state, event pool and
+ * used ids, Practiced availability, reroll count, persisted outcome, and a
+ * current scene that resolves to a registered, renderable scene. Every phase
+ * then completes to parity with an uninterrupted twin: same ending, score,
+ * grade, and reward-grant count — a second grant is a failure.
+ */
+check('A1.1 save/resume: every SAVE-enabled phase restores field-by-field from a SaveManager slot and completes at twin parity', () => {
+  const notes: string[] = [];
+  const twinA = makeHarness({ positive: 'P6', negative: 'N4', events: eventsData, runSeed: 5150 });
+  driveToCompletion(twinA, 1);
+  assert(twinA.ending !== null, 'twin A (stop-1 phases) ended');
+  const twinComms = makeHarness({ positive: 'P6', negative: 'N4', events: eventsData, runSeed: 5155 });
+  driveToCompletion(twinComms, 1);
+  assert(twinComms.ending !== null, 'twin comms/facility ended');
+  const twinDoc = makeHarness({ positive: 'P6', negative: 'N2', events: documentedEvents(), runSeed: 5160 });
+  driveToCompletion(twinDoc, 1);
+  assert(twinDoc.ending !== null, 'twin document ended');
 
-  const before = saved!.state;
-  const after = slot.state;
-  eq(after.stats.knowledge, before.stats.knowledge, 'knowledge');
-  eq(after.stats.consumables, before.stats.consumables, 'consumables');
-  eq(after.stats.rapport, before.stats.rapport, 'rapport');
-  eq(after.stats.startingRapport, before.stats.startingRapport, 'startingRapport');
-  eq(after.clock.current, before.clock.current, 'clock current');
-  eq(after.clock.max, before.clock.max, 'clock max');
-  eq(after.currentStop, before.currentStop, 'current stop');
-  eq(after.communities.length, before.communities.length, 'community count');
-  for (let i = 0; i < before.communities.length; i++) {
-    eq(after.communities[i]!.community.id, before.communities[i]!.community.id, `community ${i} id`);
-    eq(after.communities[i]!.state, before.communities[i]!.state, `community ${i} state`);
-    eq(after.communities[i]!.stop, before.communities[i]!.stop, `community ${i} stop`);
+  const phaseSpec = (phase: SavePhase): {
+    positive: PositiveTraitId;
+    negative: NegativeTraitId;
+    events: EventDef[];
+    seed: number;
+    twin: Harness;
+  } => {
+    switch (phase) {
+      case 'event-choice':
+      case 'event-consequence':
+      case 'reward-pick':
+        return { positive: 'P6', negative: 'N4', events: eventsData, seed: 5150, twin: twinA };
+      case 'document':
+        return { positive: 'P6', negative: 'N2', events: documentedEvents(), seed: 5160, twin: twinDoc };
+      default:
+        return { positive: 'P6', negative: 'N4', events: eventsData, seed: 5155, twin: twinComms };
+    }
+  };
+
+  for (const phase of SAVE_PHASES) {
+    const spec = phaseSpec(phase);
+    const b = makeHarness({
+      positive: spec.positive,
+      negative: spec.negative,
+      events: spec.events,
+      runSeed: spec.seed,
+      hold: phase === 'document' || phase === 'comms',
+    });
+    driveToSavePhase(b, phase);
+    const grantsBefore = b.grantCount;
+    const slot = saveThroughManager(b);
+    const saved = { state: slot.state, engine: slot.engine! };
+
+    // Discard the runner: everything below comes from the loaded slot.
+    const r = makeHarness({ positive: spec.positive, negative: spec.negative, events: spec.events, resumeSlot: { slot, autostart: false } });
+    assertRestoredContract(saved, r, phase);
+
+    r.runner.start();
+    assertSceneRegistered(r, phase);
+
+    if (phase === 'comms') {
+      // The interrupted beat re-fires and the run continues — the reward
+      // already taken before the save must not be granted again.
+      eq(r.commsFired.length, 1, 'comms: the interrupted beat re-fires on resume');
+      eq(r.commsFired[0]!.afterStop, b.heldComms!.afterStop, 'comms: same beat');
+      eq(r.commsFired[0]!.tierId, b.heldComms!.tierId, 'comms: same tier');
+    }
+    if (phase === 'document') {
+      // The reloaded reward scene must be pumped through completion for the
+      // surface to re-fire (the harness has no auto-advance).
+      for (let guard = 0; guard < 100 && r.surfacedDocs.length === 0 && !r.pendingReward; guard++) {
+        const s = r.queue.shift();
+        if (!s) break;
+        r.runner.sceneComplete(s);
+        if (r.runner.getState().activeEventId) r.runner.eventSceneComplete(s.id);
+      }
+      eq(r.surfacedDocs.length, 1, 'document: the unread document re-surfaces once');
+      eq(r.heldDoc, null, 'document: surface is not re-held after resume');
+    }
+
+    driveToCompletion(r, 1, false);
+    assert(r.ending !== null, `${phase}: resumed run reached an ending`);
+    eq(r.ending!.ending, spec.twin.ending!.ending, `${phase}: ending parity`);
+    eq(r.ending!.state.outcome!.finalScore, spec.twin.ending!.state.outcome!.finalScore, `${phase}: score parity`);
+    eq(r.ending!.state.outcome!.grade, spec.twin.ending!.state.outcome!.grade, `${phase}: grade parity`);
+    eq(
+      grantsBefore + r.grantCount,
+      spec.twin.grantCount,
+      `${phase}: reward-grant count preserved (no re-grant)`
+    );
+    notes.push(
+      `${phase}: stop ${saved.state.currentStop}, ${spec.twin.ending!.ending} @ ${spec.twin.ending!.state.outcome!.finalScore}, grants ${grantsBefore}+${r.grantCount}`
+    );
   }
-  eq(JSON.stringify(after.protagonist), JSON.stringify(before.protagonist), 'protagonist (traits incl.)');
-  eq(after.rerollCount, before.rerollCount, 'reroll count');
-  eq(after.outcome, before.outcome, 'persisted outcome');
-  eq(JSON.stringify(after.usedEventIds), JSON.stringify(before.usedEventIds), 'used events');
-  const eff = buildEffectiveConfig(baseConfig, 'P2', 'N4');
-  eq(eff.knowledgeThreshold, buildEffectiveConfig(baseConfig, 'P2', 'N4').knowledgeThreshold, 'effective config re-derived');
-  return `stop ${before.currentStop} slot round-trips with all fields intact`;
+  return `phases [${SAVE_PHASES.join(', ')}]: ${notes.length} resumed runs at twin parity — ${notes.join(' | ')}`;
+});
+
+/** Advanced-RNG fixture: with Exhausted's raised jitter the stream advances
+ *  through two stops of ticks before the save; the restored runner must sit
+ *  at the exact stream position and finish at the twin's outcome. */
+check('A1.1 save/resume: advanced-RNG fixture restores the exact stream position', () => {
+  const spec: { positive: PositiveTraitId; negative: NegativeTraitId; seed: number } = {
+    positive: 'P5',
+    negative: 'N7',
+    seed: 60507,
+  };
+  const twin = makeHarness({ positive: spec.positive, negative: spec.negative, events: eventsData, runSeed: spec.seed });
+  driveToCompletion(twin, 1);
+  assert(twin.ending !== null, 'RNG twin ended');
+
+  const b = makeHarness({ positive: spec.positive, negative: spec.negative, events: eventsData, runSeed: spec.seed });
+  driveToSavePhase(b, 'stop3-choice');
+  const grantsBefore = b.grantCount;
+  const slot = saveThroughManager(b);
+  const saved = { state: slot.state, engine: slot.engine! };
+
+  const r = makeHarness({ positive: spec.positive, negative: spec.negative, events: eventsData, resumeSlot: { slot, autostart: false } });
+  assertRestoredContract(saved, r, 'rng-fixture');
+  eq(
+    r.runner.snapshot()!.rngState,
+    saved.engine.rngState,
+    'rng-fixture: stream position restored exactly'
+  );
+  r.runner.start();
+  assertSceneRegistered(r, 'rng-fixture');
+  driveToCompletion(r, 1, false);
+  assert(r.ending !== null, 'rng-fixture: resumed run ended');
+  eq(r.ending!.ending, twin.ending!.ending, 'rng-fixture: ending parity');
+  eq(r.ending!.state.outcome!.finalScore, twin.ending!.state.outcome!.finalScore, 'rng-fixture: score parity');
+  eq(grantsBefore + r.grantCount, twin.grantCount, 'rng-fixture: grant count preserved');
+  return `saved at stop ${saved.state.currentStop} with rngState ${saved.engine.rngState}; resumed to ${r.ending!.ending} @ ${r.ending!.state.outcome!.finalScore}`;
+});
+
+/** Practiced fixture: the discount is consumed by a stop-1 spend, the save is
+ *  taken mid-consequence, and the resumed runner must restore the consumed
+ *  state — dropping Practiced restoration makes this exact assertion fail. */
+check('A1.1 save/resume: Practiced fixture restores the consumed-discount state', () => {
+  const spec: { positive: PositiveTraitId; negative: NegativeTraitId; seed: number } = {
+    positive: 'P8',
+    negative: 'N2',
+    seed: 60511,
+  };
+  const twin = makeHarness({ positive: spec.positive, negative: spec.negative, events: eventsData, runSeed: spec.seed, consumables: 9 });
+  const first = driveToChoiceScene(twin);
+  const idxT = findChoiceIndex(first.scene, (c) => (c.statChanges?.consumables ?? 0) < 0 && !c.condition);
+  twin.runner.selectChoice(first.scene, idxT);
+  driveToCompletion(twin, 1, false);
+  assert(twin.ending !== null, 'Practiced twin ended');
+
+  const b = makeHarness({ positive: spec.positive, negative: spec.negative, events: eventsData, runSeed: spec.seed, consumables: 9 });
+  const stop1 = driveToChoiceScene(b);
+  const idx = findChoiceIndex(stop1.scene, (c) => (c.statChanges?.consumables ?? 0) < 0 && !c.condition);
+  b.runner.selectChoice(stop1.scene, idx);
+  eq(b.runner.snapshot()!.practicedAvailable, false, 'discount consumed by the stop-1 spend');
+  const grantsBefore = b.grantCount;
+  const slot = saveThroughManager(b);
+  const saved = { state: slot.state, engine: slot.engine! };
+
+  const r = makeHarness({ positive: spec.positive, negative: spec.negative, events: eventsData, consumables: 9, resumeSlot: { slot, autostart: false } });
+  assertRestoredContract(saved, r, 'practiced-fixture');
+  eq(
+    r.runner.snapshot()!.practicedAvailable,
+    false,
+    'practiced-fixture: consumed-discount state restored (fails if restoration is dropped)'
+  );
+  r.runner.start();
+  assertSceneRegistered(r, 'practiced-fixture');
+  driveToCompletion(r, 1, false);
+  assert(r.ending !== null, 'practiced-fixture: resumed run ended');
+  eq(r.ending!.ending, twin.ending!.ending, 'practiced-fixture: ending parity');
+  eq(r.ending!.state.outcome!.finalScore, twin.ending!.state.outcome!.finalScore, 'practiced-fixture: score parity');
+  eq(grantsBefore + r.grantCount, twin.grantCount, 'practiced-fixture: grant count preserved');
+  return `saved after the discount was consumed; resumed run restored practicedAvailable=false and matched the twin`;
 });
 
 /** Same-seed parity: a save+resume run scores exactly what the uninterrupted run scored. */

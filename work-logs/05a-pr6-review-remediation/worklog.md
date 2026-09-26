@@ -1,0 +1,134 @@
+<!--
+---
+title: "PR 6 Review Remediation Worklog"
+description: "Per-gate checkpoint worklog for WP spec 04 amendment A (PR 6 review remediation); mirrored to the central worklog at closeout"
+author: "executor agent"
+date: "2026-09-26"
+version: "1.0"
+status: "active"
+tags:
+  - type: worklog
+  - domain: [engine, content, verification]
+  - tech: [typescript, json, playwright]
+# --- Runtime Context (required) ---
+agent: "kilo"
+runtime: "kilo"
+runtime_version: "kilo"
+model: "kilo/zai-coding/glm-5.3"
+hostname: "ml01"
+spec_ref: "spec/2026-09 (active queue; archive destination spec/2026-06/2026-09-26-wp-spec-04a-pr6-review-remediation.md per gate A1.8)"
+repo: "within-parameters-visual-novel"
+category: "game-design"
+# --- Token Usage and Cost ---
+token_usage_source: "unavailable"
+---
+
+# Worklog: WP Spec 04 Amendment A — PR 6 Review Remediation
+
+Branch: `agent/wp-spec-04-complete-playable-run` (parent's branch, reused per
+the amendment's startup exception; PR 6 open against `main`). Starting head:
+`c1e19e0` (confirmed exact match at startup). Base for the parent branch:
+`2272814`. Working tree clean except the known untracked operator-owned
+`docs/project-brief.md`, untouched.
+
+Independent review evidence used as cross-check only (gitignored, not
+committed, not cited as authority): `staging/2026-09-17-pr6-review/`.
+
+## SAVE-phase enumeration (A1.1 input, recorded before the checks)
+
+SAVE lives in the journey HUD sidebar (`#hud-save`). It is reachable exactly
+when the sidebar is visible and no inset-covering overlay is up:
+
+| # | Phase | SAVE reachable? | Mechanism |
+|---|-------|-----------------|-----------|
+| 1 | Event dialogue — arriving / situation (mid-event, before a choice) | yes | bottom-bar advance leaves sidebar free |
+| 2 | Event choice point | yes | choices render in the bottom bar |
+| 3 | Consequence dialogue (after a choice, before reward selection) | yes | bottom-bar advance |
+| 4 | Reward selection | no | `#reward-overlay` is `position: fixed; inset: 0` and covers the sidebar |
+| 5 | Found document | no | `#document-overlay` is `position: fixed; inset: 0` and covers the sidebar |
+| 6 | Comms window (after a reward, before the next stop draws) | yes | `#comms-overlay` is a 320 px corner panel; sidebar stays free |
+| 7 | Facility scenes (entry, confrontation choices, consequence) | yes | journey HUD scenes |
+| 8 | Ending screen | no | `onEnding` switches the layout to fullscreen; HUD hidden |
+| — | Chargen dossier | no | fullscreen layout before the HUD exists |
+
+Phases 4 and 5 are listed for completeness: the UI never offers SAVE there
+(inset-covering overlays), and the engine-level check still proves a save
+taken in those states resumes correctly, so a future UI change cannot
+reintroduce the defect silently.
+
+## Gate A1.1: A resume check that can fail
+
+**Changes.**
+
+- `src/engine/live-checks.ts`: the Node localStorage shim is now a real
+  in-memory store so `SaveManager` writes round-trip. The clone-only "restored
+  state matches field by field" check (which compared a JSON clone of a save
+  with its own source and never built a runner) is replaced by a real resume
+  suite:
+  - `A1.1 save/resume: every SAVE-enabled phase restores field-by-field from
+    a SaveManager slot and completes at twin parity` — for each phase in
+    `SAVE_PHASES`: drive to the phase point, save through `saveToSlot`, load
+    back through `loadSlot`, discard the runner, rebuild one exactly as the
+    LOAD path does (fresh registry, effective config re-derived from the
+    saved protagonist, stateless RNG, `restoreEngine`), assert the restored
+    set (stats, clock, stop, communities, protagonist and traits, effective
+    config re-derivation, RNG state, pool and used ids, Practiced
+    availability, reroll count, persisted outcome, registered renderable
+    current scene), then complete to parity with an uninterrupted twin
+    (ending, score, grade, and reward-grant count — a second grant fails).
+  - `A1.1 save/resume: advanced-RNG fixture restores the exact stream
+    position` (P5/N7 Exhausted jitter, saved at a stop-3 choice) and
+    `A1.1 save/resume: Practiced fixture restores the consumed-discount
+    state` (P8/N2, saved after the discount was consumed). Both pass
+    unmutated; dropping the respective restoration makes the same check fail.
+  - Fixture phases stamp the traits onto the run state exactly as
+    `deployProtagonist` does, so slots carry the protagonist the config came
+    from.
+- Dead assertions removed per the amendment: the always-true
+  `... || true` sanity line at the 4.6 epilogue check (replaced with two
+  assertions that can fail), the tautological
+  `buildEffectiveConfig(baseConfig,'P2','N4')` self-comparison (the whole
+  clone-only check it lived in is gone), and the dead `knowledge`/
+  `consumables` parameters of `driveFacilityToEnding`. A search for `|| true`
+  and for self-comparisons of pure calls returns nothing.
+- `scripts/run-mutation-checks.mjs`: two mutations added — dropping the RNG
+  stream restoration and dropping the Practiced availability restoration in
+  `restoreEngine`. Verified by hand on scratch copies: the RNG mutation fails
+  `advanced-RNG fixture restores the exact stream position`; the Practiced
+  mutation fails `Practiced fixture restores the consumed-discount state`.
+- `tests/resume_check.py` (new): browser-level resume check on the production
+  build through real controls only — HUD SAVE, reload, LOAD GAME, CONFIRM,
+  and CONTINUE from the discovery-scene autosave. Asserts per phase: journey
+  layout (no `fullscreen`), sidebar, clock, stats, route, and SAVE visible;
+  saved HUD readings restored; an actionable continuation (dialogue/choices/
+  comms overlay) that advances when acted on.
+
+**Discriminating evidence against the pre-A1.2 tree (recorded before any
+A1.2 repair):**
+
+- Engine-level: the phase suite fails at exactly the comms window —
+  `comms: current scene evt-ce02-reward is registered` — the R1 stale
+  event-scene id with nothing registered in a fresh registry. Every other
+  phase (including reward-pick and document at the engine level) passes, and
+  the twin-parity assertions hold where resume works.
+- Browser-level (seed 555555, production build):
+  `event-choice` and `event-consequence` fail with
+  `#game-container still fullscreen after load`, and the comms phase fails
+  the same way at 2560x1440 (the viewport the independent review used to
+  reach the occluded SAVE control) — R2. `facility-entry` and
+  `autosave-continue` pass pre-repair because `scene-facility-01` and
+  `scene-discovery-01` carry `showGameUI`, which restores the layout on
+  scene start; R2 is specific to event-scene resumes, and both entry points
+  are still guarded by the check so a regression cannot slip through.
+- Harness note: at the 1440x900 harness viewport the corner comms panel
+  physically occludes the sidebar SAVE control, so the comms phase is
+  exercised at 2560x1440 and recorded here. Reward-pick and document are not
+  exercisable through real controls at any viewport (inset-covering
+  overlays); they are exercised at the engine level.
+
+**Verification at the gate boundary:** `tsc --noEmit` clean;
+`npm run test:live` 29/30 with only the expected comms-phase failure;
+`npm run test:mutation` 4/4 mutations discriminate;
+`npm run replay` 6/6; `npm run build` clean.
+
+**Commit:** (recorded after commit)
