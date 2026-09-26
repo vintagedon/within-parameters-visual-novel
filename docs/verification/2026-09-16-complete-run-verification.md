@@ -296,3 +296,91 @@ follow-up docs correction? (provide/leave)
 | F-09 | project-brief disposition | |
 | F-10 | Retraction acknowledged | |
 | F-11 | Framework URL provided | |
+
+---
+
+# Amendment A (PR 6 review remediation) — updates to this review surface
+
+This section is appended by WP Spec 04 Amendment A
+(`2026-09-26-wp-spec-04a-pr6-review-remediation`), which executes on the same
+branch and updates PR 6 in place. The body above is the gate 4.8 surface as
+it stood at the parent's closeout; restatements below supersede it where they
+conflict. Executor-authored bridging prose is marked as such wherever it
+appears.
+
+## A1.3: Ending narrative coherence (withdrawal path)
+
+**Reachable facility states.** Derived from the effective configuration
+(`knowledgeThreshold` and `consumableFixCost` — no authored literals; e.g.
+Clear-Headed moves the threshold to 10, Fragile Kit the fix cost to 3):
+
+| State (knowledge / modules) | correct | shutdown | withdraw | Outcome if withdrawn |
+|---|---|---|---|---|
+| k ≥ T, m ≥ F | enabled | disabled ("correction is executable") | disabled | — (correction) |
+| k < T, m ≥ F | disabled | enabled | disabled | — (destruction, via the shutdown gate) |
+| k ≥ T, m < F | disabled | disabled | **enabled** | destruction |
+| k < T, m < F | disabled | disabled | **enabled** | destruction |
+
+Withdrawal is reachable in exactly two states, and the locked outcome
+derivation routes both to destruction. The prior single withdrawal text made
+two claims false or contradictory in those states: "no documentation strong
+enough to argue scope" (false when knowledge ≥ threshold) and "the archive
+keeps processing, within parameters" (contradicted by the destruction
+narrative that follows: "The archive core went offline at 0347"). The
+runner now selects the withdrawal gate scene from the knowledge-above-
+threshold boolean; both variants carry `determineEnding` and route through
+the unchanged persisted outcome.
+
+**Variant 1 — informed withdrawal (k ≥ T, m < F; scene
+`scene-confrontation-withdraw-informed`; prose is executor-authored: M3 is
+silent on this state):**
+
+> You stand in front of the terminal holding the argument that would end
+> this, and no way to hand it over. The correction wants bypass modules to
+> bridge its maintenance circuit, and your kit went out keeping stations
+> alive on the way here.
+>
+> "I know exactly what's wrong with you. I just can't afford to fix it."
+>
+> You log out of the terminal, mark the rack row where it lives, and start
+> the long walk back up the way you came.
+
+**Variant 2 — uninformed withdrawal (k < T, m < F; scene
+`scene-confrontation-withdraw-gate`; revised from the M3-era text — the
+revision is executor-authored):**
+
+> You stand in front of the terminal with nothing that can act on it. You
+> don't have the documentation to argue whatever is wrong with this place,
+> and you don't have the components to force anything. You mark what you
+> found and fall back toward the surface.
+>
+> "I got here. That's all I got."
+
+**The ending narrative both variants lead to** (unchanged M3-authored
+destruction scene and epilogue base):
+
+> The archive core went offline at 0347. The salvage signal stopped
+> mid-packet.
+>
+> [epilogue] The archive core went offline. The salvage signal stopped. The
+> relay network stabilized within hours, but the nodes that had already been
+> stripped were gone. […]
+
+Neither variant asserts continued processing, and neither names a cause the
+ending contradicts: the documentation claim now appears only in the state
+where it is true (knowledge below the effective threshold), and the informed
+state says truthfully that the correction is unaffordable in modules.
+
+**R3 reproduction (verified).** P2/N2, RNG seed 22 from the discovery
+scene, legal choices: the facility is reached at knowledge 13, modules 1,
+clock 6 (the review's exact state; effective threshold 11, fix cost 2). It
+now renders the informed withdrawal gate and ends in destruction — no
+documentation-inadequacy claim, no keeps-processing claim. A second legal
+run (P5/N2, seed 22, clock-reduction rewards with spend-first choices)
+reaches the uninformed state (knowledge 8, modules 1) and renders the
+uninformed gate to the same coherent ending. Both are live-path checks in
+`npm run test:live`; the keep-processing phrase survives nowhere in
+`data/scenes.json`.
+
+**Closed question.** Approve the two withdrawal variants as the corrected
+record for the review's R3? (yes/no)

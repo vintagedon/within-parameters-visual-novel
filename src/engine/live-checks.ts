@@ -1469,6 +1469,178 @@ check('A1.1 save/resume: Practiced fixture restores the consumed-discount state'
   return `saved after the discount was consumed; resumed run restored practicedAvailable=false and matched the twin`;
 });
 
+// ─── A1.3: ending narrative coherence ────────────────────────────────────────
+
+/** Drives a full legal run from the discovery scene to the withdrawal gate,
+ *  choosing the withdrawal action (enabled only when nothing else is
+ *  executable), and returns the rendered gate scene. `spend` prefers the
+ *  heaviest module spend with the lowest knowledge gain, so a low-knowledge
+ *  low-module state is reachable by legal choices. */
+function driveToWithdrawGate(
+  h: Harness,
+  rewardIndex: number,
+  choicePolicy: 'first' | 'spend'
+): { gate: Scene; text: string } {
+  h.runner.loadScene('scene-discovery-01');
+  for (let guard = 0; guard < 3000; guard++) {
+    if (h.pendingReward) {
+      h.pendingReward.onSelect(rewardIndex);
+      h.pendingReward = null;
+      continue;
+    }
+    const scene = h.queue.shift();
+    if (!scene) continue;
+    if (scene.id.startsWith('scene-confrontation-withdraw')) {
+      return {
+        gate: scene,
+        text: scene.dialogue.map((l) => l.text).join('\n'),
+      };
+    }
+    if (scene.choices && scene.choices.length > 0) {
+      const views = h.runner.getChoiceViews(scene);
+      let idx = views.findIndex((v) => v.enabled);
+      if (choicePolicy === 'spend') {
+        let best = -1;
+        let bestSpend = 1;
+        let bestKnowledge = 99;
+        for (let i = 0; i < scene.choices.length; i++) {
+          if (!views[i]!.enabled) continue;
+          const spend = scene.choices[i]!.statChanges?.consumables ?? 0;
+          const gain = scene.choices[i]!.statChanges?.knowledge ?? 0;
+          if (spend < bestSpend || (spend === bestSpend && gain < bestKnowledge)) {
+            bestSpend = spend;
+            bestKnowledge = gain;
+            best = i;
+          }
+        }
+        if (best >= 0) idx = best;
+      }
+      if (idx >= 0) {
+        h.runner.selectChoice(scene, idx);
+        continue;
+      }
+    }
+    h.runner.sceneComplete(scene);
+    if (h.runner.getState().activeEventId) h.runner.eventSceneComplete(scene.id);
+  }
+  throw new Error('never reached a withdrawal gate');
+}
+
+/** Completes the withdrawal gate (its determineEnding flag computes and
+ *  persists the outcome), drives through the routed ending scene, and
+ *  returns the ending with the rendered scene text. */
+function driveWithdrawToEnding(h: Harness, gate: Scene): { ending: string; text: string } {
+  let endingScene: Scene | null = null;
+  h.runner.sceneComplete(gate);
+  for (let guard = 0; guard < 300 && !h.ending; guard++) {
+    const scene = h.queue.shift();
+    if (!scene) continue;
+    if (scene.id.startsWith('scene-ending-')) {
+      if (!endingScene) endingScene = scene;
+    }
+    h.runner.sceneComplete(scene);
+  }
+  assert(h.ending !== null, 'withdrawal run reached an ending');
+  assert(endingScene !== null, 'an ending scene rendered');
+  return { ending: h.ending!.ending, text: endingScene!.dialogue.map((l) => l.text).join('\n') };
+}
+
+/** The facility action grid is the effective config's, not literals: with a
+ *  threshold-modifying and a cost-modifying trait, the four (knowledge,
+ *  modules) states enable exactly the actions their booleans allow. */
+check('A1.3 facility: the action grid resolves from the effective config', () => {
+  const eff = buildEffectiveConfig(baseConfig, 'P6', 'N6');
+  const T = eff.knowledgeThreshold;
+  const F = eff.consumableFixCost;
+  eq(T, 10, 'Clear-Headed lowers the effective threshold');
+  eq(F, 3, 'Fragile Kit raises the effective repair cost');
+
+  const states: Array<{ k: number; m: number; enabled: string[] }> = [
+    { k: T, m: F, enabled: ['correct'] },
+    { k: T - 1, m: F, enabled: ['shutdown'] },
+    { k: T, m: F - 1, enabled: ['withdraw'] },
+    { k: T - 1, m: F - 1, enabled: ['withdraw'] },
+  ];
+  for (const s of states) {
+    const h = makeHarness({
+      positive: 'P6',
+      negative: 'N6',
+      events: eventsData,
+      knowledge: s.k,
+      consumables: s.m,
+      clock: 0,
+    });
+    const { scene, views } = driveToFacilityChoice(h);
+    const actions = (scene.choices ?? [])
+      .map((c, i) => ({ action: c.facilityAction!, view: views[i]! }))
+      .filter((x) => x.view.enabled)
+      .map((x) => x.action);
+    eq(
+      JSON.stringify(actions),
+      JSON.stringify(s.enabled),
+      `k${s.k}/m${s.m} (T ${T}, F ${F}) enables ${s.enabled.join('+')}`
+    );
+  }
+  return `grid k<T.., m<F.. under T ${T} / F ${F}: correction, shutdown, and two withdrawal states`;
+});
+
+/** The R3 reproduction: P2/N2, seed 22 from the discovery scene, legal
+ *  choices — the facility is reached at knowledge above the effective
+ *  threshold with modules below the effective repair cost. The withdrawal
+ *  text must not claim inadequate documentation (false here) and must not
+ *  claim the archive keeps processing (the ending narrative that follows
+ *  says it went offline). */
+check('A1.3 withdrawal: the informed state (R3) reads truthfully to a coherent destruction', () => {
+  const h = makeHarness({ positive: 'P2', negative: 'N2', events: eventsData, runSeed: 22 });
+  const T = h.runner.getEffectiveConfig().knowledgeThreshold;
+  const F = h.runner.getEffectiveConfig().consumableFixCost;
+  const { gate, text } = driveToWithdrawGate(h, 1, 'first');
+  eq(gate.id, 'scene-confrontation-withdraw-informed', 'the informed withdrawal gate renders');
+  const state = h.runner.getState();
+  assert(state.stats.knowledge >= T, `reached withdrawal with knowledge ${state.stats.knowledge} >= effective threshold ${T}`);
+  assert(state.stats.consumables < F, `reached withdrawal with modules ${state.stats.consumables} < effective fix cost ${F}`);
+  assert(!/documentation/i.test(text), 'no documentation-inadequacy claim above the threshold');
+  assert(!/keeps processing/i.test(text), 'no keeps-processing claim in the withdrawal text');
+  const result = driveWithdrawToEnding(h, gate);
+  eq(result.ending, 'destruction', 'the persisted outcome routes destruction');
+  assert(/went offline/i.test(result.text), 'the ending narrative says the archive went offline');
+  return `k${state.stats.knowledge}/m${state.stats.consumables}: informed gate, coherent destruction ending`;
+});
+
+/** The other withdrawal-reachable state: knowledge below the effective
+ *  threshold and modules below the effective repair cost, by legal choices.
+ *  Only here does the documentation-inadequacy claim appear, and the
+ *  keeps-processing claim appears nowhere. */
+check('A1.3 withdrawal: the uninformed state carries the documentation claim, ends coherently', () => {
+  const h = makeHarness({ positive: 'P5', negative: 'N2', events: eventsData, runSeed: 22 });
+  const T = h.runner.getEffectiveConfig().knowledgeThreshold;
+  const F = h.runner.getEffectiveConfig().consumableFixCost;
+  const { gate, text } = driveToWithdrawGate(h, 2, 'spend');
+  eq(gate.id, 'scene-confrontation-withdraw-gate', 'the uninformed withdrawal gate renders');
+  const state = h.runner.getState();
+  assert(state.stats.knowledge < T, `reached withdrawal with knowledge ${state.stats.knowledge} < effective threshold ${T}`);
+  assert(state.stats.consumables < F, `reached withdrawal with modules ${state.stats.consumables} < effective fix cost ${F}`);
+  assert(/documentation/i.test(text), 'documentation-inadequacy claim present below the threshold');
+  assert(!/keeps processing/i.test(text), 'no keeps-processing claim in the withdrawal text');
+  const result = driveWithdrawToEnding(h, gate);
+  eq(result.ending, 'destruction', 'the persisted outcome routes destruction');
+  assert(/went offline/i.test(result.text), 'the ending narrative says the archive went offline');
+  return `k${state.stats.knowledge}/m${state.stats.consumables}: uninformed gate, coherent destruction ending`;
+});
+
+/** The contradiction is gone from the content itself: no dialogue anywhere
+ *  in scenes.json claims the archive keeps processing. */
+check('A1.3 content: no keeps-processing claim survives in any scene', () => {
+  for (const scene of scenesData) {
+    for (const line of scene.dialogue) {
+      assert(!/keeps processing/i.test(line.text), `${scene.id} still claims the archive keeps processing`);
+    }
+  }
+  return 'no scene text claims the archive keeps processing';
+});
+
+
+
 // ─── A1.2: save and resume repairs ───────────────────────────────────────────
 
 /** A save pooling an event id that is absent from the loaded data degrades:

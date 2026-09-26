@@ -922,10 +922,26 @@ export class SceneRunner {
    * charged exactly once, here at the point of repair. No ending path or
    * score breakdown deducts it again: the breakdown was already frozen into
    * the persisted outcome, computed against the arrival state.
+   *
+   * The withdrawal gate scene is chosen from the two effective-config
+   * booleans the facility choice views already resolve: whether knowledge
+   * meets the effective correction threshold. The text a withdrawing player
+   * reads must not assert a false cause — a protagonist who carries the
+   * documentation reads a different scene from one who does not (amendment
+   * A1.3). The outcome derivation itself is untouched: both variants carry
+   * determineEnding and route through the same persisted outcome.
    */
   private selectFacilityAction(choice: Choice): void {
     const fixCost = this.config.consumableFixCost;
     const charges = choice.facilityAction === 'correct' || choice.facilityAction === 'shutdown';
+
+    let nextScene = choice.nextScene;
+    if (choice.facilityAction === 'withdraw') {
+      const informed = this.state.stats.knowledge >= this.config.knowledgeThreshold;
+      nextScene = informed
+        ? 'scene-confrontation-withdraw-informed'
+        : 'scene-confrontation-withdraw-gate';
+    }
 
     this.persistedOutcome();
     if (charges) {
@@ -933,6 +949,6 @@ export class SceneRunner {
     }
 
     this.callbacks.onStateUpdate(this.state);
-    this.loadScene(choice.nextScene);
+    this.loadScene(nextScene);
   }
 }

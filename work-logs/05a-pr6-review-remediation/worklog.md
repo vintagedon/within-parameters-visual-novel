@@ -207,3 +207,55 @@ the behavior under test).
 production build.
 
 **Commit:** (recorded after commit)
+
+## Gate A1.3: Ending narrative coherence
+
+**Reachable facility states** (derived from the effective configuration, not
+literals — the live check reads `knowledgeThreshold` and `consumableFixCost`
+off the runner's config and asserts the grid under Clear-Headed (T 10) and
+Fragile Kit (F 3)):
+
+| State | Actions enabled | Outcome if withdrawn |
+|---|---|---|
+| k ≥ T, m ≥ F | correction | — (correction) |
+| k < T, m ≥ F | shutdown | — (destruction via shutdown gate) |
+| k ≥ T, m < F | **withdraw** | destruction (informed variant) |
+| k < T, m < F | **withdraw** | destruction (uninformed variant) |
+
+Withdrawal is reachable in exactly two states; both route to the destruction
+ending through the unchanged persisted outcome.
+
+**Repairs.**
+
+- `data/scenes.json`: the withdrawal gate's documentation-inadequacy claim
+  and its "the archive keeps processing, within parameters" claim are gone.
+  The existing `scene-confrontation-withdraw-gate` keeps (corrected) text
+  for the uninformed state; a new `scene-confrontation-withdraw-informed`
+  carries text for the informed state. Both are executor-authored bridging
+  prose — M3 and the GDD are silent on withdrawal-state variants — and are
+  quoted in the review surface for the operator's read, marked as such.
+- `src/engine/scene-runner.ts`: `selectFacilityAction` routes the withdraw
+  action to the informed or uninformed gate scene from the same
+  knowledge-above-threshold boolean the choice views already resolve. The
+  outcome derivation (pre-charge persistence, single charge) is untouched;
+  no threshold, cost, outcome rule, or scoring constant changed.
+
+**Checks added** (`src/engine/live-checks.ts`): the facility action grid
+derived from the effective config; the R3 reproduction (P2/N2, seed 22 from
+the discovery scene — facility at knowledge 13, modules 1: informed gate, no
+false claims, coherent destruction ending); the uninformed state (P5/N2,
+seed 22, clock-reduction rewards with spend-first choices — facility at
+knowledge 8, modules 1: documentation claim present, coherent destruction
+ending); and a content check that no scene anywhere claims the archive
+"keeps processing".
+
+**Review surface:** A1.3 section added to
+`docs/verification/2026-09-16-complete-run-verification.md` quoting both
+variants and the ending narrative they lead to, with executor-authored prose
+marked, and a closed question for the operator.
+
+**Verification:** `tsc --noEmit` clean; `npm run test:live` 38/38;
+`npm run test:mutation` 4/4; `npm run replay` 6/6; `npm run audit:events`
+36/36; `tests/resume_check.py` 9/9; `npm run build` clean.
+
+**Commit:** (recorded after commit)

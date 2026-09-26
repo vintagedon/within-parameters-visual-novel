@@ -264,11 +264,31 @@
       "dialogue": [
         {
           "speaker": "narrator",
-          "text": "You stand in front of the terminal with nothing that can act on it. No documentation strong enough to argue scope. No components to bridge anything. The archive keeps processing, within parameters."
+          "text": "You stand in front of the terminal with nothing that can act on it. You don't have the documentation to argue whatever is wrong with this place, and you don't have the components to force anything. You mark what you found and fall back toward the surface."
         },
         {
           "speaker": "protagonist",
           "text": "I got here. That's all I got."
+        }
+      ]
+    },
+    {
+      "id": "scene-confrontation-withdraw-informed",
+      "beat": "confrontation",
+      "background": "bg-server-room",
+      "flags": { "determineEnding": true },
+      "dialogue": [
+        {
+          "speaker": "narrator",
+          "text": "You stand in front of the terminal holding the argument that would end this, and no way to hand it over. The correction wants bypass modules to bridge its maintenance circuit, and your kit went out keeping stations alive on the way here."
+        },
+        {
+          "speaker": "protagonist",
+          "text": "I know exactly what's wrong with you. I just can't afford to fix it."
+        },
+        {
+          "speaker": "narrator",
+          "text": "You log out of the terminal, mark the rack row where it lives, and start the long walk back up the way you came."
         }
       ]
     },
