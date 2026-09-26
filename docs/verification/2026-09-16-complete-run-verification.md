@@ -617,3 +617,57 @@ mechanical outcome (replay 6/6 and event audit 36/36 concur).
 No additional coverage runs were required: the fixed inventory covers all
 three endings, rerolls, document reads, and all three tiers. Reproduction:
 `npm run build && /opt/agents/venv/bin/python tests/complete_run.py`.
+
+## A1.6: Baseline disposition (pending operator approval)
+
+**Retraction.** The parent worklog's gate 4.10 section states: "Baselines
+re-approved with evidence (art commit 4e9f199): 03 (SAVE control +
+production content), 06 (trait-adjusted HUD values), 07 (comms exchange),
+08 (M3 epilogue + persisted breakdown), 09/10 (dossier portrait image), new
+11 (document overlay); 01/02/04/05 unmoved."
+([work-logs/05-complete-playable-run/worklog.md, line 362](../../work-logs/05-complete-playable-run/worklog.md)).
+That claim is **retracted**: attribution of each change to a causing gate
+explains the change; it does not approve one. Approval is the operator's.
+The archived worklog text is sealed and left untouched; this retraction is
+the correction of record. Every executor-recorded capture below is a
+**candidate**, not an approved baseline.
+
+**Evidence pairs.** Before-and-after images live in
+`staging/2026-09-26-a16-baseline-disposition/` (`before-2272814/` = the
+last operator-approved versions at `2272814`, `after-candidate/` = the
+current captures); they are deliberately not committed into
+`tests/baseline/`. The prior approved versions remain retrievable from
+`2272814` and are copied into the pairs. The committed set passes a full
+screenshot check (`npm run test:screens:check`, all green) and the check
+leaves the baseline directory hash unchanged.
+
+| Capture | Status vs `2272814` | Causing gate(s) | What visibly differs |
+|---------|--------------------|-----------------|----------------------|
+| 01-title | unchanged | — | — |
+| 02-lore-card | unchanged | — | — |
+| 03-hud-midrun | replaced | parent 4.7 | SAVE button added to the Route panel footer |
+| 04-settings | unchanged | — | — |
+| 05-save-load-confirm | **verified unchanged** | — (an A1.2 refactor briefly moved the danger-confirm button style; corrected in this gate; the committed capture is byte-identical to `2272814`, sha1 `48480a19…`) | — |
+| 06-reward-overlay | replaced | parent 4.4–4.6 | M3-authored reward cards (Engineering Cache / Dex's Route Intel / Dead Power Run, CE-02 at Station Beta) replace placeholder-era rewards; SAVE visible behind the overlay |
+| 07-comms-interrupt | replaced | parent 4.3, 4.5 | M3 three-line comms exchange with JAY CHEN / RELAY-7 nameplates replaces the single-line placeholder beat; "five stops" replaces "six stops" |
+| 08-ending | replaced | parent 4.2, 4.6 | M3 epilogue text and the persisted score breakdown (grade, component rows, reroll penalty, trait lines) replace the draft ending; the candidate renders beneath a reward overlay — an artifact of the capture harness's ending trigger, recorded honestly |
+| 09-dossier | replaced | parent 4.6 | generated placeholder portrait image replaces the initials block |
+| 10-dossier-reroll | replaced | parent 4.6 | generated placeholder portrait image replaces the initials block (same rolled candidate, same reroll state) |
+| 11-document-overlay | **new capture; no prior approved version** | parent 4.6, 4.7 | the M3 found-document surface (Equipment Specification: Human Social Bonding Protocol) at the 1440x900 harness viewport |
+
+**Closed question for each row:** "Approve this capture as the new
+baseline? (yes/no)" — for capture 11: "Approve this capture as a new
+baseline? (yes/no)". Every replacement and addition above is **pending
+operator approval**; none is approved by this amendment.
+
+**Operator answer record (A1.6 additions):**
+
+| Capture | Approve as new baseline? |
+|---------|--------------------------|
+| 03-hud-midrun | |
+| 06-reward-overlay | |
+| 07-comms-interrupt | |
+| 08-ending | |
+| 09-dossier | |
+| 10-dossier-reroll | |
+| 11-document-overlay (new) | |

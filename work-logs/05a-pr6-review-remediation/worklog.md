@@ -382,4 +382,40 @@ superseding the body table.
 **Verification:** `npm run test:live` 43/43; counter mutations 2/2;
 complete-run set 12/12 checks; `npm run build` clean.
 
+**Commit:** `1f16b85` — evidence corrections (gate A1.5); branch pushed, PR 6 updated in place.
+
+## Gate A1.6: Baseline disposition
+
+**State found.** Baselines changed only in this gate. Comparison against
+the last operator-approved set at `2272814`: captures 03, 06, 07, 08, 09,
+10 replaced (by the parent's `4e9f199`), capture 11 new (parent 4.6/4.7),
+01/02/04/05 unchanged.
+
+**Correction made in this gate.** A1.2's `openDangerConfirm` refactor had
+inadvertently changed the danger-confirm button from the framework default
+(solid danger) to an outline variant, which moved capture 05. Restored to
+the approved rendering; capture 05 re-recorded byte-identical to
+`2272814` (sha1 `48480a19…`) — it moves nothing and needs no approval.
+The A1.2 changes themselves (AUTOSAVE-row disable, load-refusal modal) are
+not captured by any baseline screen.
+
+**Re-record and verification.** Full record pass: 11/11 captured, exactly
+one byte-change (05, restored as above — all other captures re-recorded
+byte-identical, deterministic). `npm run test:screens:check` all green;
+baseline directory hash unchanged across the check run
+(`d8485b8c58be27a5…` before and after).
+
+**Evidence pairs** at
+`staging/2026-09-26-a16-baseline-disposition/` (`before-2272814/`,
+`after-candidate/`; gitignored, operator-reviewable, not committed into
+`tests/baseline/`; the approved versions remain retrievable from
+`2272814`).
+
+**Review surface:** A1.6 disposition section added — the parent's
+"re-approved with evidence" claim quoted and retracted (sealed parent
+worklog untouched), the per-capture table with causing gates and visible
+differences, capture 11 marked "new capture; no prior approved version",
+every entry pending operator approval with the closed yes/no question, and
+the operator answer record extended.
+
 **Commit:** (recorded after commit)

@@ -472,7 +472,7 @@ function openDangerConfirm(
   const accent = opts?.accent ?? 'danger';
   const buttons: Array<{
     label: string;
-    variant: 'solid' | 'outline' | 'ghost';
+    variant?: 'solid' | 'outline' | 'ghost' | 'pill';
     accent?: string;
     closes: boolean;
     onClick?: () => void;
@@ -480,10 +480,12 @@ function openDangerConfirm(
   if (opts?.cancelLabel !== null) {
     buttons.push({ label: opts?.cancelLabel ?? 'CANCEL', variant: 'ghost', closes: true });
   }
+  // Danger confirms keep the framework's default variant with the danger
+  // accent — the approved capture-05 rendering; informational refusals use
+  // a solid primary action.
   buttons.push({
     label: opts?.confirmLabel ?? 'CONFIRM',
-    variant: accent === 'danger' ? 'outline' : 'solid',
-    accent: accent === 'danger' ? 'danger' : 'primary',
+    ...(accent === 'danger' ? { accent: 'danger' as const } : { variant: 'solid' as const }),
     closes: true,
     onClick: () => onConfirm(),
   });
