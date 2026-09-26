@@ -25,8 +25,20 @@ phase list; reward-pick and document are covered by inset-covering overlays
 and are exercised at the engine level in live-checks.ts):
     event-choice, event-consequence, comms, facility-entry, autosave-continue.
 
+Amendment A2.2 adds audio-restore coverage to every LOAD/CONTINUE phase
+above: the active track after load must equal uninterrupted playback at
+the same phase (the journey ambient loop), the outgoing title track must
+be paused once the configured crossfade completes, a muted save must
+restore its track at zero volume (audio-muted-load), and the title and
+dossier surfaces must start no journey audio.
+
+Usage: --audio-only runs just the focused event-choice audio phase (used
+by scripts/run-audio-mutation.mjs for mutation discrimination).
+
 On a tree without the A1.2 repairs this check fails: the comms-window load
 renders nothing (R1) and every load resumes with the HUD hidden (R2).
+On a tree without the A2.2 restore, the audio: assertion fails on every
+load phase while the presentation assertions keep passing.
 """
 
 from __future__ import annotations
@@ -48,6 +60,33 @@ SEED = 555555
 MAX_ACTIONS = 3000
 
 FACILITY_MARKER = "The facility perimeter"
+
+# config.json bgmCrossfadeDuration — the restore crossfade completes within
+# this long; the audio assertion polls past it before declaring failure.
+CROSSFADE_MS = 2000
+
+# Injected before any app script: wrap the Audio constructor so every media
+# element the app creates (BGM players and SFX one-shots) is observable, and
+# expose a snapshot of real playback state (src, paused, volume). This
+# observes the production players; it changes nothing about them.
+AUDIO_TRACKING_INIT = """
+window.__wpAudioSeen = [];
+(() => {
+  const Real = window.Audio;
+  const Wrapped = function (src) {
+    const el = src !== undefined ? new Real(src) : new Real();
+    window.__wpAudioSeen.push(el);
+    return el;
+  };
+  Wrapped.prototype = Real.prototype;
+  window.Audio = Wrapped;
+})();
+window.__wpAudioState = () => window.__wpAudioSeen.map((el) => ({
+  track: (el.src || '').split('/').pop(),
+  paused: el.paused,
+  volume: el.volume,
+}));
+"""
 
 
 def free_port() -> int:
@@ -86,10 +125,16 @@ class PhaseResult:
         self.failed_requests: list[str] = []
 
 
-def new_context(browser, result: PhaseResult, base: str, viewport: dict | None = None, seed: int = SEED):
+def new_context(browser, result: PhaseResult, base: str, viewport: dict | None = None, seed: int = SEED, muted: bool = False):
     context: BrowserContext = browser.new_context(viewport=viewport or VIEWPORT)
     page = context.new_page()
     page.add_init_script(f"window.__wpSeed = {seed};")
+    page.add_init_script(AUDIO_TRACKING_INIT)
+    if muted:
+        page.add_init_script(
+            "window.localStorage.setItem('wp_persistent',"
+            " JSON.stringify({ runsStarted: 0, runsCompleted: 0, endingsSeen: [], audioMuted: true, cutscenesSetting: 'all' }));"
+        )
     origin = urlparse(base).netloc
     page.on(
         "response",
@@ -210,6 +255,80 @@ def assert_journey_restored(page, before: dict, phase: str) -> None:
     assert after["resources"] == before["resources"], f"{phase}: resources {after['resources']} != saved {before['resources']}"
 
 
+def active_music_state(page) -> list[dict]:
+    return page.evaluate("() => (window.__wpAudioState ? window.__wpAudioState() : [])")
+
+
+def active_track(page) -> str | None:
+    """The one music track currently playing, by file name (uninterrupted
+    playback and post-load playback must agree on this)."""
+    playing = [
+        s for s in active_music_state(page)
+        if s["track"].startswith("bgm-") and not s["paused"]
+    ]
+    return playing[0]["track"] if len(playing) == 1 else None
+
+
+def settle_active_track(page, phase: str) -> str | None:
+    """The phase's uninterrupted track once any in-flight crossfade settles —
+    the facility save point sits mid-fade between the ambient and tension
+    loops, where two tracks play at once by design. Fixture setup, not an
+    assertion."""
+    deadline = time.time() + (CROSSFADE_MS + 3000) / 1000
+    track = active_track(page)
+    while track is None and time.time() < deadline:
+        time.sleep(0.2)
+        track = active_track(page)
+    return track
+
+
+def assert_audio_restored(page, phase: str, expected_track: str, expect_muted: bool = False) -> None:
+    """After LOAD/CONTINUE exactly one music track plays, and it is the track
+    uninterrupted playback plays at the same phase — the outgoing title loop
+    (and any track the restore displaced) sits paused once the configured
+    crossfade completes. With the saved mute preference set, the track still
+    restores, at zero volume (no audible output required). Polls past the
+    crossfade."""
+    deadline = time.time() + (CROSSFADE_MS + 5000) / 1000
+    last: list[dict] = []
+    while time.time() < deadline:
+        last = active_music_state(page)
+        music = [s for s in last if s["track"].startswith("bgm-")]
+        playing = [s for s in music if not s["paused"]]
+        if (
+            len(playing) == 1
+            and playing[0]["track"] == expected_track
+            and (playing[0]["volume"] == 0 if expect_muted else playing[0]["volume"] > 0)
+            and all(s["paused"] for s in music if s is not playing[0])
+        ):
+            return
+        time.sleep(0.2)
+    raise AssertionError(
+        f"audio: {phase} did not restore the uninterrupted track {expected_track} "
+        f"after load (muted={expect_muted}); observed {json.dumps(last)}"
+    )
+
+
+def assert_no_journey_audio(page, phase: str) -> None:
+    """At the title and dossier surfaces no journey track plays: the only
+    music element playing, if any, is the title loop."""
+    deadline = time.time() + 4
+    last: list[dict] = []
+    while time.time() < deadline:
+        last = active_music_state(page)
+        music = [s for s in last if s["track"].startswith("bgm-")]
+        journey = [s for s in music if s["track"] not in ("bgm-title.ogg",)]
+        playing_others = [s for s in journey if not s["paused"]]
+        playing = [s for s in music if not s["paused"]]
+        if not playing_others and len(playing) <= 1:
+            return
+        time.sleep(0.2)
+    raise AssertionError(
+        f"audio: {phase} started journey audio outside a resumed run; "
+        f"observed {json.dumps(last)}"
+    )
+
+
 def assert_actionable_continuation(page, result: PhaseResult, phase: str) -> None:
     """Some renderable continuation with an actionable next step exists, and
     acting on it advances the run."""
@@ -237,13 +356,13 @@ def assert_actionable_continuation(page, result: PhaseResult, phase: str) -> Non
     )
 
 
-def run_phase(browser, base: str, phase: str, viewport: dict | None = None, seed: int = SEED) -> PhaseResult:
+def run_phase(browser, base: str, phase: str, viewport: dict | None = None, seed: int = SEED, muted: bool = False) -> PhaseResult:
     result = PhaseResult(phase)
-    context, page = new_context(browser, result, base, viewport, seed)
+    context, page = new_context(browser, result, base, viewport, seed, muted=muted)
     try:
         before = new_game_to_first_choice(base, page, result)
 
-        if phase == "event-choice":
+        if phase == "event-choice" or phase == "audio-muted-load":
             pass  # already at the stop-1 choice point
         elif phase == "event-consequence":
             page.query_selector_all("#choices-area .gui-btn:not([disabled])")[0].click()
@@ -384,10 +503,37 @@ def run_phase(browser, base: str, phase: str, viewport: dict | None = None, seed
             raise RuntimeError(f"unknown phase {phase}")
 
         before = read_hud(page)
+        before_track = settle_active_track(page, phase)
+        assert before_track is not None, (
+            f"audio: {phase} fixture invalid — uninterrupted playback has no active track at the save point"
+        )
         save_via_hud(page)
         load_via_title(page)
         assert_journey_restored(page, before, phase)
+        assert_audio_restored(page, phase, before_track, expect_muted=muted)
         assert_actionable_continuation(page, result, phase)
+        result.ok = True
+    except Exception as e:
+        result.fail = str(e)
+    finally:
+        context.close()
+    return result
+
+
+def run_title_dossier_audio(browser, base: str) -> PhaseResult:
+    """Title and dossier navigation without resuming a run starts no journey
+    audio (A2.2): the title loop is the only music element that may play.
+    There are no player-save slots at these surfaces; this policy check does
+    not invent one."""
+    result = PhaseResult("title-dossier-no-journey-audio")
+    context, page = new_context(browser, result, base)
+    try:
+        page.goto(base, wait_until="networkidle")
+        page.wait_for_selector("#title-screen:not(.hidden)", timeout=15000)
+        assert_no_journey_audio(page, "title surface")
+        page.locator("#title-menu .gui-btn", has_text="NEW GAME").first.click()
+        page.wait_for_selector("#dossier-screen:not(.hidden)", timeout=15000)
+        assert_no_journey_audio(page, "dossier surface")
         result.ok = True
     except Exception as e:
         result.fail = str(e)
@@ -409,6 +555,7 @@ def run_autosave_continue(browser, base: str) -> PhaseResult:
         assert continue_btn.is_enabled(), "CONTINUE disabled despite a valid autosave"
         continue_btn.click()
         assert_journey_restored(page, before, "autosave-continue")
+        assert_audio_restored(page, "autosave-continue", "bgm-ambient.ogg")
         assert_actionable_continuation(page, result, "autosave-continue")
         result.ok = True
     except Exception as e:
@@ -419,6 +566,7 @@ def run_autosave_continue(browser, base: str) -> PhaseResult:
 
 
 def main() -> int:
+    audio_only = "--audio-only" in sys.argv[1:]
     if not (REPO_ROOT / "dist" / "index.html").exists():
         print("no dist/ build found; run npm run build first")
         return 1
@@ -430,21 +578,30 @@ def main() -> int:
     try:
         with sync_playwright() as pw:
             browser = pw.chromium.launch(headless=True)
-            # The comms panel (bottom-right, fixed) occludes the sidebar's
-            # SAVE control at the 1440x900 harness viewport; at 2560x1440 —
-            # the viewport the independent review used to reproduce R1 — the
-            # control is reachable. The comms phases run there.
-            for phase in ("event-choice", "event-consequence", "comms", "facility-entry"):
-                viewport = {"width": 2560, "height": 1440} if phase == "comms" else None
-                phases.append(run_phase(browser, base, phase, viewport))
-            phases.append(run_phase(browser, base, "save-menu-policy"))
-            phases.append(run_phase(browser, base, "load-refusal"))
-            phases.append(
-                run_phase(browser, base, "legacy-comms-slot", viewport={"width": 2560, "height": 1440})
-            )
-            # 20260916 knowledge reads two found documents in one run.
-            phases.append(run_phase(browser, base, "document-scroll", seed=20260916))
-            phases.append(run_autosave_continue(browser, base))
+            if audio_only:
+                # Focused run for audio-restore mutation discrimination: the
+                # event-choice phase carries the full audio assertion.
+                phases.append(run_phase(browser, base, "event-choice"))
+            else:
+                # The comms panel (bottom-right, fixed) occludes the sidebar's
+                # SAVE control at the 1440x900 harness viewport; at 2560x1440 —
+                # the viewport the independent review used to reproduce R1 — the
+                # control is reachable. The comms phases run there.
+                for phase in ("event-choice", "event-consequence", "comms", "facility-entry"):
+                    viewport = {"width": 2560, "height": 1440} if phase == "comms" else None
+                    phases.append(run_phase(browser, base, phase, viewport))
+                # A2.2: the saved mute preference is preserved — the track
+                # restores at zero volume, with no audible output required.
+                phases.append(run_phase(browser, base, "audio-muted-load", muted=True))
+                phases.append(run_phase(browser, base, "save-menu-policy"))
+                phases.append(run_phase(browser, base, "load-refusal"))
+                phases.append(
+                    run_phase(browser, base, "legacy-comms-slot", viewport={"width": 2560, "height": 1440})
+                )
+                # 20260916 knowledge reads two found documents in one run.
+                phases.append(run_phase(browser, base, "document-scroll", seed=20260916))
+                phases.append(run_autosave_continue(browser, base))
+                phases.append(run_title_dossier_audio(browser, base))
             browser.close()
     finally:
         server.terminate()

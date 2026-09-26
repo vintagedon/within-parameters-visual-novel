@@ -755,3 +755,49 @@ rapport 0, five communities ignored) so the reproduction cannot silently
 drift into a state where the old claim would be true. A data mutation
 reinserting "keeping stations alive" into the informed variant fails two
 live checks (`npm run test:mutation`, 7/7 mutations rejected).
+
+## A2.2: Journey audio restored on load
+
+**The defect.** Event scenes select no music, and the load path restored
+the HUD but not the audio: a journey saved while `bgm-ambient.ogg` played
+loaded with `bgm-title.ogg` still playing (the review measured it at
+volume 0.6, persisting until a scene changed music). Visible HUD and score
+parity could not detect it. Attribution: Amendment A's A1.1 enumerated
+restored state as "sidebar, clock, stats, route, SAVE" — audio was never
+listed in either amendment, so this gap is the spec's/author's, not an
+executor slip against written scope.
+
+**The repair.** `startGameFromState` now restores the journey ambient
+track instantly, before the first loaded scene starts, so a scene that
+declares its own track — the facility's `bgm-tension` loop, which
+`scene-facility-01` carries — crossfades over it with a single fade. Two
+synchronous fades would overlap: the manager's fade timers are not
+cancelled, and a stale timer pauses the incoming track (observed directly
+during development: a crossfade-then-restore left both loops paused). The
+instant default cannot collide with a scene fade, and `playBGM` no-ops
+when the scene declares the ambient loop itself. Muted players restore at
+zero volume; the saved mute preference is preserved. The manager itself is
+unchanged (read-only for this amendment).
+
+**Browser coverage** (production build, real controls;
+`/opt/agents/venv/bin/python tests/resume_check.py`, 11/11 phases): the
+suite wraps the `Audio` constructor before app scripts and asserts real
+playback state. Every LOAD/CONTINUE phase captures the uninterrupted
+track at the save point (settled past any in-flight crossfade — the
+facility save sits mid-fade between the ambient and tension loops), then
+after LOAD requires exactly one music track playing, equal to the
+uninterrupted track at the same phase (event-choice, event-consequence,
+comms: ambient; facility-entry: tension), with every other music element
+paused once the configured 2 s crossfade completes. CONTINUE from
+autosave is checked identically. `audio-muted-load` restores the track at
+zero volume under a saved `audioMuted: true`. Phases where the UI offers
+no SAVE keep their existing policy (no audio assertion).
+`title-dossier-no-journey-audio` asserts the title and dossier surfaces
+start no journey track; no title/dossier load fixtures were invented.
+
+**Mutation evidence.** `node scripts/run-audio-mutation.mjs`: the
+unmutated focused phase (event-choice) passes; removing the restore line
+from `src/main.ts` and rebuilding makes the same phase fail with the
+focused `audio:` assertion while every presentation assertion still
+passes — an unrelated browser failure is not accepted as evidence, and
+the working tree and build are restored afterwards.

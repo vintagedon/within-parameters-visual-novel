@@ -319,10 +319,15 @@ function startNewGame(): void {
 }
 
 /** Resume path for CONTINUE/LOAD — does NOT regenerate the protagonist.
- *  Restores the journey presentation (sidebar, clock, stats, route, SAVE):
- *  a loaded run renders exactly like one that never saved. Event scenes do
- *  not carry showGameUI, so the layout mode is set here, not left to the
- *  first loaded scene (amendment A1.2, review finding R2). */
+ *  Restores the journey presentation (sidebar, clock, stats, route, SAVE)
+ *  and the journey audio: a loaded run renders and sounds exactly like one
+ *  that never saved. Event scenes do not carry showGameUI, so the layout
+ *  mode is set here, not left to the first loaded scene (amendment A1.2,
+ *  review finding R2). Event scenes also select no music, so the load path
+ *  restores the journey ambient track (amendment A2.2, review finding
+ *  04a-02) — instantly, before the first loaded scene starts, so a scene
+ *  that declares its own track (the facility's tension loop) crossfades
+ *  over it with a single fade instead of overlapping ones. */
 function startGameFromState(state: GameState, slotEngine?: SaveSlot['engine']): void {
   clearDialogue();
   setGameUI();
@@ -330,6 +335,7 @@ function startGameFromState(state: GameState, slotEngine?: SaveSlot['engine']): 
   const effConfig = effectiveConfigFromState(state);
   const runRng = createRunRng(0);
   runner = new SceneRunner(state, effConfig, registry, communitiesData, buildRunnerCallbacks(), undefined, runRng);
+  Audio.playBGM('bgm-ambient', false);
   if (slotEngine) {
     runner.restoreEngine(slotEngine);
   }

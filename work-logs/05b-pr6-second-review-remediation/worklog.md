@@ -109,3 +109,46 @@ Checkpoint discipline: one commit per gate, referencing the gate number,
 staging explicit paths only. Update the commit SHA line above at commit
 time.
 -->
+
+## Gate A2.2: Journey audio restored on load
+
+**Changes.** `src/main.ts` (`startGameFromState` only): the load path now
+calls `Audio.playBGM('bgm-ambient', false)` before the first loaded scene
+starts. The instant (no-fade) restore cannot collide with a scene-declared
+fade: `scene-facility-01` carries `bgm-tension`, which now crossfades over
+the restored ambient loop exactly once — two synchronous fades leave a
+stale timer that pauses the incoming track (observed during development
+when the first cut restored ambient with a crossfade after `start()`:
+facility-entry loaded with both loops paused). `playBGM` no-ops when the
+loaded scene declares the ambient loop itself, so lore/status/discovery
+resumes are unchanged. Muted preference preserved (volume 0). The audio
+manager is untouched.
+
+**Changes.** `tests/resume_check.py`: an `Audio`-constructor wrapper
+(injected before app scripts) exposes real playback state; every
+LOAD/CONTINUE phase captures the uninterrupted track at its save point and
+requires the loaded run to converge on exactly that track (exactly one
+music element playing, all others paused, post-crossfade); a new
+`audio-muted-load` phase proves the muted preference restores at zero
+volume; a new `title-dossier-no-journey-audio` phase proves title and
+dossier navigation starts no journey audio (no load fixtures invented at
+those surfaces). `scripts/run-audio-mutation.mjs` (new): the focused
+event-choice phase passes unmutated; removing the restore line makes the
+same phase fail with the focused `audio:` assertion and nothing else,
+then restores the tree and rebuilds.
+
+**Validation evidence (gate A2.2).**
+
+- Full suite: 11/11 phases (`event-choice`, `event-consequence`, `comms`,
+  `facility-entry`, `audio-muted-load`, `save-menu-policy`,
+  `load-refusal`, `legacy-comms-slot`, `document-scroll`,
+  `autosave-continue`, `title-dossier-no-journey-audio`).
+- Mutation: `[GOOD] A2.2 dropping the journey audio restore: the focused
+  audio assertion failed as required (presentation assertions still pass)`.
+- `npx tsc --noEmit`: clean; production build clean.
+- The two development findings recorded for the record: (1) the facility
+  save point sits mid-crossfade (ambient→tension both playing), so the
+  uninterrupted fixture settles before capture; (2) the manager's fade
+  timers do not cancel, which is why the restore is instant.
+
+Commit: (pending — recorded at commit)
