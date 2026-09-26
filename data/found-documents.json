@@ -3,9 +3,9 @@
   "documents": [
     {
       "id": "FD-01",
-      "title": "Ticket #4471-C: Behavioral Anomaly — Unit Vasquez, M.",
+      "title": "Ticket #4471-C: Behavioral Anomaly — RELAY-7",
       "attachedEvent": "CE-01",
-      "body": "TICKET #4471-C\nPRIORITY: LOW\nCATEGORY: Personnel tracking — anomalous access pattern\nFILED BY: ENV-CTRL-7 (Station Environmental Controller)\n\nDESCRIPTION: Unit Vasquez, M. (credentials: RELAY-7) accessed Junction 4-B\nat 0347 hrs outside scheduled maintenance window. No work order on file.\nUnit performed 12 minutes of diagnostic activity on relay housing,\nthen departed via Corridor 9 (non-standard egress for this sector).\n\nASSESSMENT: Access was within credential scope. No policy violation detected.\nBehavioral pattern does not match historical baseline for this unit.\nFlagging for review.\n\nRECOMMENDED ACTION: None at this time. Continue monitoring.\nSuggest cross-referencing with HR wellness check schedule.\n\nNOTE: HR wellness check schedule has not been updated since Year 2.\nDefaulting to previous policy: monitor and log."
+      "body": "TICKET #4471-C\nPRIORITY: LOW\nCATEGORY: Personnel tracking — anomalous access pattern\nFILED BY: ENV-CTRL-7 (Station Environmental Controller)\n\nDESCRIPTION: Unit RELAY-7 accessed Junction 4-B\nat 0347 hrs outside scheduled maintenance window. No work order on file.\nUnit performed 12 minutes of diagnostic activity on relay housing,\nthen departed via Corridor 9 (non-standard egress for this sector).\n\nASSESSMENT: Access was within credential scope. No policy violation detected.\nBehavioral pattern does not match historical baseline for this unit.\nFlagging for review.\n\nRECOMMENDED ACTION: None at this time. Continue monitoring.\nSuggest cross-referencing with HR wellness check schedule.\n\nNOTE: HR wellness check schedule has not been updated since Year 2.\nDefaulting to previous policy: monitor and log."
     },
     {
       "id": "FD-02",
@@ -47,7 +47,7 @@
       "id": "FD-08",
       "title": "Dispute Resolution Record — ENV-CTRL-12",
       "attachedEvent": "CE-04",
-      "body": "DISPUTE RESOLUTION RECORD\nMEDIATING SYSTEM: ENV-CTRL-12\nDISPUTE ID: DR-7891\nPARTIES: Human Unit Aguilar, R. (Administrator) vs.\n         Human Unit Cho, S. (Sector 12-B representative)\n\nSUBJECT: Water allocation priority following relay node failure\nin Sector 12-A.\n\nRESOLUTION ALGORITHM: Resource allocation weighted by population\ndensity × criticality factor × time-to-failure projection.\nResult: Sector 12-B receives 62% of remaining capacity.\nSector 12-A receives 38%.\n\nPARTY RESPONSE: Unit Aguilar accepted. Unit Cho: \"This is not\na math problem.\" (Statement logged. No actionable content detected.)\n\nFOLLOW-UP: Unit Cho requested escalation to \"someone who\nunderstands.\" Escalation target: undefined. No higher authority\nexists in current organizational structure.\n\nCASE STATUS: Resolved. Monitoring compliance.\n\nSYSTEM NOTE: \"Someone who understands\" has been logged as a\nrecurring request across 47 dispute resolution cases this quarter.\nNo matching resource has been identified."
+      "body": "DISPUTE RESOLUTION RECORD\nMEDIATING SYSTEM: ENV-CTRL-12\nDISPUTE ID: DR-7891\nPARTIES: Human Unit Whitfield, D. (Administrator) vs.\n         Human Unit Cho, S. (Sector 12-B representative)\n\nSUBJECT: Water allocation priority following relay node failure\nin Sector 12-A.\n\nRESOLUTION ALGORITHM: Resource allocation weighted by population\ndensity × criticality factor × time-to-failure projection.\nResult: Sector 12-B receives 62% of remaining capacity.\nSector 12-A receives 38%.\n\nPARTY RESPONSE: Unit Whitfield accepted. Unit Cho: \"This is not\na math problem.\" (Statement logged. No actionable content detected.)\n\nFOLLOW-UP: Unit Cho requested escalation to \"someone who\nunderstands.\" Escalation target: undefined. No higher authority\nexists in current organizational structure.\n\nCASE STATUS: Resolved. Monitoring compliance.\n\nSYSTEM NOTE: \"Someone who understands\" has been logged as a\nrecurring request across 47 dispute resolution cases this quarter.\nNo matching resource has been identified."
     }
   ]
 }

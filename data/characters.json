@@ -79,6 +79,16 @@
       "nameColor": "#ff9800"
     },
     {
+      "id": "crew-leader",
+      "name": "CREW LEADER",
+      "role": "Independent Crew Leader",
+      "defaultExpression": "neutral",
+      "expressions": {
+        "neutral": "npc2-neutral"
+      },
+      "nameColor": "#f2c14e"
+    },
+    {
       "id": "archive",
       "name": "ARCHIVE",
       "role": "Archive AI",

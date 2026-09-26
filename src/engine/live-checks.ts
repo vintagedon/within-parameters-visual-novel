@@ -118,7 +118,7 @@ interface Harness {
   pendingReward: { rewards: unknown[]; onSelect: (index: number) => void } | null;
   ending: { ending: string; state: GameState } | null;
   surfacedDocs: import('../types/index').FoundDocument[];
-  commsFired: { afterStop: number; tierId: string; firstLine: string }[];
+  commsFired: { afterStop: number; tierId: string; firstLine: string; clock: number }[];
   /** Comms beat caught mid-interrupt (hold mode): the save point for the
    *  comms-window phase. onContinue has NOT been called. */
   heldComms: { afterStop: number; tierId: string; firstLine: string; onContinue: () => void } | null;
@@ -147,6 +147,9 @@ function makeHarness(opts: {
    *  protagonist (never from literals), stateless RNG, restoreEngine, and —
    *  when autostart — start(). */
   resumeSlot?: { slot: import('../types/index').SaveSlot; autostart: boolean };
+  /** Overrides the run RNG (boundary fixtures: a stub whose next() always
+   *  clears the jitter chance makes the stop tick exactly 1). */
+  rng?: import('./run-rng').RunRng;
 }): Harness {
   let config: ReturnType<typeof buildEffectiveConfig>;
   let state: GameState;
@@ -185,7 +188,7 @@ function makeHarness(opts: {
   let heldComms: Harness['heldComms'] = null;
   let heldDoc: Harness['heldDoc'] = null;
   const surfacedDocs: import('../types/index').FoundDocument[] = [];
-  const commsFired: { afterStop: number; tierId: string; firstLine: string }[] = [];
+  const commsFired: { afterStop: number; tierId: string; firstLine: string; clock: number }[] = [];
   let grantCount = 0;
   const callbacks: SceneRunnerCallbacks = {
     onSceneStart: (scene) => {
@@ -204,8 +207,10 @@ function makeHarness(opts: {
     onEnding: (endingType, endingState) => {
       ending = { ending: endingType, state: endingState };
     },
-    onCommsInterrupt: (_state, beat, tierId, onContinue) => {
-      commsFired.push({ afterStop: beat.afterStop, tierId, firstLine: beat.lines[0]?.text ?? '' });
+    onCommsInterrupt: (cbState, beat, tierId, onContinue) => {
+      // The clock is read inside the callback — after the stop tick — so
+      // boundary fixtures assert the tier against the live trigger value.
+      commsFired.push({ afterStop: beat.afterStop, tierId, firstLine: beat.lines[0]?.text ?? '', clock: cbState.clock.current });
       if (opts.hold) {
         heldComms = { afterStop: beat.afterStop, tierId, firstLine: beat.lines[0]?.text ?? '', onContinue };
         return;
@@ -221,9 +226,9 @@ function makeHarness(opts: {
       onContinue();
     },
   };
-  const runRng = createRunRng(
-    opts.resume || opts.resumeSlot ? 0 : (opts.runSeed ?? 12345)
-  );
+  const runRng =
+    opts.rng ??
+    createRunRng(opts.resume || opts.resumeSlot ? 0 : (opts.runSeed ?? 12345));
   const runner = new SceneRunner(
     state,
     config,
@@ -1110,9 +1115,9 @@ check('4.5 comms beats: timing and bands are data-driven', () => {
   const green = byId.get('green')!;
   const amber = byId.get('amber')!;
   const red = byId.get('red')!;
-  eq(green.min, 0, 'green min'); eq(green.max, 3, 'green max');
-  eq(amber.min, 4, 'amber min'); eq(amber.max, 6, 'amber max');
-  eq(red.min, 7, 'red min'); eq(red.max, 9, 'red max');
+  eq(green.min, 0, 'green min'); eq(green.max, 2, 'green max');
+  eq(amber.min, 3, 'amber min'); eq(amber.max, 5, 'amber max');
+  eq(red.min, 6, 'red min'); eq(red.max, 9, 'red max');
   for (const tier of commsBeatsData.commsBeats) {
     eq(tier.beats.length, 2, `tier ${tier.id}: two beats`);
     const timings = tier.beats.map((b) => b.afterStop).sort();
@@ -1126,7 +1131,7 @@ check('4.5 comms beats: timing and bands are data-driven', () => {
       }
     }
   }
-  return 'green 0-3, amber 4-6, red 7-9; both beats per tier; full M3 dialogue';
+  return 'green 0-2, amber 3-5, red 6-9 (amendment A1.4 bands); both beats per tier; full M3 dialogue';
 });
 
 // ─── Gate 4.6 checks ──────────────────────────────────────────────────────────
@@ -1640,6 +1645,136 @@ check('A1.3 content: no keeps-processing claim survives in any scene', () => {
 });
 
 
+
+// ─── A1.4: content corrections ────────────────────────────────────────────────
+
+/** Every non-narrator dialogue line across scenes.json, events.json, and
+ *  comms-beats.json: no line's text may begin with a speaker label and
+ *  colon — the nameplate identifies the speaker. Reinserting any prefix
+ *  makes this fail (mutation-checked). */
+check('A1.4 content: no dialogue line opens with an in-text speaker prefix', () => {
+  const sources: Array<{ file: string; id: string; line: { speaker: string; text: string } }> = [];
+  for (const scene of scenesData) {
+    for (const line of scene.dialogue) sources.push({ file: 'scenes.json', id: scene.id, line });
+  }
+  for (const event of eventsData) {
+    for (const scene of event.scenes) {
+      for (const line of scene.dialogue) sources.push({ file: 'events.json', id: scene.id, line });
+    }
+  }
+  if (commsBeatsData) {
+    for (const tier of commsBeatsData.commsBeats) {
+      for (const beat of tier.beats) {
+        for (const line of beat.lines) sources.push({ file: 'comms-beats.json', id: `${tier.id}/${beat.afterStop}`, line });
+      }
+    }
+  }
+  const prefix = /^[A-Z][A-Z'\- ]{1,18}: /;
+  const offenders = sources.filter(
+    (s) => s.line.speaker !== 'narrator' && prefix.test(s.line.text)
+  );
+  eq(offenders.length, 0, `prefixed lines remain: ${offenders.slice(0, 3).map((o) => `${o.file}/${o.id}`).join(', ')}`);
+  return `${sources.length} dialogue lines across three files scanned; 0 in-text speaker prefixes`;
+});
+
+/** The nameplate and the in-text identity never name different people: the
+ *  approach-event crew-leader line has its own character, and every speaker
+ *  referenced anywhere exists in the manifest. */
+check('A1.4 content: nameplates and in-text identities agree; crew leader is a named character', () => {
+  const manifest = load<{ characters: Array<{ id: string; name: string; role: string; nameColor: string }> }>(
+    'data/characters.json'
+  );
+  const chars = new Map(manifest.characters.map((c) => [c.id, c]));
+  const crewScene = eventsData
+    .flatMap((e) => e.scenes)
+    .find((s) => s.id === 'evt-ae01-a');
+  assert(crewScene !== undefined, 'evt-ae01-a exists');
+  const crewLine = crewScene!.dialogue.find((l) => l.speaker === 'crew-leader');
+  assert(crewLine !== undefined, 'the crew-leader line names the crew-leader character');
+  assert(!/^CREW LEADER:/i.test(crewLine!.text), 'the crew-leader line carries no in-text prefix');
+  assert(chars.get('crew-leader') !== undefined, 'crew-leader exists in the character manifest');
+  assert(!/crews? leader/i.test(chars.get('engineer')!.name), 'ENGINEER is not labeled as the crew leader');
+  return 'crew-leader is a manifest character; ENGINEER no longer speaks the crew-leader line';
+});
+
+/** Found documents carry no protagonist-pool surname, and the one NPC
+ *  surname they use (Aguilar) is gone from FD-08's contradicting role.
+ *  Reinserting Vasquez into FD-01 makes this fail (mutation-checked). */
+check('A1.4 content: documents use no pool surnames and no contradicting NPC surnames', () => {
+  const pool = load<{ names: { surnames: string[] } }>('data/protagonist-pool.json');
+  const docs = load<{ documents: Array<{ id: string; title: string; body: string }> }>(
+    'data/found-documents.json'
+  );
+  for (const doc of docs.documents) {
+    const text = `${doc.title}\n${doc.body}`;
+    for (const surname of pool.names.surnames) {
+      assert(!text.includes(surname), `${doc.id} contains pool surname "${surname}"`);
+    }
+  }
+  const fd08 = docs.documents.find((d) => d.id === 'FD-08')!;
+  assert(!fd08.body.includes('Aguilar'), 'FD-08 no longer reuses the Warden surname');
+  assert(fd08.body.includes('Whitfield'), 'FD-08 administrator carries the replacement surname');
+  assert(fd08.body.includes('Administrator'), 'FD-08 administrator role stated');
+  return `no pool surnames in ${docs.documents.length} documents; FD-08 administrator renamed`;
+});
+
+/** Comms bands (frozen F-06): green 0-2, amber 3-5, red 6-9. Boundary
+ *  fixtures: a stubbed run RNG (next() clears the jitter chance, tick
+ *  always 1) with clock-reduction rewards nets the stop transition to zero,
+ *  so the clock at the comms callback equals the starting clock at BOTH
+ *  trigger points. These are controlled fixtures — no claim that clock 6 is
+ *  naturally reachable after stop 1 (that is A1.5's natural-run evidence). */
+check('A1.4 comms bands: callback clocks 2/3/5/6 tier green/amber/amber/red at both trigger points', () => {
+  const stub: import('./run-rng').RunRng = {
+    ...createRunRng(1),
+    next: () => 0.99,
+  };
+  const bands: Array<{ clock: number; tier: string }> = [
+    { clock: 2, tier: 'green' },
+    { clock: 3, tier: 'amber' },
+    { clock: 5, tier: 'amber' },
+    { clock: 6, tier: 'red' },
+  ];
+  for (const band of bands) {
+    const h = makeHarness({
+      positive: 'P5',
+      negative: 'N4',
+      events: eventsData,
+      consumables: 9,
+      clock: band.clock,
+      rng: stub,
+    });
+    h.runner.loadScene('scene-discovery-01');
+    for (let guard = 0; guard < 600 && h.commsFired.length < 2; guard++) {
+      if (h.pendingReward) {
+        h.pendingReward.onSelect(2); // clock-reduction: nets the stop tick to zero
+        h.pendingReward = null;
+        continue;
+      }
+      const scene = h.queue.shift();
+      if (!scene) continue;
+      if (scene.choices && scene.choices.length > 0) {
+        const views = h.runner.getChoiceViews(scene);
+        const neutral = views.findIndex(
+          (v, i) =>
+            v.enabled &&
+            !scene.choices![i]!.communityEffect &&
+            (scene.choices![i]!.statChanges?.clock ?? 0) === 0
+        );
+        h.runner.selectChoice(scene, neutral >= 0 ? neutral : views.findIndex((v) => v.enabled));
+        continue;
+      }
+      h.runner.sceneComplete(scene);
+      if (h.runner.getState().activeEventId) h.runner.eventSceneComplete(scene.id);
+    }
+    eq(h.commsFired.length, 2, `start ${band.clock}: both beats fired`);
+    for (const fired of h.commsFired) {
+      eq(fired.clock, band.clock, `start ${band.clock}: callback clock (after the stop tick) nets to zero`);
+      eq(fired.tierId, band.tier, `clock ${fired.clock} after stop ${fired.afterStop}: ${band.tier}`);
+    }
+  }
+  return 'clocks 2/3/5/6 at both afterStop 1 and afterStop 3: green/amber/amber/red under the frozen bands';
+});
 
 // ─── A1.2: save and resume repairs ───────────────────────────────────────────
 

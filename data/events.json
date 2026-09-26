@@ -20,7 +20,7 @@
             {
               "speaker": "aguilar",
               "expression": "stern",
-              "text": "AGUILAR: You're dispatch? Good. The archive's bots took our water relay. We've been on reserves for three days. Population two hundred and six, supply days four, at current rationing."
+              "text": "You're dispatch? Good. The archive's bots took our water relay. We've been on reserves for three days. Population two hundred and six, supply days four, at current rationing."
             },
             {
               "speaker": "protagonist",
@@ -75,7 +75,7 @@
             {
               "speaker": "aguilar",
               "expression": "neutral",
-              "text": "AGUILAR: We'll log this. If your route comes back through, there's a standing resource allocation for relay personnel."
+              "text": "We'll log this. If your route comes back through, there's a standing resource allocation for relay personnel."
             }
           ],
           "next": "evt-ce01-reward"
@@ -92,7 +92,7 @@
             {
               "speaker": "aguilar",
               "expression": "neutral",
-              "text": "AGUILAR: Understood. Thank you for what you could do. The allocation stands, at reduced weight."
+              "text": "Understood. Thank you for what you could do. The allocation stands, at reduced weight."
             }
           ],
           "next": "evt-ce01-reward"
@@ -109,7 +109,7 @@
             {
               "speaker": "aguilar",
               "expression": "stern",
-              "text": "AGUILAR: So we wait."
+              "text": "So we wait."
             },
             {
               "speaker": "protagonist",
@@ -171,17 +171,17 @@
             {
               "speaker": "engineer",
               "expression": "worried",
-              "text": "ENGINEER: Medical equipment has priority. I've been saying it for three days."
+              "text": "Medical equipment has priority. I've been saying it for three days."
             },
             {
               "speaker": "aguilar",
               "expression": "stern",
-              "text": "AGUILAR: And we have three hundred people on pump-dependent water filtration. What's the triage protocol for dehydration?"
+              "text": "And we have three hundred people on pump-dependent water filtration. What's the triage protocol for dehydration?"
             },
             {
               "speaker": "dex",
               "expression": "wary",
-              "text": "DEX: Been watching this for a week. Nobody's wrong. That's the problem."
+              "text": "Been watching this for a week. Nobody's wrong. That's the problem."
             }
           ],
           "next": "evt-ce02-situation"
@@ -198,12 +198,12 @@
             {
               "speaker": "engineer",
               "expression": "neutral",
-              "text": "ENGINEER: Seventy percent each keeps the medical equipment running."
+              "text": "Seventy percent each keeps the medical equipment running."
             },
             {
               "speaker": "aguilar",
               "expression": "neutral",
-              "text": "AGUILAR: Seventy percent keeps the filtration pumps running. Do it."
+              "text": "Seventy percent keeps the filtration pumps running. Do it."
             }
           ],
           "choices": [
@@ -239,7 +239,7 @@
             {
               "speaker": "dex",
               "expression": "neutral",
-              "text": "DEX: Clean. You want route intel for the eastern tunnels, I owe you one anyway."
+              "text": "Clean. You want route intel for the eastern tunnels, I owe you one anyway."
             }
           ],
           "next": "evt-ce02-reward"
@@ -256,7 +256,7 @@
             {
               "speaker": "dex",
               "expression": "wary",
-              "text": "DEX: Ugly, but it'll hold. Route intel's still on offer, if you're going east."
+              "text": "Ugly, but it'll hold. Route intel's still on offer, if you're going east."
             }
           ],
           "next": "evt-ce02-reward"
@@ -273,7 +273,7 @@
             {
               "speaker": "aguilar",
               "expression": "stern",
-              "text": "AGUILAR: Dispatch will hear about this."
+              "text": "Dispatch will hear about this."
             },
             {
               "speaker": "protagonist",
@@ -282,7 +282,7 @@
             {
               "speaker": "dex",
               "expression": "neutral",
-              "text": "DEX: For what it's worth, you read the room right. Eastern tunnel intel's yours if you want it."
+              "text": "For what it's worth, you read the room right. Eastern tunnel intel's yours if you want it."
             }
           ],
           "next": "evt-ce02-reward"
@@ -340,7 +340,7 @@
             {
               "speaker": "sato",
               "expression": "serene",
-              "text": "SATO: The station AI allocated additional ventilation to the intake area before they arrived. It anticipated the load increase from atmospheric sensor data. That's what it does. It keeps the air moving."
+              "text": "The station AI allocated additional ventilation to the intake area before they arrived. It anticipated the load increase from atmospheric sensor data. That's what it does. It keeps the air moving."
             }
           ],
           "next": "evt-ce03-situation"
@@ -357,7 +357,7 @@
             {
               "speaker": "sato",
               "expression": "neutral",
-              "text": "SATO: They describe systematic component removal. Not random scavenging. Bot activity unlike anything the tunnel runners report."
+              "text": "They describe systematic component removal. Not random scavenging. Bot activity unlike anything the tunnel runners report."
             }
           ],
           "choices": [
@@ -391,7 +391,7 @@
             {
               "speaker": "sato",
               "expression": "serene",
-              "text": "SATO: You have their gratitude and their information. The section they fled is three stops further along your route. Consider what they left behind."
+              "text": "You have their gratitude and their information. The section they fled is three stops further along your route. Consider what they left behind."
             }
           ],
           "next": "evt-ce03-reward"
@@ -408,7 +408,7 @@
             {
               "speaker": "sato",
               "expression": "neutral",
-              "text": "SATO: You have your information. They need someone to fix the lighting in the intake corridor."
+              "text": "You have your information. They need someone to fix the lighting in the intake corridor."
             }
           ],
           "next": "evt-ce03-reward"
@@ -479,7 +479,7 @@
             {
               "speaker": "dex",
               "expression": "wary",
-              "text": "DEX: Been watching this one for days. Trade's simple: you fix it, I get a station that stops cycling air like it's drunk. Residents have gotten used to it. It's getting worse."
+              "text": "Been watching this one for days. Trade's simple: you fix it, I get a station that stops cycling air like it's drunk. Residents have gotten used to it. It's getting worse."
             }
           ],
           "next": "evt-ce04-situation"
@@ -533,7 +533,7 @@
             {
               "speaker": "dex",
               "expression": "neutral",
-              "text": "DEX: Knew it was a pattern. Didn't want to be right."
+              "text": "Knew it was a pattern. Didn't want to be right."
             }
           ],
           "next": "evt-ce04-reward"
@@ -615,7 +615,7 @@
             {
               "speaker": "dex",
               "expression": "neutral",
-              "text": "DEX: This feeds the district's backup grid. The archive tapped it two days ago; it's pulling forty percent of the output toward the facility corridor. I can show you the tap."
+              "text": "This feeds the district's backup grid. The archive tapped it two days ago; it's pulling forty percent of the output toward the facility corridor. I can show you the tap."
             }
           ],
           "next": "evt-ce05-situation"
@@ -668,7 +668,7 @@
             {
               "speaker": "dex",
               "expression": "neutral",
-              "text": "DEX: The district owes you one. Might not know it, but they do."
+              "text": "The district owes you one. Might not know it, but they do."
             }
           ],
           "next": "evt-ce05-reward"
@@ -685,7 +685,7 @@
             {
               "speaker": "dex",
               "expression": "wary",
-              "text": "DEX: Your call, Relay. He logs it in his own records, whatever those are for."
+              "text": "Your call, Relay. He logs it in his own records, whatever those are for."
             },
             {
               "speaker": "narrator",
@@ -1239,9 +1239,9 @@
               "text": "The crew leader recognizes your callsign. Word traveled, through the communities, ahead of you."
             },
             {
-              "speaker": "engineer",
+              "speaker": "crew-leader",
               "expression": "neutral",
-              "text": "CREW LEADER: RELAY-7. We heard about the water relay. And the power reroute. You're the real thing."
+              "text": "RELAY-7. We heard about the water relay. And the power reroute. You're the real thing."
             },
             {
               "speaker": "narrator",

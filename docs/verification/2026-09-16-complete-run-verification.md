@@ -384,3 +384,65 @@ uninformed gate to the same coherent ending. Both are live-path checks in
 
 **Closed question.** Approve the two withdrawal variants as the corrected
 record for the review's R3? (yes/no)
+
+## A1.4: Content corrections
+
+**Speaker prefixes.** Every non-narrator dialogue line across
+`data/scenes.json` (8 lines: ARCHIVE ×5, TORRES ×3) and `data/events.json`
+(23 lines: DEX ×9, AGUILAR ×7, SATO ×4, ENGINEER ×2, CREW LEADER ×1) had
+its in-text speaker prefix stripped; `data/comms-beats.json` carried none.
+The nameplate identifies the speaker. A live-path check scans all three
+files (dialogue lines only) for any line opening with a speaker label and
+colon, and a data mutation reinserting one prefix makes it fail.
+
+**Crew leader.** The approach-event line whose nameplate said ENGINEER while
+its in-text label said CREW LEADER now resolves as its own character: a
+`crew-leader` manifest entry (name CREW LEADER, Independent Crew Leader,
+distinct name color, placeholder portrait reuse) and the scene's speaker
+updated. The nameplate, the narrator's introduction ("The crew leader
+recognizes your callsign"), and the text now name the same person.
+Executor's choice under the amendment: a new character rather than a prefix
+removal, because the narrator names a crew leader and no engineer is
+present in that scene.
+
+**FD-01 (frozen F-07).** The credentials holder is named by callsign only,
+following FD-06's pattern; no rolled-name slotting, no framing text:
+
+> title: "Ticket #4471-C: Behavioral Anomaly — RELAY-7"
+>
+> body: "Unit RELAY-7 accessed Junction 4-B at 0347 hrs outside scheduled
+> maintenance window. […]"
+
+**FD-08.** The dispute record no longer reuses the Warden's surname
+(Aguilar) for an Administrator role. The administrator is "Human Unit
+Whitfield, D. (Administrator)"; Whitfield appears in neither
+`data/protagonist-pool.json` nor the NPC cast. A live-path check rejects
+any pool surname in any document (reinserting Vasquez into FD-01 is a
+mutation that fails).
+
+**Comms bands (frozen F-06).** Applied: green 0-2, amber 3-5, red 6-9.
+Trigger points unchanged (afterStop 1 and 3). Boundary fixtures assert the
+tier at the comms callback — the clock read inside the callback, after the
+stop tick — with a stubbed run RNG (tick exactly 1) and clock-reduction
+rewards netting the transition to zero: clocks 2 → green, 3 and 5 → amber,
+6 → red at BOTH trigger points. Controlled fixtures only; they do not claim
+clock 6 is naturally reachable after stop 1 (A1.5 restates F-06 with
+natural-run distribution).
+
+**The red beats' text, quoted for the operator's read at clock 6:**
+
+> **After stop 1** —
+> JAY CHEN: "RELAY-7, respond." / RELAY-7: "I'm here." / JAY CHEN: "Three
+> more stations dark. Command wants you to come back. I told them you're
+> close to something. Are you close to something?" / RELAY-7: "Yes." /
+> JAY CHEN: "Then keep going. I'll hold them off."
+>
+> **After stop 3** —
+> JAY CHEN: "RELAY-7." / RELAY-7: "Jay." / JAY CHEN: "People are scared. I
+> can hear it on the SCADA feeds. The station AIs are starting to compete
+> for remaining capacity. Load-balancing algorithms running against each
+> other." / RELAY-7: "That's the cascade. If I don't get to the source—" /
+> JAY CHEN: "I know what happens. Go."
+
+**Closed question.** Approve the red-tier text as reading correctly at
+clock 6 under the rebalanced bands? (yes/no)

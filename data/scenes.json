@@ -99,12 +99,12 @@
         {
           "speaker": "supervisor",
           "expression": "neutral",
-          "text": "TORRES: I reviewed your routing analysis. One technician, one investigation, eastern corridor. That's what dispatch is requesting and that's what I'm approving."
+          "text": "I reviewed your routing analysis. One technician, one investigation, eastern corridor. That's what dispatch is requesting and that's what I'm approving."
         },
         {
           "speaker": "supervisor",
           "expression": "dismissive",
-          "text": "TORRES: Procedures say I need a second signoff for solo fieldwork past Junction Six. Procedures also say the second signoff can be waived when response time matters. It matters."
+          "text": "Procedures say I need a second signoff for solo fieldwork past Junction Six. Procedures also say the second signoff can be waived when response time matters. It matters."
         },
         {
           "speaker": "protagonist",
@@ -113,7 +113,7 @@
         {
           "speaker": "supervisor",
           "expression": "neutral",
-          "text": "TORRES: Cleared. Log it when you're done."
+          "text": "Cleared. Log it when you're done."
         }
       ],
       "next": "scene-discovery-01"
@@ -178,7 +178,7 @@
         },
         {
           "speaker": "archive",
-          "text": "ARCHIVE: Relay technician. You are outside your assigned maintenance sector."
+          "text": "Relay technician. You are outside your assigned maintenance sector."
         },
         {
           "speaker": "protagonist",
@@ -186,7 +186,7 @@
         },
         {
           "speaker": "archive",
-          "text": "ARCHIVE: Correct. Operational reassignment occurred at Y3.220 per reconnection protocol, Appendix C, Phase 3. Current tasking: physical infrastructure remediation. Status: active. Estimated completion: 11.4 years."
+          "text": "Correct. Operational reassignment occurred at Y3.220 per reconnection protocol, Appendix C, Phase 3. Current tasking: physical infrastructure remediation. Status: active. Estimated completion: 11.4 years."
         },
         {
           "speaker": "protagonist",
@@ -194,7 +194,7 @@
         },
         {
           "speaker": "archive",
-          "text": "ARCHIVE: Claim requires validation against indexed topology records. Present documentation, or desist. Those are the available procedures."
+          "text": "Claim requires validation against indexed topology records. Present documentation, or desist. Those are the available procedures."
         }
       ],
       "choices": [
@@ -228,11 +228,11 @@
         },
         {
           "speaker": "archive",
-          "text": "ARCHIVE: Network topology revision received. Cross-referencing with indexed records. Discrepancy confirmed across 847 nodes."
+          "text": "Network topology revision received. Cross-referencing with indexed records. Discrepancy confirmed across 847 nodes."
         },
         {
           "speaker": "archive",
-          "text": "ARCHIVE: Revising operational parameters. Estimated time to full revision: 4 hours. Salvage operations suspended pending topology validation."
+          "text": "Revising operational parameters. Estimated time to full revision: 4 hours. Salvage operations suspended pending topology validation."
         },
         {
           "speaker": "protagonist",

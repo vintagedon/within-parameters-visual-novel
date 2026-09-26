@@ -56,6 +56,18 @@ const MUTATIONS = [
     find: /this\.practicedAvailable = snap\.practicedAvailable;/,
     replace: `// mutation: Practiced availability restoration dropped`,
   },
+  {
+    name: 'A1.4 reinserts an in-text speaker prefix into a scenes.json line',
+    file: 'data/scenes.json',
+    find: '"text": "Cleared. Log it when you\'re done."',
+    replace: '"text": "TORRES: Cleared. Log it when you\'re done."',
+  },
+  {
+    name: 'A1.4 reinserts the Vasquez surname into FD-01',
+    file: 'data/found-documents.json',
+    find: 'Ticket #4471-C: Behavioral Anomaly — RELAY-7',
+    replace: 'Ticket #4471-C: Behavioral Anomaly — Unit Vasquez, M.',
+  },
 ];
 
 // ─── Runner ───────────────────────────────────────────────────────────────────

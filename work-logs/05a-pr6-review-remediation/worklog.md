@@ -258,4 +258,70 @@ marked, and a closed question for the operator.
 `npm run test:mutation` 4/4; `npm run replay` 6/6; `npm run audit:events`
 36/36; `tests/resume_check.py` 9/9; `npm run build` clean.
 
+**Incident (executor defect, disclosed).** The gate commit (`09bdfbb`)
+swept the untracked, operator-owned `docs/project-brief.md` into the branch
+via a directory-wide `git add docs/`, contrary to the startup exception.
+The file was committed byte-for-byte as it sat on disk (unmodified since
+2026-06-25; verified by diff against the working tree) and was removed from
+tracking in the immediate follow-up commit (`d5561d0`), leaving it
+untracked and unmodified. Force-push is forbidden, so the content remains
+visible in the open PR's history for two commits; this is flagged in the PR
+comment for the operator's merge decision. Going forward this run stages
+only explicitly enumerated paths and verifies `git status` without
+filtering.
+
+**Commits:** `09bdfbb` — coherent withdrawal narrative (gate A1.3);
+`d5561d0` — operator file tracking correction. Branch pushed; PR 6 updated
+in place.
+
+## Gate A1.4: Content corrections
+
+**Changes.**
+
+- `data/scenes.json` (8 lines) and `data/events.json` (23 lines): in-text
+  speaker prefixes stripped from every non-narrator dialogue line
+  (ARCHIVE ×5, TORRES ×3, DEX ×9, AGUILAR ×7, SATO ×4, ENGINEER ×2,
+  CREW LEADER ×1). `data/comms-beats.json` carried none. The nameplate
+  identifies the speaker.
+- ENGINEER/CREW LEADER mismatch resolved as a new character (executor's
+  choice): `crew-leader` added to `data/characters.json` (name CREW
+  LEADER, Independent Crew Leader, `#f2c14e`, reusing the npc2 placeholder
+  portrait key — no asset-manifest change), and `evt-ae01-a`'s line moved
+  to it with the prefix stripped. Nameplate, narrator introduction, and
+  text now agree.
+- FD-01 (frozen F-07): credentials holder named by callsign only — title
+  "Ticket #4471-C: Behavioral Anomaly — RELAY-7", body "Unit RELAY-7
+  accessed Junction 4-B…". No rolled-name slotting, no framing text.
+- FD-08: the Administrator is now "Human Unit Whitfield, D." — Whitfield
+  is in neither the protagonist-pool surnames nor the NPC cast — and the
+  Warden's surname no longer appears in a contradicting role.
+- `data/comms-beats.json` (frozen F-06): green 0-2, amber 3-5, red 6-9;
+  trigger points unchanged.
+
+**Checks added** (`src/engine/live-checks.ts`): prefix scan across all
+three dialogue files; nameplate/identity agreement incl. the crew-leader
+manifest entry; document surname scan (no pool surnames; FD-08 carries
+Whitfield, not Aguilar); comms-band boundary fixtures reading the clock
+inside the comms callback after the stop tick — stubbed run RNG (tick 1)
+plus clock-reduction rewards net each transition to zero, so callback
+clocks 2/3/5/6 occur at both trigger points and tier green/amber/amber/red
+under the frozen bands. Controlled fixtures only: no natural-reachability
+claim (that is A1.5/F-06 evidence). Harness change: makeHarness accepts a
+run-RNG override and the comms callback records the live clock.
+
+**Mutations added** (`scripts/run-mutation-checks.mjs`): reinserting a
+TORRES prefix into scenes.json and reinserting Vasquez into FD-01 — each
+fails its check.
+
+**Screenshot status (recorded, not re-recorded):** `npm run
+test:screens:check` passes 10 of 11 captures; exactly one regression,
+`05-save-load-confirm.png`, caused by A1.2's AUTOSAVE-row disable (the
+save screen now renders the disabled action with its reason). Recorded
+against the unchanged baseline set per the amendment; the re-record and
+its before/after pair happen in A1.6 only.
+
+**Verification:** `npm run test:live` 42/42; `npm run test:mutation` 6/6;
+`npm run audit:events` 36/36 (prefix removal changed no mechanical value);
+`npm run replay` 6/6; `npm run build` clean.
+
 **Commit:** (recorded after commit)
