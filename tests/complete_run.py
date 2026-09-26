@@ -49,6 +49,14 @@ VIEWPORT = {"width": 1440, "height": 900}
 ACTION_MS = 90
 MAX_ACTIONS = 6000
 
+# Independent reference trace for the counter cross-check (A1.5): a
+# scene-level dialogue count of seed 555555 produced outside this harness
+# during the PR 6 review. The trace predates the A1.4 speaker-prefix
+# removal, so the expected typed total is reconciled at runtime: the trace's
+# per-scene totals are compared against the current data files and the
+# per-scene deltas (all of them stripped prefix lengths) are itemized.
+REFERENCE_TRACE = Path(__file__).resolve().parent / "fixtures" / "seed555555-dialogue-count.json"
+
 TIER_MARKERS = {
     "green": ["status check. Finding anything?", "dispatch logged two more relay faults"],
     "amber": ["cascade alerts across three stations", "Station 14 just went to emergency rationing"],
@@ -110,7 +118,16 @@ class RunResult:
         self.errors: list[str] = []
         self.failed_requests: list[str] = []
         self.no_eligible_events = False
-        self.dialogue_chars = 0
+        # A1.5 counter: typed dialogue characters (one count per rendered
+        # line, collected by the page-side observer) and instant-surface
+        # characters (documents, comms, epilogue, score breakdown — each
+        # surface counted once). Polling and typewriter updates do not
+        # create extra occurrences.
+        self.typed_chars = 0
+        self.typed_lines = 0
+        self.instant_chars = 0
+        self.instant_breakdown: dict[str, int] = {}
+        self.decisions = 0
         self.rerolled = False
         self.resumed = False
         self.completed = False
@@ -138,6 +155,36 @@ def play_run(
     context: BrowserContext = browser.new_context(viewport=VIEWPORT)
     page = context.new_page()
     page.add_init_script(f"window.__wpSeed = {seed};")
+    # Typed-dialogue collector: the dialogue bar toggles a .typing class for
+    # every rendered line (startTypewriter adds it, finish/skip removes it).
+    # One removal with a full text payload is exactly one displayed line, so
+    # repeated identical lines still count twice while typewriter ticks and
+    # harness polling count nothing extra.
+    page.add_init_script(
+        """(function() {
+            window.__wpTyped = { chars: 0, lines: 0 };
+            const el = () => document.getElementById('dialogue-text');
+            let armed = false;
+            const obs = new MutationObserver(() => {
+                const node = el();
+                if (!node) return;
+                if (node.classList.contains('typing')) { armed = true; return; }
+                if (armed) {
+                    armed = false;
+                    const t = node.textContent || '';
+                    window.__wpTyped.chars += t.length;
+                    window.__wpTyped.lines += 1;
+                }
+            });
+            const attach = () => {
+                const node = el();
+                if (!node) { setTimeout(attach, 50); return; }
+                obs.observe(node, { attributes: true, childList: true, characterData: true, subtree: true });
+            };
+            attach();
+        })();
+    """
+    )
     page.on(
         "response",
         lambda r: result.failed_requests.append(f"{r.status} {r.url}")
@@ -202,6 +249,11 @@ def play_run(
                 result.ending = ENDING_BY_LABEL.get(label, label)
                 result.score = int(page.locator("#ending-score .wp-score-final-num").text_content().strip())
                 result.grade = page.locator("#ending-score .wp-score-grade").first.text_content().strip()
+                epilogue = page.locator("#ending-epilogue").text_content() or ""
+                breakdown = page.locator("#ending-score").text_content() or ""
+                result.instant_chars += len(epilogue) + len(breakdown)
+                result.instant_breakdown["epilogue"] = len(epilogue)
+                result.instant_breakdown["score_breakdown"] = len(breakdown)
                 result.completed = True
                 break
 
@@ -214,15 +266,24 @@ def play_run(
                 continue
 
             if page.locator("#document-overlay:not(.hidden)").count() > 0:
-                result.dialogue_chars += len(page.locator("#document-body").text_content() or "")
+                result.instant_chars += len(page.locator("#document-body").text_content() or "")
+                result.instant_breakdown["document"] = result.instant_breakdown.get("document", 0) + len(page.locator("#document-body").text_content() or "")
                 result.docs_read += 1
                 page.click("#document-footer .gui-btn")
                 time.sleep(ACTION_MS / 1000)
                 continue
 
             if page.locator("#comms-overlay:not(.hidden)").count() > 0:
-                text = page.locator("#comms-panel-body").text_content() or ""
-                result.dialogue_chars += len(text)
+                # Counted as line text (the exchange), matching the trace's
+                # methodology: the per-line text node, excluding the speaker
+                # label span and the panel chrome.
+                text = page.evaluate(
+                    """() => Array.from(document.querySelectorAll('#comms-panel-body .wp-comms-text'))
+                        .map((r) => (r.lastChild ? r.lastChild.textContent : ''))
+                        .join('')"""
+                )
+                result.instant_chars += len(text)
+                result.instant_breakdown["comms"] = result.instant_breakdown.get("comms", 0) + len(text)
                 tier = classify_tier(text)
                 if tier and tier not in result.comms_tiers:
                     result.comms_tiers.append(tier)
@@ -231,6 +292,7 @@ def play_run(
                 continue
 
             if page.locator("#reward-overlay:not(.hidden)").count() > 0:
+                result.decisions += 1
                 cards = page.locator(".wp-reward-cards .gui-card")
                 cards.nth(reward_pick).click()
                 time.sleep(ACTION_MS / 1000)
@@ -238,9 +300,7 @@ def play_run(
 
             choices = page.query_selector_all("#choices-area .gui-btn:not([disabled])")
             if choices:
-                result.dialogue_chars += len(
-                    page.locator("#dialogue-text").text_content() or ""
-                )
+                result.decisions += 1
                 btn = choices[-1] if choice_pick_last else choices[0]
                 if strategy == "correction":
                     # Prefer knowledge-gated choices (the rich ones show their
@@ -254,6 +314,10 @@ def play_run(
             page.click("#bottom-bar")
             time.sleep(ACTION_MS / 1000)
             result.actions += 1
+
+        typed = page.evaluate("() => window.__wpTyped || { chars: 0, lines: 0 }")
+        result.typed_chars = typed["chars"]
+        result.typed_lines = typed["lines"]
     finally:
         context.close()
     return result
@@ -335,6 +399,7 @@ def main() -> int:
 
     runs: list[RunResult] = []
     save_seed = 555555
+    trace_check_only = "--trace-check" in sys.argv
 
     try:
         with sync_playwright() as pw:
@@ -344,51 +409,38 @@ def main() -> int:
             # then the mid-run save, then the resume in a fresh context.
             twin = play_run(browser, base, origin, save_seed, "knowledge")
             runs.append(twin)
-            slot = save_mid_run_slot(browser, base, origin, save_seed)
-            resumed = play_run(browser, base, origin, save_seed, "knowledge", resume_state=slot)
-            runs.append(resumed)
+            if trace_check_only:
+                browser.close()
+            else:
+                slot = save_mid_run_slot(browser, base, origin, save_seed)
+                resumed = play_run(browser, base, origin, save_seed, "knowledge", resume_state=slot)
+                runs.append(resumed)
 
-            # Coverage pool: alternate strategies over recorded seeds until
-            # the set covers all three endings and all three comms tiers.
-            plan = [
-                (20260916, "knowledge"),
-                (20260916, "consumable"),
-                (7, "clockburn"),
+            # Fixed inventory (A1.5): the parent review surface's recorded
+            # 37 runs re-run in full — the coverage-based early exits are
+            # gone, so easier red comms cannot silently drop prior runs.
+            # Every entry reproduces a run documented at closeout.
+            plan: list[tuple[int, str, int]] = [] if trace_check_only else [
+                (20260916, "knowledge", 0),
+                (20260916, "consumable", 0),
+                (7, "clockburn", 0),
                 (11, "knowledge", 1),        # reroll coverage
-                (42, "consumable"),
-                (99, "clockburn"),
-                (31337, "knowledge"),
-                (2027, "consumable"),
-                (12345, "clockburn"),
-                (777, "knowledge"),
-                (8888, "consumable"),
-                (90210, "clockburn"),
-                (60606, "knowledge"),
-                (40404, "consumable"),
+                (42, "consumable", 0),
+                (99, "clockburn", 0),
+                (31337, "knowledge", 0),
+                (2027, "consumable", 0),
+                (12345, "clockburn", 0),
+                (777, "knowledge", 0),
+                (8888, "consumable", 0),
+                (90210, "clockburn", 0),
+                (60606, "knowledge", 0),
+                (40404, "consumable", 0),
             ]
-            for item in plan:
-                seed, strategy = item[0], item[1]
-                rerolls = item[2] if len(item) > 2 else 0
-                endings = {r.ending for r in runs if r.completed}
-                if {"clock-failure", "destruction", "correction"} <= endings and len(runs) >= 12:
-                    break
+            if not trace_check_only:
+                plan += [(seed, "correction", 0) for seed in (501, 502, 503, 504, 505, 506)]
+                plan += [(seed, "redhunt", 0) for seed in range(601, 616)]
+            for seed, strategy, rerolls in plan:
                 runs.append(play_run(browser, base, origin, seed, strategy, rerolls))
-
-            # Targeted coverage loops (still natural runs; strategies are
-            # click policies over the real UI).
-            correction_seeds = [501, 502, 503, 504, 505, 506, 507, 508, 509, 510,
-                                511, 512, 513, 514, 515, 516]
-            for seed in correction_seeds:
-                if any(r.ending == "correction" for r in runs if r.completed):
-                    break
-                runs.append(play_run(browser, base, origin, seed, "correction"))
-
-            red_seeds = [601, 602, 603, 604, 605, 606, 607, 608, 609, 610,
-                         611, 612, 613, 614, 615, 616]
-            for seed in red_seeds:
-                if {"red"} <= {t for r in runs for t in r.comms_tiers}:
-                    break
-                runs.append(play_run(browser, base, origin, seed, "redhunt"))
 
             browser.close()
     finally:
@@ -409,9 +461,79 @@ def main() -> int:
             f"{'RESUMED ' if r.resumed else ''}{'REROLL ' if r.rerolled else ''}"
             f"-> {r.ending or 'INCOMPLETE'} {r.score if r.score is not None else '-'}{r.grade or ''} "
             f"(docs {r.docs_read}, comms {','.join(r.comms_tiers) or '-'}, "
-            f"chars {r.dialogue_chars}, errors {len(r.errors)}, failed-req {len(r.failed_requests)})"
+            f"typed {r.typed_chars}/{r.typed_lines}L, instant {r.instant_chars}, "
+            f"decisions {r.decisions}, errors {len(r.errors)}, failed-req {len(r.failed_requests)})"
         )
     print("=" * 76)
+
+    # Counter cross-check against the independent scene-level trace of seed
+    # 555555 (knowledge strategy). The trace predates the A1.4 prefix
+    # removal; the expected typed total is the trace total minus the
+    # per-scene deltas, each delta being stripped prefix length on lines the
+    # run displays. Every difference is itemized here, not averaged.
+    trace_report = {"checked": False}
+    twin_run = runs[0] if runs else None
+    if REFERENCE_TRACE.exists() and twin_run is not None and twin_run.completed:
+        trace = json.loads(REFERENCE_TRACE.read_text())
+        events_now = json.loads((REPO_ROOT / "data" / "events.json").read_text())["events"]
+        scenes_now = json.loads((REPO_ROOT / "data" / "scenes.json").read_text())["scenes"]
+        def scene_len(sid):
+            for s in scenes_now:
+                if s["id"] == sid:
+                    return sum(len(l["text"]) for l in s["dialogue"])
+            for e in events_now:
+                for s in e["scenes"]:
+                    if s["id"] == sid:
+                        return sum(len(l["text"]) for l in s["dialogue"])
+            return None
+        expected_typed = trace["typedDialogueChars"]
+        deltas = []
+        for shown in trace["shown"]:
+            cur = scene_len(shown["id"])
+            if cur is None:
+                deltas.append(f"{shown['id']}: missing from current data")
+                continue
+            if cur != shown["chars"]:
+                deltas.append(f"{shown['id']}: trace {shown['chars']} -> now {cur} (delta {cur - shown['chars']}, A1.4 prefix removal)")
+                expected_typed -= shown["chars"] - cur
+        typed_delta = twin_run.typed_chars - expected_typed
+        trace_comms = sum(beat["chars"] for beat in trace["beats"])
+        # The trace's beat objects carry tierId and total chars (no timing).
+        # Comms text is untouched by the amendment's content changes, so the
+        # expected comms total is the trace total when every trace beat's
+        # char count still matches a current-data beat of the same tier.
+        comms_data = json.loads((REPO_ROOT / "data" / "comms-beats.json").read_text())["commsBeats"]
+        comms_matched = []
+        for beat in trace["beats"]:
+            candidates = [
+                sum(len(l["text"]) for l in b["lines"])
+                for t in comms_data if t["id"] == beat["tierId"]
+                for b in t["beats"]
+            ]
+            comms_matched.append(beat["chars"] in candidates)
+        comms_expected = trace_comms if all(comms_matched) else -1
+        trace_report = {
+            "checked": True,
+            "trace_typed": trace["typedDialogueChars"],
+            "reconciled_expected_typed": expected_typed,
+            "harness_typed": twin_run.typed_chars,
+            "harness_typed_lines": twin_run.typed_lines,
+            "typed_delta_vs_reconciled": typed_delta,
+            "scene_deltas": deltas,
+            "trace_comms_chars": trace_comms,
+            "current_data_comms_chars_for_seen_beats": comms_expected,
+            "harness_comms_chars": twin_run.instant_breakdown.get("comms", 0),
+            "trace_epilogue_chars": trace["epilogueChars"],
+            "harness_epilogue_chars": twin_run.instant_breakdown.get("epilogue", 0),
+        }
+        print("Counter cross-check (seed 555555 vs independent trace):")
+        print(f"  trace typed {trace['typedDialogueChars']} -> reconciled for A1.4 prefix removal: {expected_typed}")
+        for d in deltas:
+            print(f"    {d}")
+        print(f"  harness typed: {twin_run.typed_chars} chars / {twin_run.typed_lines} lines (delta {typed_delta})")
+        print(f"  comms: trace {trace_comms}, harness {twin_run.instant_breakdown.get('comms', 0)}")
+        print(f"  epilogue: trace {trace['epilogueChars']}, harness {twin_run.instant_breakdown.get('epilogue', 0)}")
+        print("=" * 76)
 
     completed = [r for r in runs if r.completed]
     endings = {r.ending for r in completed}
@@ -428,13 +550,20 @@ def main() -> int:
         ("a reroll is in the set", rerolls),
         ("a found-document read is in the set", doc_reads >= 1),
         ("a comms beat at each tier is in the set", comms_tiers == {"green", "amber", "red"}),
-        ("a mid-run save and resume is in the set", any(r.resumed for r in completed)),
-        ("save/resume twin scores match", 
-         twin.completed and resumed.completed and twin.score == resumed.score and twin.ending == resumed.ending),
+        ("a mid-run save and resume is in the set", (not trace_check_only) and any(r.resumed for r in completed)),
+        ("save/resume twin scores match",
+         (not trace_check_only) and twin.completed and resumed.completed
+         and twin.score == resumed.score and twin.ending == resumed.ending),
         ("zero uncaught console errors", len(all_errors) == 0),
         ("zero failed required asset requests (HTTP status)", len(all_failed) == 0),
         ("no run reported No eligible events", not no_eligible),
         ("tests/baseline/ untouched", baseline_before == baseline_after),
+        ("counter matches the reconciled independent trace (seed 555555)",
+         trace_report["checked"]
+         and trace_report["typed_delta_vs_reconciled"] == 0
+         and trace_report["harness_comms_chars"] == trace_report["current_data_comms_chars_for_seen_beats"]
+         and trace_report["trace_comms_chars"] > 0
+         and trace_report["harness_epilogue_chars"] == trace_report["trace_epilogue_chars"]),
     ]
     failed = 0
     for label, ok in checks:
@@ -464,7 +593,11 @@ def main() -> int:
                     "grade": r.grade,
                     "docs_read": r.docs_read,
                     "comms_tiers": r.comms_tiers,
-                    "dialogue_chars": r.dialogue_chars,
+                    "typed_chars": r.typed_chars,
+                    "typed_lines": r.typed_lines,
+                    "instant_chars": r.instant_chars,
+                    "instant_breakdown": r.instant_breakdown,
+                    "decisions": r.decisions,
                     "resumed": r.resumed,
                     "rerolled": r.rerolled,
                     "completed": r.completed,

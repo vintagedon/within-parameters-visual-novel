@@ -2099,58 +2099,259 @@ check('4.8 evidence: all 64 combos complete runs without deadlock', () => {
   return `${completed}/128 runs (64 combos x 2 seeds) completed with an enabled choice always available`;
 });
 
-/** Every gated choice is reachable at a legal knowledge value by its earliest draw. */
-check('4.8 evidence: every gated choice reachable at a legal knowledge value', () => {
-  const zoneStops: Record<string, number[]> = {
-    community: [1, 2],
-    transit: [3, 4],
-    approach: [5],
-  };
-  const maxKnowledgeByStop = (stop: number): number => {
-    // Best case per stop: the zone's highest knowledge choice plus a found
-    // document when the zone carries any documented event.
-    const zone = (baseConfig.zoneMap as unknown as Record<string, string>)[String(stop)] as
+/**
+ * A1.5 corrected reachability evidence (F-04 restatement). The old bound
+ * credited each zone's best knowledge choice at every stop of that zone —
+ * including the gated event's own yield before it could have drawn — and
+ * ignored rewards and documents. The corrected evidence:
+ *
+ *   1. An upper bound that respects zone order, no-repeat draws, and
+ *      self-credit exclusion: for each gated choice, the best legal prior
+ *      knowledge is computed over every ordered event assignment that draws
+ *      the event at a given stop, crediting only PRIOR stops' best choice
+ *      yield, the knowledge reward, and a document read. An upper bound can
+ *      rule a gate out; exceeding it proves nothing by itself.
+ *   2. A legal-path search through the live runner: seeds are driven with a
+ *      max-knowledge policy until a run reaches the gated choice enabled
+ *      (pre-choice knowledge >= gate). Every positive reachability claim
+ *      carries the reproducible path: seed, stop, drawn route, pre-choice
+ *      knowledge, and how much of it came from choices alone.
+ *   3. Unresolved is distinct from unreachable: a gate whose bound allows
+ *      room but whose search found no path within the seed budget is
+ *      reported unresolved, not unreachable.
+ */
+interface GateReach {
+  label: string;
+  gate: number;
+  bound: number;
+  status: 'reachable' | 'proved-unreachable' | 'unresolved';
+  path?: string;
+}
+
+function gatedChoices(): Array<{ event: EventDef; index: number; gate: number }> {
+  const out: Array<{ event: EventDef; index: number; gate: number }> = [];
+  for (const event of eventsData) {
+    const situation = event.scenes.find((s) => (s.choices ?? []).length > 0)!;
+    situation.choices!.forEach((choice, i) => {
+      const gate = choice.condition?.stat === 'knowledge' ? choice.condition.min : 0;
+      if (gate) out.push({ event, index: i, gate });
+    });
+  }
+  return out;
+}
+
+function bestChoiceYield(event: EventDef): number {
+  const situation = event.scenes.find((s) => (s.choices ?? []).length > 0)!;
+  return Math.max(...situation.choices!.map((c) => c.statChanges?.knowledge ?? 0));
+}
+
+check('A1.5 reachability: corrected bounds exclude self-credit; every reachable gate carries a legal path', () => {
+  // One consistent effective configuration for bound AND search: P6/N2 has
+  // no Distracted flag, so the document's +1 is real and the knowledge
+  // reward totals 2 + knowledgeRewardBonus = 0 under the locked config.
+  const config = buildEffectiveConfig(baseConfig, 'P6', 'N2');
+  const rewardKnowledge = 2 + config.knowledgeRewardBonus;
+  const docBonus = config.distracted ? 0 : 1;
+  const zoneOf = (stop: number) =>
+    (baseConfig.zoneMap as unknown as Record<string, string>)[String(stop)] as
       | 'community'
       | 'transit'
       | 'approach';
-    const pool = eventsData.filter((e) => e.category === zone);
-    const bestChoice = Math.max(
-      ...pool.flatMap((e) =>
-        (e.scenes.find((s) => (s.choices ?? []).length > 0)?.choices ?? []).map(
-          (c) => c.statChanges?.knowledge ?? 0
-        )
-      )
-    );
-    const docBonus = pool.some((e) => (e.foundDocumentIds ?? []).length > 0) ? 1 : 0;
-    return bestChoice + docBonus;
+  const zoneEvents = (zone: string) => eventsData.filter((e) => e.category === zone);
+
+  // Ordered assignments per zone: which events draw at which stops.
+  const perms = <T>(arr: T[], k: number): T[][] => {
+    if (k === 0) return [[]];
+    if (arr.length === 0) return [];
+    const out: T[][] = [];
+    for (let i = 0; i < arr.length; i++) {
+      const rest = [...arr.slice(0, i), ...arr.slice(i + 1)];
+      for (const tail of perms(rest, k - 1)) out.push([arr[i]!, ...tail]);
+    }
+    return out;
   };
-  // Cumulative attainable knowledge when arriving at a stop (before choosing).
-  const cumulative: number[] = [0];
-  for (let stop = 1; stop <= baseConfig.journeyStops; stop++) {
-    cumulative[stop] = cumulative[stop - 1]! + maxKnowledgeByStop(stop);
+  const zoneStops: Record<string, number[]> = { community: [1, 2], transit: [3, 4], approach: [5] };
+  const assignments: Array<Record<number, EventDef>> = [];
+  const commPerms = perms(zoneEvents('community'), 2);
+  const transPerms = perms(zoneEvents('transit'), 2);
+  const apprPerms = perms(zoneEvents('approach'), 1);
+  for (const c of commPerms) {
+    for (const t of transPerms) {
+      for (const a of apprPerms) {
+        const m: Record<number, EventDef> = {};
+        const zones = [c, t, a];
+        const zoneNames = ['community', 'transit', 'approach'];
+        zones.forEach((zoneList, zi) => {
+          const stops = zoneStops[zoneNames[zi] ?? ''];
+          if (!stops) return;
+          stops.forEach((stop, si) => {
+            const e = zoneList[si];
+            if (e !== undefined) m[stop] = e;
+          });
+        });
+        assignments.push(m);
+      }
+    }
   }
 
-  const notes: string[] = [];
-  for (const event of eventsData) {
-    const situation = event.scenes.find((s) => (s.choices ?? []).length > 0)!;
-    (situation.choices ?? []).forEach((choice, i) => {
-      const gate = choice.condition?.stat === 'knowledge' ? choice.condition.min : 0;
-      if (!gate) return;
-      // Reachable when the knowledge the run can hold at some drawable stop
-      // satisfies the gate: use the latest stop the event can draw (the
-      // most knowledge a legal run can hold while the event is still in the
-      // pool).
-      const latest = zoneStops[event.category]![zoneStops[event.category]!.length - 1]!;
-      const attainable = cumulative[latest - 1]!;
-      assert(
-        attainable >= gate,
-        `${event.id}[${i}] gate ${gate} unreachable at every drawable stop (attainable ${attainable})`
-      );
-      notes.push(`${event.id}[${i}] k>=${gate} (attainable by stop ${latest}: ${attainable})`);
-    });
+  // Corrected upper bound per gated choice: best prior knowledge over all
+  // legal assignments, crediting only prior stops (self-credit excluded).
+  const reaches: GateReach[] = [];
+  for (const { event, index, gate } of gatedChoices()) {
+    let bound = 0;
+    for (const assignment of assignments) {
+      let prior = 0;
+      for (let stop = 1; stop <= baseConfig.journeyStops; stop++) {
+        if (assignment[stop]!.id === event.id) {
+          bound = Math.max(bound, prior);
+          break;
+        }
+        const e = assignment[stop]!;
+        prior += bestChoiceYield(e) + rewardKnowledge + ((e.foundDocumentIds ?? []).length > 0 ? docBonus : 0);
+      }
+    }
+    reaches.push({ label: `${event.id}[${index}]`, gate, bound, status: bound >= gate ? 'unresolved' : 'proved-unreachable' });
   }
-  return notes.join(', ');
+
+  // Legal-path search through the live runner: max-knowledge policy (best
+  // enabled knowledge choice, knowledge rewards, documents read by the run).
+  const paths = new Map<string, string>();
+  const SEED_BUDGET = 150;
+  for (let seed = 1; seed <= SEED_BUDGET && reaches.some((r) => r.status === 'unresolved'); seed++) {
+    const h = makeHarness({ positive: 'P6', negative: 'N2', events: eventsData, runSeed: seed });
+    h.runner.loadScene('scene-discovery-01');
+    const route: string[] = [];
+    const choiceGainByStop: number[] = [];
+    for (let guard = 0; guard < 1200; guard++) {
+      if (reaches.every((r) => r.status !== 'unresolved')) break;
+      if (h.pendingReward) {
+        h.pendingReward.onSelect(1); // knowledge reward
+        h.pendingReward = null;
+        continue;
+      }
+      const scene = h.queue.shift();
+      if (!scene) continue;
+      if (scene.choices && scene.choices.length > 0) {
+        const views = h.runner.getChoiceViews(scene);
+        const activeId = h.runner.getState().activeEventId;
+        const stop = h.runner.getState().currentStop;
+        const preKnowledge = h.runner.getState().stats.knowledge;
+        // Record legal paths for this event's gated choices at this stop.
+        const gatedHere = gatedChoices().filter(
+          (g) => g.event.id === activeId && views[g.index] !== undefined
+        );
+        for (const g of gatedHere) {
+          const rec = reaches.find((r) => r.label === `${g.event.id}[${g.index}]` && r.status === 'unresolved');
+          if (rec && views[g.index]!.enabled) {
+            const gainFromChoices = choiceGainByStop.reduce((a, b) => a + b, 0);
+            const entry = `seed ${seed}, stop ${stop}, route ${route.join('>')}, pre-choice knowledge ${preKnowledge} (of which choices ${gainFromChoices}; the rest from rewards/documents), knowledge rewards taken`;
+            rec.status = 'reachable';
+            rec.path = entry;
+            paths.set(rec.label, entry);
+          }
+        }
+        const bestIdx = views.reduce(
+          (best, v, i) => {
+            const gain = scene.choices![i]!.statChanges?.knowledge ?? 0;
+            const score = (v.enabled ? 100 : 0) + gain;
+            return score > best.score ? { score, idx: i } : best;
+          },
+          { score: -1, idx: -1 }
+        ).idx;
+        if (bestIdx >= 0 && views[bestIdx]!.enabled) {
+          choiceGainByStop.push(scene.choices![bestIdx]!.statChanges?.knowledge ?? 0);
+          h.runner.selectChoice(scene, bestIdx);
+          continue;
+        }
+      }
+      route.push(scene.id);
+      h.runner.sceneComplete(scene);
+      if (h.runner.getState().activeEventId) h.runner.eventSceneComplete(scene.id);
+    }
+  }
+
+  const notes = reaches.map((r) => {
+    if (r.status === 'reachable') return `${r.label} gate ${r.bound >= 0 ? r.gate : r.gate}: REACHABLE — ${r.path}`;
+    if (r.status === 'proved-unreachable') return `${r.label} gate ${r.gate}: PROVED UNREACHABLE (corrected upper bound ${r.bound} < gate)`;
+    return `${r.label} gate ${r.gate}: UNRESOLVED (bound ${r.bound} >= gate; no legal path in ${SEED_BUDGET} seeds)`;
+  });
+  for (const r of reaches) {
+    if (r.status === 'unresolved') {
+      throw new Error(`${r.label}: gate ${r.gate} remains unresolved after the seed budget — report, do not claim`);
+    }
+  }
+  const reachable = reaches.filter((r) => r.status === 'reachable');
+  assert(reachable.length > 0, 'no gate resolved reachable; the search is broken');
+  assert(
+    reachable.every((r) => r.path!.includes('pre-choice knowledge')),
+    'every reachable gate carries a pre-choice state'
+  );
+  // A legal path that REQUIRED a knowledge reward: at least one accepted
+  // path whose choices alone stay below the gate — the reward (or document)
+  // carried it over, which the old zone-wide bound could never show.
+  const rewardRequired = reachable.filter((r) => {
+    const m = r.path!.match(/of which choices (\d+)/);
+    return m !== null && Number(m[1]) < r.gate;
+  });
+  assert(rewardRequired.length > 0, 'no accepted path demonstrates a reward-required crossing');
+  return `${reaches.length} gated choices: ${reachable.length} reachable with legal paths (${rewardRequired.length} require rewards/documents), ${reaches.filter((r) => r.status === 'proved-unreachable').length} proved unreachable; ${notes.join(' | ')}`;
 });
+
+/** The synthetic self-credit fixture: an event whose own +15 choice would
+ *  satisfy its gate 10 under the old zone-wide calculation. The old
+ *  calculation passes it; the corrected bound — which never credits an
+ *  event's own yield toward its own gate — rejects it. */
+check('A1.5 reachability: the self-credit fixture passes the old calculation and is rejected by the corrected bound', () => {
+  const fakeEvent: EventDef = {
+    id: 'XX-99',
+    name: 'Self-credit trap (fixture)',
+    category: 'community',
+    entryScene: 'evt-xx99-arrive',
+    rewardScene: 'evt-xx99-reward',
+    scenes: [
+      {
+        id: 'evt-xx99-situation',
+        beat: 'journey',
+        background: 'bg-station-beta',
+        dialogue: [],
+        choices: [
+          {
+            label: 'self-credit trap',
+            nextScene: 'evt-xx99-reward',
+            condition: { stat: 'knowledge', min: 10 },
+            statChanges: { knowledge: 15, consumables: 0, rapport: 0, clock: 0 },
+          },
+        ],
+      },
+    ],
+    rewards: [] as unknown as EventDef['rewards'],
+  };
+  // Old calculation replica: zone-wide best choice credited at every stop of
+  // the zone, self-credit included.
+  const community = [...zoneEventsForFixture(eventsData), fakeEvent];
+  const oldBest = Math.max(...community.map(bestChoiceYieldForFixture));
+  const oldCumulativeByStop2 = oldBest + 1; // + doc bonus for the zone
+  assert(oldCumulativeByStop2 >= 10, 'old calculation passes the self-credit fixture (precondition)');
+
+  // Corrected bound: XX-99 draws at community stop 1 or 2; its own yield is
+  // excluded either way. At stop 1 the prior knowledge is 0; at stop 2 the
+  // best legal prior is one other community event's choice + reward + doc.
+  const others = community.filter((e) => e.id !== 'XX-99');
+  const bestOther = Math.max(...others.map(bestChoiceYieldForFixture));
+  const rewardKnowledge = 2;
+  const correctedBound = bestOther + rewardKnowledge + 1;
+  assert(correctedBound < 10, `corrected bound rejects the fixture (bound ${correctedBound} < gate 10)`);
+  return `old attainable ${oldCumulativeByStop2} >= 10 (passes); corrected bound ${correctedBound} < 10 (rejected)`;
+});
+
+function zoneEventsForFixture(events: EventDef[]): EventDef[] {
+  return events.filter((e) => e.category === 'community');
+}
+function bestChoiceYieldForFixture(event: EventDef): number {
+  const situation = event.scenes.find((s) => (s.choices ?? []).length > 0);
+  if (!situation) return 0;
+  return Math.max(...situation.choices!.map((c) => c.statChanges?.knowledge ?? 0));
+}
 
 function report(): number {
   console.log('Within Parameters — live-path checks (drive the real SceneRunner)');

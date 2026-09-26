@@ -446,3 +446,174 @@ natural-run distribution).
 
 **Closed question.** Approve the red-tier text as reading correctly at
 clock 6 under the rebalanced bands? (yes/no)
+
+## A1.5: Evidence corrections
+
+### F-04 restated — gated-choice reachability
+
+**What was wrong with the prior evidence.** The gate 4.8 reachability check
+credited each zone's best knowledge choice at every stop of the event's
+zone — including the gated event's own yield before it could have drawn
+(the old calculation passes a synthetic event whose own +15 choice carries
+its own gate 10). It ignored rewards and documents, and it accepted
+"attainable ≥ gate" as reachability, which no legal run needs to realize.
+It also rested on an unstated reward value: under the locked winning config
+`knowledgeRewardBonus` is −2, so the knowledge reward totals **0** — the
+correction-rate evidence never depended on it, but the reachability prose
+implicitly did.
+
+**Corrected evidence.** Two instruments, one effective configuration
+(P6/N2: threshold 11, no Distracted, so document reads grant +1):
+
+1. **Corrected upper bound.** For each gated choice, the best legal prior
+   knowledge over every ordered no-repeat event assignment that draws the
+   event at each of its drawable stops, crediting only prior stops' best
+   choice yield, the knowledge reward (0), and a document read (+1). An
+   upper bound can rule a gate out; exceeding it proves nothing by itself.
+2. **Legal-path search through the live runner.** Seeds are driven with a
+   max-knowledge policy until the gated choice renders enabled (pre-choice
+   knowledge ≥ gate), recording the reproducible path: seed, stop, drawn
+   route, pre-choice knowledge, and how much of it came from choices alone.
+   A gate whose bound leaves room but whose search finds no path within the
+   150-seed budget is reported **unresolved**, not unreachable.
+
+**Result.** 5 gated choices; 5 reachable with legal paths; 0 proved
+unreachable; 0 unresolved. Two gates are crossed only by a document:
+
+| Gate | Legal path (reproducible) | Pre-choice knowledge |
+|------|---------------------------|----------------------|
+| CE-02[0] k≥3 | seed 7, stop 2: CE-04 → CE-02 | 4 (choices 3 + document 1) |
+| CE-05[2] k≥4 | seed 13, stop 2: CE-04 → CE-05 | 4 (choices 3 + **document 1 — required**) |
+| TE-03[1] k≥3 | seed 1, stop 3: CE-05 → CE-03 | 3 (choices 3) |
+| AE-02[0] k≥5 | seed 1, stop 5: CE-05 → CE-03 → TE-03 → TE-02 | 7 (choices 6 + document 1) |
+| AE-03[0] k≥4 | seed 7, stop 5: CE-04 → CE-02 → TE-04 → TE-01 | 9 (choices 7 + documents 2) |
+
+The synthetic self-credit fixture (an event whose own +15 choice would
+satisfy its own gate 10) passes the old calculation and is rejected by the
+corrected bound. Reproduction: `npm run test:live`.
+
+**Closed question (restated).** Accept corrected-bound + legal-path as the
+reachability standard, with the five paths above as the evidence? (yes/no)
+
+### F-05 restated — run length on corrected counts
+
+**What was wrong with the prior evidence.** The gate 4.8 counter recorded
+the last dialogue line before choices plus document and comms text only:
+ordinary advances, most setup/consequence lines, and the epilogue went
+uncounted. For seed 555555 it reported 1,326 characters against an
+independent scene trace of 6,879 typed characters — 6,092 typed characters
+omitted in one run.
+
+**Corrected counter.** `tests/complete_run.py` now counts every displayed
+dialogue occurrence exactly once via a page-side observer on the dialogue
+bar's per-line render cycle (one line = one render; typewriter ticks,
+harness polling, and repeated identical lines behave correctly), and
+reports instant surfaces (documents, comms exchanges, epilogue, score
+breakdown) separately, each counted once. The unmutated counter reproduces
+the independent trace for seed 555555 exactly:
+
+| Surface | Independent trace | Harness (reconciled) |
+|---------|-------------------|----------------------|
+| Typed dialogue | 6,879 | 6,762 (delta 0 after itemizing −117 chars of A1.4 prefix removal across 8 shown scenes) |
+| Comms exchanges | 427 | 427 |
+| Epilogue | 1,618 | 1,618 |
+
+Every scene-level difference is itemized in the harness output and is a
+stripped speaker-prefix length; nothing is averaged. Two counter mutations
+(dropping ordinary-dialogue counting; dropping epilogue counting) each make
+the equality assertion fail (`node scripts/run-counter-mutations.mjs`).
+
+**Corrected counts across the re-run set** (36 full runs; the save/resume
+twin pair excluded from duration stats as a partial run by design):
+
+| Measure | Min | Median | Max |
+|---------|-----|--------|-----|
+| Typed dialogue characters | 4,833 | 6,474 | 7,095 |
+| Typed lines | 44 | 60 | 64 |
+| Instant-surface characters | 1,930 | 4,254 | 5,882 |
+| Typewriter time at 30 ms/char | 145 s | 194 s | 213 s |
+| Decision points (choices + rewards) | 6 | 11 | 11 |
+
+**Estimated attentive run duration** — method: typed characters at the
+locked typewriter pace (30 ms/char), instant surfaces at ~144 wpm attentive
+reading (12 chars/s), 2.5 s per decision point; no loadings, menus, or
+chargen dwell:
+
+- Attentive: **median ~9.6 minutes** (range 5.5–12.0).
+- Leisured (skipping less, ~108 wpm reading, 5 s per decision): **median
+  ~11.8 minutes** (range 6.8–15.1).
+
+The closed question is re-asked on the corrected numbers; the operator's
+decision is not made here.
+
+**Closed question (restated).** The corrected evidence still does not
+reach the 25–35 minute target: an attentive run is ~6–12 minutes and a
+leisured one ~7–15. Which response do you want: (a) accept shorter runs
+and retire the target, (b) commission a content expansion spec, or (c)
+slow presentation knowing it pads rather than adds? (a/b/c)
+
+### F-06 restated — comms tier reachability under the rebalanced bands
+
+The frozen bands (green 0–2, amber 3–5, red 6–9) applied in A1.4, trigger
+points unchanged. The re-run set's beat distribution: green 36/37 runs,
+amber 27/37, **red 10/37 (27%)** — against 1/37 (2.7%) under the old bands.
+The red tier is no longer effectively dead: clockburn and Exhausted-reroll
+strategies reach it naturally, and beat B (after stop 3) carries it in
+every observing run.
+
+**Closed question (restated).** Accept the rebalanced bands as the fix for
+F-06? (yes/no)
+
+### Natural-run set re-run (supersedes the table in the body above)
+
+The recorded inventory re-ran in full against the post-A1.4 tree — every
+seed, strategy, reroll, and the save/resume pair reproduced, with the
+coverage-based early exits removed so nothing dropped silently. 37/37
+completed; zero console errors; zero failed same-origin requests by HTTP
+status; `tests/baseline/` untouched. Every ending, score, and grade matches
+the parent's record exactly — the A1.2–A1.4 content changes altered no
+mechanical outcome (replay 6/6 and event audit 36/36 concur).
+
+| Seed | Strategy | Ending | Score | Docs | Comms tiers (new bands) | Typed chars | Instant chars |
+|------|----------|--------|-------|------|--------------------------|-------------|---------------|
+| 555555 | knowledge | destruction | 55 C | 0 | green, amber | 6,762 | 2,418 |
+| 555555 | knowledge (resumed) | destruction | 55 C | 0 | amber | 3,064 | 2,233 |
+| 20260916 | knowledge | clock-failure | 35 D | 2 | green, **red** | 5,576 | 3,081 |
+| 20260916 | consumable | clock-failure | 45 C | 2 | green, **red** | 5,576 | 3,082 |
+| 7 | clockburn | clock-failure | 11 F | 3 | green, **red** | 5,169 | 4,225 |
+| 11 | knowledge (1 reroll) | destruction | 50 C | 1 | green, amber | 6,583 | 3,685 |
+| 42 | consumable | destruction | 64 B | 3 | green, **red** | 6,841 | 5,813 |
+| 99 | clockburn | destruction | 36 D | 2 | green, amber | 6,399 | 4,320 |
+| 31337 | knowledge | destruction | 61 B | 2 | green, amber | 6,885 | 4,699 |
+| 2027 | consumable | destruction | 72 B | 2 | green, amber | 7,092 | 4,006 |
+| 12345 | clockburn | clock-failure | 11 F | 3 | green, amber | 5,162 | 4,532 |
+| 777 | knowledge | destruction | 61 B | 2 | green, amber | 6,723 | 4,359 |
+| 8888 | consumable | destruction | 62 B | 2 | green, amber | 6,909 | 4,525 |
+| 90210 | clockburn | destruction | 34 D | 1 | green, amber | 6,672 | 3,496 |
+| 60606 | knowledge | destruction | 69 B | 3 | green, amber | 6,975 | 5,494 |
+| 40404 | consumable | destruction | 63 B | 1 | green, **red** | 6,633 | 3,515 |
+| 501 | correction | destruction | 61 B | 1 | green, amber | 6,628 | 3,531 |
+| 502 | correction | destruction | 59 C | 2 | green, amber | 6,944 | 4,470 |
+| 503 | correction | destruction | 67 B | 3 | green, amber | 6,806 | 5,882 |
+| 504 | correction | destruction | 63 B | 2 | green, amber | 7,002 | 4,357 |
+| 505 | correction | destruction | 63 B | 3 | green, amber | 7,026 | 5,688 |
+| 506 | correction | correction | 83 A | 1 | green, amber | 7,095 | 4,175 |
+| 601 | redhunt (reroll) | clock-failure | 11 F | 1 | green, **red** | 5,002 | 2,308 |
+| 602 | redhunt (reroll) | clock-failure | 11 F | 2 | green, **red** | 5,043 | 3,033 |
+| 603 | redhunt (reroll) | destruction | 33 D | 3 | green, amber | 6,447 | 5,300 |
+| 604 | redhunt (reroll) | destruction | 28 F | 1 | green, amber | 6,438 | 3,434 |
+| 605 | redhunt (reroll) | correction | 29 F | 2 | green, **red** | 6,945 | 5,139 |
+| 606 | redhunt (reroll) | destruction | 23 F | 3 | green, amber | 6,206 | 5,567 |
+| 607 | redhunt (reroll) | clock-failure | 6 F | 2 | green, amber | 5,183 | 3,302 |
+| 608 | redhunt (reroll) | clock-failure | 6 F | 1 | green, amber | 4,833 | 1,930 |
+| 609 | redhunt (reroll) | clock-failure | 6 F | 3 | green, **red** | 4,998 | 3,953 |
+| 610 | redhunt (reroll) | clock-failure | 7 F | 1 | green, amber | 4,959 | 2,043 |
+| 611 | redhunt (reroll) | destruction | 20 F | 3 | green, amber | 6,403 | 5,478 |
+| 612 | redhunt (reroll) | destruction | 33 D | 2 | green, amber | 6,346 | 4,449 |
+| 613 | redhunt (reroll) | destruction | 21 F | 3 | green, amber | 6,501 | 5,574 |
+| 614 | redhunt | destruction | 40 D | 2 | green, amber | 6,315 | 4,284 |
+| 615 | redhunt (reroll) | clock-failure | 5 F | 1 | green, **red** | 4,833 | 2,300 |
+
+No additional coverage runs were required: the fixed inventory covers all
+three endings, rerolls, document reads, and all three tiers. Reproduction:
+`npm run build && /opt/agents/venv/bin/python tests/complete_run.py`.

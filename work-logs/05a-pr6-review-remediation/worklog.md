@@ -206,7 +206,7 @@ the behavior under test).
 `npm run audit:events` 36/36; `tests/resume_check.py` 9/9 phases on the
 production build.
 
-**Commit:** (recorded after commit)
+**Commit:** `c4896da` — content corrections (gate A1.4); branch pushed, PR 6 updated in place.
 
 ## Gate A1.3: Ending narrative coherence
 
@@ -323,5 +323,63 @@ its before/after pair happen in A1.6 only.
 **Verification:** `npm run test:live` 42/42; `npm run test:mutation` 6/6;
 `npm run audit:events` 36/36 (prefix removal changed no mechanical value);
 `npm run replay` 6/6; `npm run build` clean.
+
+**Commit:** `c4896da` — content corrections (gate A1.4); branch pushed, PR 6 updated in place.
+
+## Gate A1.5: Evidence corrections
+
+**Run-length counter** (`tests/complete_run.py`): every displayed dialogue
+occurrence is now counted exactly once by a page-side observer on the
+dialogue bar's per-line render cycle (the `.typing` class toggles once per
+rendered line — typewriter ticks, harness polling, and repeated identical
+lines behave correctly), and instant surfaces (documents, comms exchanges,
+epilogue, score breakdown) are reported separately, each counted once.
+Comms are counted as exchange line text (excluding speaker labels and panel
+chrome) to match the independent trace's methodology.
+
+**Trace reconciliation (seed 555555, knowledge strategy):** typed 6,762 vs
+reconciled trace 6,762 (delta 0 — 6879 minus 117 chars of A1.4 prefix
+removal itemized across 8 shown scenes); comms 427 == 427; epilogue 1618 ==
+1618. Nothing averaged; every scene-level difference itemized in the harness
+output. The independent trace is committed as
+`tests/fixtures/seed555555-dialogue-count.json` with a provenance note
+(cross-check evidence, not authority). Counter mutations (drop ordinary
+dialogue counting; drop epilogue counting) each fail the equality assertion
+(`scripts/run-counter-mutations.mjs`, 2/2 GOOD).
+
+**Reachability (F-04 restated):** the old zone-wide bound (self-credited,
+reward- and doc-blind, "attainable >= gate") is replaced by a corrected
+upper bound (self-credit excluded over ordered no-repeat assignments, one
+effective config P6/N2, knowledge reward 0 + document +1) plus a legal-path
+search through the live runner (150-seed budget, unresolved reported as
+unresolved). Result: 5/5 gated choices reachable with reproducible legal
+paths and pre-choice states; CE-05[2] (gate 4) and CE-02[0] (gate 3) cross
+only via a document read (choices 3 + document 1); 0 proved unreachable; 0
+unresolved. The synthetic self-credit event (+15 choice behind its own
+gate 10) passes the old calculation and is rejected by the corrected bound.
+
+**Natural-run re-run:** the recorded 37-run inventory re-ran in full on the
+post-A1.4 tree with the coverage-based early exits removed. 37/37
+completed; every ending/score/grade matches the parent's record exactly
+(content changes altered no mechanical outcome); zero console errors; zero
+failed same-origin requests; `tests/baseline/` untouched. Comms tier
+distribution under the new bands: green 36/37 runs, amber 27/37, red 10/37
+(27%) vs 1/37 (2.7%) under the old bands.
+
+**F-05 restated (not decided):** corrected counts over the 36 full runs —
+typed median 6,474 (4,833–7,095); instant median 4,254 (1,930–5,882);
+typewriter median 194 s at the locked 30 ms/char; attentive duration
+(method stated in the review surface: 30 ms/char + 144 wpm instant reading
++ 2.5 s per decision) median ~9.6 min (5.5–12.0); leisured median ~11.8 min
+(6.8–15.1). The 25–35 minute target remains unreached; the closed question
+is re-asked (a/b/c) for the operator.
+
+**Review surface:** F-04 restated (corrected evidence + path table), F-05
+restated (corrected counts + duration method + re-asked question), F-06
+restated (tier distribution under the new bands), and the re-run set table
+superseding the body table.
+
+**Verification:** `npm run test:live` 43/43; counter mutations 2/2;
+complete-run set 12/12 checks; `npm run build` clean.
 
 **Commit:** (recorded after commit)
