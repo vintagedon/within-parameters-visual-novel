@@ -62,25 +62,28 @@ All agent-executed specs produce work on feature branches. Never commit directly
 - Balance simulator (`simulation/`): Monte Carlo engine, heuristic agent, 640k-run validation
 - Balance sweeps v1/v2 and the locked winning config
 - Spec 04 complete playable run: live resolver wiring, single ending authority, 12-event production pool, found documents, three-tier comms beats, M3 scenes/NPCs/epilogues, asset packaging, manual save with exact resume, complete-run verification (37 natural runs; review surface at `docs/verification/2026-09-16-complete-run-verification.md`)
+- Spec 04 Amendment A (PR 6 review remediation): save/resume repaired for every SAVE-enabled phase including the comms window (no reward re-grant; legacy comms slots resume; unresolvable slots refused visibly), coherent withdrawal narrative for both reachable facility states, speaker-prefix cleanup with a crew-leader character, FD-01/FD-08 name fixes, comms bands green 0-2 / amber 3-5 / red 6-9, corrected run-length counter reconciled against an independent trace, corrected reachability evidence with legal paths, and the replaced screenshot baselines presented as candidates pending operator approval
 - Placeholder art: 19 portraits, 13 backgrounds via `simulation/generate_placeholders.py`; asset manifest pipeline operational
-- Verification harnesses: live-path checks (`npm run test:live`), mutation checks, event audit, replay parity, screenshot regression (11 baselines), complete-run and preview checks (Playwright)
+- Verification harnesses: live-path checks (`npm run test:live`), mutation checks, event audit, replay parity, screenshot regression (11 baselines), complete-run and preview checks (Playwright), browser resume check (`tests/resume_check.py`), counter mutations (`scripts/run-counter-mutations.mjs`)
 
 ### Ready for Agent Execution
 
-- Presentation/theming unit: GameUI framework migration follow-up and industrial theme (mechanics, content, thresholds, and the outcome authority are frozen by spec 04)
+- Presentation/theming unit: GameUI framework migration follow-up and industrial theme (mechanics, content, thresholds, and the outcome authority are frozen by spec 04). Dispatch awaits the operator's merge decision on PR 6 and approval of the pending baseline captures.
 
 ### Not Started
 
 - Production art (NB2 finals from NightCafe concepts)
 - Cutscenes (Seedance 1.5 Pro)
-- Launch verification (WP Spec 05; dispatch awaits operator approval of the spec 04 review surface)
+- Launch verification (WP Spec 05; the old queue file describes a superseded placeholder-launch unit and must be reconciled before dispatch)
 
-### Known Open Findings (spec 04 review surface)
+### Known Open Findings (spec 04 review surface, restated by amendment A)
 
-- F-05: run length ~5-15 min vs the 25-35 min target (content volume gap)
-- F-06: red comms tier nearly unreachable at the authored trigger points
+- F-05: run length restated on corrected counts — attentive median ~9.6 min (range 5.5-12.0), leisured ~11.8 min, against the 25-35 min target; the operator's a/b/c decision re-asked, not made
+- F-06: comms bands rebalanced (green 0-2, amber 3-5, red 6-9); red appears in 10/37 runs of the re-run set — operator confirmation pending
+- F-04: reachability restated on corrected bounds plus legal paths; all five gated choices reachable, two only via a document read
+- Six replaced baselines plus new capture 11 await the operator's per-capture approval; the parent's "re-approved with evidence" claim is retracted in the review surface
 - F-03: two SFX source files absent (non-blocking)
-- See `docs/verification/2026-09-16-complete-run-verification.md` for the full list and operator questions
+- See `docs/verification/2026-09-16-complete-run-verification.md` (amendment A sections) for the full list and operator questions
 
 ## Key Documents
 
@@ -221,7 +224,7 @@ npm run preview  # Preview production build locally
 - **Modifier-only traits:** Traits are stat modifiers, not content branches.
 - **Placeholder-first:** Engine must work with zero real assets.
 - **Client-side only:** No backend, localStorage for saves, no analytics.
-- **Portfolio scope:** 1 complete run, 3 endings, ~12 events, ~6 characters, ~25-35 minute runs.
+- **Portfolio scope:** 1 complete run, 3 endings, ~12 events, ~6 characters, ~25-35 minute runs (design target; F-05 restated the attentive median at ~9.6 min — operator decision pending)
 
 ### Out of Scope (v1)
 

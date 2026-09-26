@@ -205,7 +205,7 @@ Portfolio piece with intentional scope constraints and meaningful systems depth:
 | Environments | ~12-14 backgrounds, ~6-8 character portraits |
 | Video | 3-4 cutscenes (~8s each, skippable) |
 | Scoring | S through F grades, reroll-based difficulty slider |
-| Run length | ~25-35 minutes |
+| Run length | ~25-35 minutes (design target; measured attentive median ~9.6 min, F-05 decision pending) |
 
 ---
 

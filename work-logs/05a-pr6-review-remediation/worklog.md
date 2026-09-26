@@ -418,4 +418,78 @@ differences, capture 11 marked "new capture; no prior approved version",
 every entry pending operator approval with the closed yes/no question, and
 the operator answer record extended.
 
-**Commit:** (recorded after commit)
+**Commit:** `fc05919` — baseline disposition (gate A1.6); branch pushed, PR 6 updated in place.
+
+## Gate A1.7: Spec defect register rows
+
+Nine rows appended to `/opt/agents/repos/spec/spec-defect-register.md`
+(SD-262 through SD-270; the register's next identifiers after SD-261),
+following the register's established entry pattern:
+
+- **SD-262** — the uncarried `REP:` prefix (PR 6 as finding source).
+  Unassigned candidate row: the second instance of the
+  source-requirement-not-transcribed vocabulary gap that SD-173 records;
+  per the amendment, no class is invented and creation is the operator's
+  call under the promotion rule.
+- **SD-263** — the baseline contradiction recurring from Spec 03 Amendment
+  A (`spec-internally-inconsistent`), recorded as a recurrence with the
+  note that a correction made in one amendment did not reach the next
+  spec; parent constraints quoted verbatim (rows 307 and 108).
+- **SD-264** — the 4.7 validation enumerated state fields but not
+  presentation state or SAVE-reachable phases
+  (`validation-drops-required-dimensions`; parent row 231 quoted).
+- **SD-265** — the 4.8 coverage requirement satisfied by score parity
+  (`detector-not-discriminator`; parent row 257 quoted).
+- **SD-266 through SD-270** — the five pre-dispatch acceptance defects
+  corrected in v1.1 (PF-01..PF-05 of the preflight), with the pre-review
+  04a copy supplying verbatim evidence and the preflight review as the
+  finding source; not attributed to the archived parent or an executor.
+- The stale archive line is already recorded as SD-199; the entry
+  re-confirms it and creates no duplicate.
+
+Class increments recorded in the register's append-count note:
+`spec-internally-inconsistent` +3, `validation-drops-required-dimensions`
++2, `detector-not-discriminator` +1, `domain-unenumerated` +1, one
+unassigned candidate. No new class value created; no skill repository edit
+from this branch. Register frontmatter version 1.52 → 1.53.
+
+**Commit:** the register lives outside the repo; the append rides the
+central tree, not this branch. (recorded after the A1.8 closeout commit —
+the register is not a git-tracked deliverable of this repo.)
+
+## Gate A1.8: Closeout
+
+**Docs pass.** AGENTS.md: amendment-A completion block added; Known Open
+Findings restated (F-04/F-05/F-06 on corrected evidence, capture approvals
+pending, parent approval claim retracted); Spec 05 dispatch note corrected
+(the old queue file is superseded and must be reconciled first); the
+portfolio-scope duration annotated as a target with the measured median.
+README.md run-length row annotated the same way. The review surface already
+carries the restatements. `docs/project-brief.md` remains untracked and
+untouched.
+
+**Consistency pass (re-run at closeout):** `tsc --noEmit` clean; build
+clean; `npm run test:live` 43/43; `npm run test:mutation` 6/6; counter
+mutations 2/2; `npm run replay` 6/6; `npm run audit:events` 36/36;
+`npm run test:screens:check` all green; `tests/resume_check.py` 9/9; the
+37-run natural set re-run in A1.5 with 12/12 checks (counter reconciled to
+the independent trace at delta 0).
+
+**Operator interactions:** none. The run put no question to the operator
+(Attended: No; the closed questions are carried in the review surface for
+the operator's merge review, and the executor-scope choices are recorded
+per gate above). An empty interaction record, stated explicitly.
+
+**Commits (one per gate):**
+
+- `3863a36` — A1.1 resume checks that can fail
+- `033f375` — A1.2 save and resume repairs
+- `09bdfbb` + `d5561d0` — A1.3 ending narrative coherence (+ operator-file
+  tracking correction, disclosed above)
+- `c4896da` — A1.4 content corrections
+- `1f16b85` — A1.5 evidence corrections
+- `fc05919` — A1.6 baseline disposition
+- A1.8: this commit (docs pass and closeout)
+- A1.7: the defect register rides the central spec tree (not a git
+  repository; no commit exists or is required there)
+
