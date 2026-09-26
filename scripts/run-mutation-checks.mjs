@@ -15,7 +15,7 @@
 import { build } from 'esbuild';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 
@@ -74,6 +74,12 @@ const MUTATIONS = [
     find: "and your kit can't cover it.",
     replace: 'and your kit went out keeping stations alive on the way here.',
   },
+  {
+    name: 'A2.3 reverts clock reduction to Math.floor (pre-parity rounding)',
+    file: 'src/engine/game-state.ts',
+    find: 'const raw = config.clockReductionBase + Math.trunc(rapport * config.rapportClockScale);',
+    replace: 'const raw = config.clockReductionBase + Math.floor(rapport * config.rapportClockScale);',
+  },
 ];
 
 // ─── Runner ───────────────────────────────────────────────────────────────────
@@ -102,6 +108,11 @@ for (const mutation of MUTATIONS) {
     cpSync(join(root, 'src'), join(tmpDir, 'src'), { recursive: true });
     cpSync(join(root, 'data'), join(tmpDir, 'data'), { recursive: true });
     cpSync(join(root, 'vendor'), join(tmpDir, 'vendor'), { recursive: true });
+    // The A2.3 parity check executes simulation/simulator.py from the working
+    // directory; the scratch tree needs the two simulator modules.
+    mkdirSync(join(tmpDir, 'simulation'), { recursive: true });
+    cpSync(join(root, 'simulation', 'simulator.py'), join(tmpDir, 'simulation', 'simulator.py'));
+    cpSync(join(root, 'simulation', 'game_data.py'), join(tmpDir, 'simulation', 'game_data.py'));
 
     const target = join(tmpDir, mutation.file);
     const original = readFileSync(target, 'utf-8');

@@ -126,6 +126,16 @@ function drawEventResult(
   return { event, community, pool: newPool };
 }
 
+/**
+ * Resolves the stop's reward cards for presentation. The clock-reduction
+ * card's displayed amount is the reward's immediate applied effect — after
+ * the zero floor in applyStatChanges, before the separate stop tick/jitter —
+ * so the text a player reads is the effect they get in every state,
+ * including zero and negative reductions (A2.3, review finding 04a-05:
+ * "buying -1 clock units" advertised a reward that adds a segment). The
+ * mechanical effect is untouched: applyReward still applies the raw
+ * reduction through the same floor, and no clamp is added.
+ */
 export function getRewardsForStop(
   event: EventDef,
   state: GameState,
@@ -134,13 +144,30 @@ export function getRewardsForStop(
   return event.rewards.map((reward) => {
     if (reward.type === 'clock-reduction') {
       const reduction = calculateClockReduction(state, config);
+      const current = state.clock.current;
+      const applied = Math.max(0, current - reduction) - current;
+      let description: string;
+      if (applied < 0) {
+        const n = -applied;
+        description = reward.description.replace(
+          '{amount} clock units',
+          `${n} clock unit${n === 1 ? '' : 's'}`
+        );
+      } else if (applied === 0) {
+        description = reward.description.replace(
+          '{amount} clock units',
+          `nothing — the intrusion clock holds at ${current}`
+        );
+      } else {
+        description = reward.description.replace(
+          '{amount} clock units',
+          `nothing but exposure — the intrusion clock rises by ${applied} to ${current + applied}`
+        );
+      }
       return {
         ...reward,
         baseEffect: { ...reward.baseEffect, clock: -reduction },
-        description: reward.description.replace(
-          '{amount}',
-          String(reduction)
-        ),
+        description,
       };
     }
     return reward;

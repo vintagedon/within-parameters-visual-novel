@@ -152,3 +152,54 @@ then restores the tree and rebuilds.
   timers do not cancel, which is why the restore is instant.
 
 Commit: (pending — recorded at commit)
+
+## Gate A2.3: Clock reduction parity and truthful reward text
+
+**Changes.**
+
+- `src/engine/game-state.ts` (`calculateClockReduction` and its
+  documentation only): `Math.floor` → `Math.trunc`, mirroring the
+  simulator's `int()` truncation toward zero; docstring states the parity,
+  the A2.3 repair, and why no clamp is added (the validated simulator's
+  `apply_reward` applies `max(0, clock − reduction)`; changing that is a
+  carried balance decision).
+- `src/engine/event-system.ts` (`getRewardsForStop` only): the
+  clock-reduction card's description is substituted from the immediate
+  applied delta — `max(0, clock − reduction) − clock` — instead of the raw
+  reduction. Removal shows the applied count (floored at what exists);
+  zero shows "holds at N"; negative reduction shows "rises by N to M".
+  `applyReward` untouched; the baseEffect is still `{ clock: −reduction }`.
+- `src/engine/live-checks.ts`: new A2.3 section — the parity check spawns
+  the simulator (`simulation/simulator.py` + `game_data.py`) and compares
+  `calculateClockReduction` at rapport −6…+6 for default and Narrow Focus
+  (executed expectations, not literals), with the review's named rapport-−1
+  cell as a leading assertion; the text-agreement check sweeps 91 boundary
+  states (rapport × clock) asserting displayed text == real `applyReward`
+  delta.
+- `scripts/run-mutation-checks.mjs`: mutation A2.3 reverts the trunc to
+  `Math.floor`; the scratch tree now also copies the two simulator modules.
+- `src/main.ts`: DEV-gated `__wp.triggerReward` boundary-fixture trigger
+  (same class as `triggerComms`/`triggerEnding`; stripped from production)
+  rendering the real reward overlay from controlled states.
+- `tests/reward_boundary_check.py` (new): 5 browser boundary cases through
+  the real card renderer and real `applyReward`.
+
+**Validation evidence (gate A2.3).**
+
+- `npm run test:live`: 46/46 (both A2.3 checks pass).
+- `npm run test:mutation`: 8/8 rejected; the A2.3 mutation fails with
+  `rapport -1 without Narrow Focus: expected 1, got 0` (verified from the
+  mutated run's output, not inferred).
+- `npm run replay`: 6/6 criteria; CSV parity 64/64 within 5 pp.
+- `npm run audit:events`: 36/36 choices match.
+- `tests/reward_boundary_check.py`: 5/5 (remove, zeroReduction,
+  negativeReduction, clockEmpty, capped).
+- `npx tsc --noEmit`: clean; production build clean.
+- Review surface: carried clamp question recorded with simulator-derived
+  ranges (zero at −3…−2 default; negative from ≤ −4; Narrow Focus zero
+  for ≤ 1, never negative).
+- Downstream note for A2.5: capture 06's rendered clock card ("Dead Power
+  Run") will change wording — regeneration with attribution happens there
+  or 06 is preserved, per the demonstrated-difference rule.
+
+Commit: (pending — recorded at commit)

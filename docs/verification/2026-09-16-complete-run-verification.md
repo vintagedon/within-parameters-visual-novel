@@ -801,3 +801,72 @@ from `src/main.ts` and rebuilding makes the same phase fail with the
 focused `audio:` assertion while every presentation assertion still
 passes — an unrelated browser failure is not accepted as evidence, and
 the working tree and build are restored afterwards.
+
+## A2.3: Clock reduction parity and truthful reward text
+
+**The rounding repair.** `calculateClockReduction`
+(`src/engine/game-state.ts`) now mirrors the validated simulator exactly:
+`Math.trunc(rapport × rapportClockScale)` (Python `int()` truncates toward
+zero) where it previously used `Math.floor`. At negative rapport they
+diverged — the review's examples: rapport −1/−2/−3 produced live 0/0/−1
+against simulator 1/0/0. The docstring states the parity and why there is
+no clamp. Attribution from history is recorded in the defect register
+(A2.6). The mutation `A2.3 reverts clock reduction to Math.floor` makes
+the parity check fail with `rapport -1 without Narrow Focus: expected 1,
+got 0` (`npm run test:mutation`, 8/8 mutations rejected).
+
+**Executed expectations.** The parity check
+(`npm run test:live`, 46/46) does not contain hand-written numbers: it
+spawns the simulator itself
+(`simulation/simulator.py::calc_clock_reduction` via
+`simulation/game_data.py::DEFAULT_CONFIG`) and compares the engine at
+every rapport −6…+6 under both default and Narrow Focus configurations.
+The mutation runner copies the two simulator modules into its scratch
+tree so the discriminating run also executes the real Python.
+
+**Truthful reward text.** The clock-reduction card's displayed amount is
+now the reward's immediate applied effect — after the existing zero floor
+in `applyStatChanges`, before the separate stop tick/jitter. `applyReward`
+is untouched; no clamp was added; no reward was disabled. The presentation
+lives in `getRewardsForStop` (`src/engine/event-system.ts`):
+
+| State (base config) | Reduction | Immediate effect | Card text now says |
+|---|---|---|---|
+| rapport 0, clock 4 | 1 | 4 → 3 | "buying 1 clock unit" |
+| rapport −2, clock 4 | 0 | 4 → 4 | "buying nothing — the intrusion clock holds at 4" |
+| rapport −5, clock 2 | −1 | 2 → 3 | "buying nothing but exposure — the intrusion clock rises by 1 to 3" |
+| rapport 0, clock 0 | 1 | 0 → 0 | "buying nothing — the intrusion clock holds at 0" |
+| rapport 2, clock 1 | 2 > clock | 1 → 0 (floor) | "buying 1 clock unit" (not 2) |
+
+The defect case is gone: nothing renders "buying −1 clock units" for a
+reward that adds a segment. Engine-level sweep: the A2.3 live check
+compares displayed text and real `applyReward` deltas across 91 boundary
+states (rapport −6…+6 × clock 0…3). Browser coverage:
+`tests/reward_boundary_check.py` (dev build; the trigger is the DEV-gated
+`__wp.triggerReward`, stripped from production) drives the five cases in
+the table through the real `showRewardOverlay` card renderer and real
+`applyReward`, reading the HUD clock before and after the pick — **5/5
+boundary cases pass**. These are boundary fixtures, not natural-run
+reachability evidence; no production-only hooks were added.
+
+**Mechanical parity re-verified.** `npm run replay` passes 6/6 criteria
+(5,000-run default mode) with CSV parity 64/64 combos within 5 pp;
+`npm run audit:events` reports 36/36 choices matching `game_data.py`.
+
+## Known issues carried out of Amendment B (recorded, not fixed)
+
+**Clock-reduction clamp question (carried).** The validated simulator's
+`apply_reward` computes `max(0, clock − reduction)`, so a negative
+reduction raises the clock there too; the parity-repaired engine now does
+the same. Clamping the reduction at zero would alter validated behavior
+and requires a re-sweep, so it is carried, not fixed. Ranges derived by
+executing the simulator function (rapport −8…+6):
+under the **default** configuration the reduction is 0 at rapport −3…−2
+and **negative from rapport ≤ −4** (−4/−5 → −1, −6/−7 → −2, −8 → −3,
+deepening without bound as rapport falls); under **Narrow Focus** the
+reduction is 0 for every rapport ≤ 1 and never negative. Live reachability:
+five communities bound rapport to [−5, +5] (+1 under Networked), so
+negative reductions are reachable in live play — a clock-reduction card
+taken at rapport ≤ −4 adds intrusion-clock segments, and the text now says
+so. The F-05 product decision and everything in Spec 05 remain as carried
+elsewhere in this section.

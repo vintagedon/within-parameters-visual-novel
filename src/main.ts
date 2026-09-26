@@ -25,6 +25,7 @@ import type {
 
 // Engine
 import { initNewGame, deriveRapport } from './engine/game-state';
+import { getRewardsForStop, applyReward } from './engine/event-system';
 import {
   SceneRunner,
   buildSceneRegistry,
@@ -202,6 +203,7 @@ async function boot(): Promise<void> {
       __wp?: {
         triggerComms: () => void;
         triggerEnding: () => void;
+        triggerReward: (caseName: string) => void;
         seedAutosave: () => void;
         setClock: (current: number) => void;
         setKnowledge: (knowledge: number) => void;
@@ -250,6 +252,38 @@ async function boot(): Promise<void> {
       },
       seedAutosave: () => {
         autosave(initNewGame(config, 1), 'scene-discovery-01', 'discovery');
+      },
+      triggerReward: (caseName: string) => {
+        // Boundary fixture (A2.3): renders the REAL reward overlay from the
+        // real event data for a controlled (rapport, clock) state, and
+        // applies the picked card through the REAL getRewardsForStop /
+        // applyReward pair. A boundary fixture only — not natural-run
+        // reachability evidence; no production hook (DEV-gated like the
+        // other harness triggers).
+        const event = eventsData.find((e) => e.rewards.some((r) => r.type === 'clock-reduction'));
+        if (!event) return;
+        const presets: Record<string, { rapport: number; clock: number }> = {
+          remove: { rapport: 0, clock: 4 },
+          zeroReduction: { rapport: -2, clock: 4 },
+          negativeReduction: { rapport: -5, clock: 2 },
+          clockEmpty: { rapport: 0, clock: 0 },
+          capped: { rapport: 2, clock: 1 },
+        };
+        const preset = presets[caseName];
+        if (!preset) return;
+        const base = initNewGame(config, 1);
+        const state: GameState = {
+          ...base,
+          stats: { ...base.stats, rapport: preset.rapport, startingRapport: preset.rapport },
+          clock: { ...base.clock, current: preset.clock },
+          communities: [],
+        };
+        const rewards = getRewardsForStop(event, state, config);
+        refreshHud(state);
+        showRewardOverlay(rewards, (index) => {
+          const after = applyReward(rewards[index]!, state, config);
+          refreshHud(after);
+        });
       },
       // Presentation probes: re-render the HUD through the real refreshHud
       // path with a clock or knowledge override, so urgency accents and the

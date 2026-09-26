@@ -177,14 +177,20 @@ export function deriveRapport(state: GameState): number {
 
 /**
  * Computes available clock reduction for the reward cycle. Mirrors simulator.py
- * calc_clock_reduction:
- *   raw = clockReductionBase + floor(rapport * rapportClockScale)
+ * calc_clock_reduction exactly, including its rounding: int() truncates toward
+ * zero (Math.trunc), which matters at negative rapport — Math.floor here once
+ * diverged from the validated simulator (A2.3 parity repair, review finding
+ * 04a-05).
+ *   raw = clockReductionBase + trunc(rapport * rapportClockScale)
  *   reduction = min(raw, clockReductionMax)
  *   if narrowFocus: reduction = max(0, reduction - 1)
+ * No clamp at zero: the validated simulator's apply_reward applies
+ * max(0, clock - reduction), so a negative reduction raises the clock there
+ * too. Changing that is a balance decision requiring a sweep (carried).
  */
 export function calculateClockReduction(state: GameState, config: GameConfig): number {
   const rapport = deriveRapport(state);
-  const raw = config.clockReductionBase + Math.floor(rapport * config.rapportClockScale);
+  const raw = config.clockReductionBase + Math.trunc(rapport * config.rapportClockScale);
   let reduction = Math.min(raw, config.clockReductionMax);
   if (config.narrowFocus) {
     reduction = Math.max(0, reduction - 1);
