@@ -16,7 +16,7 @@ runtime: "kilo"
 runtime_version: "kilo"
 model: "kilo/zai-coding/glm-5.3"
 hostname: "ml01"
-spec_ref: "spec/2026-09 (active queue; archive destination spec/2026-06/2026-09-26-wp-spec-04a-pr6-review-remediation.md per gate A1.8)"
+spec_ref: "spec/2026-06/2026-09-26-wp-spec-04a-pr6-review-remediation.md"
 repo: "within-parameters-visual-novel"
 category: "game-design"
 # --- Token Usage and Cost ---
@@ -493,3 +493,23 @@ per gate above). An empty interaction record, stated explicitly.
 - A1.7: the defect register rides the central spec tree (not a git
   repository; no commit exists or is required there)
 
+
+## Closeout record
+
+**Publication:** branch `agent/wp-spec-04-complete-playable-run` pushed
+through `a242815`; PR 6 updated in place (comment + description), unmerged.
+Central worklog `2026-09-26-wp-worklog-04a-pr6-review-remediation.md`
+written; registry row appended (23 columns, status completed); the defect
+register appended in the central spec tree (not a git repository; no commit
+applies there).
+
+**Archive:** the amendment moved from the active queue to
+`/opt/agents/repos/spec/2026-06/2026-09-26-wp-spec-04a-pr6-review-remediation.md`,
+beside the parent at
+`/opt/agents/repos/spec/2026-06/2026-09-15-wp-spec-04-complete-playable-run.md`
+(parent path verified present before the move, per the amendment's
+closeout instruction). The parent's archived text and completion records
+are unchanged.
+
+**Status:** completed. All eight gates landed; the consistency pass at
+closeout is green across every harness.
