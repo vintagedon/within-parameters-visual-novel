@@ -671,3 +671,87 @@ operator approval**; none is approved by this amendment.
 | 09-dossier | |
 | 10-dossier-reroll | |
 | 11-document-overlay (new) | |
+
+---
+
+# Amendment B (PR 6 second review remediation) — updates to this review surface
+
+This section is appended by WP Spec 04 Amendment B
+(`2026-09-26-wp-spec-04b-pr6-second-review-remediation`), which executes on
+the same branch at `03893f4` and updates PR 6 in place. The body above is
+the surface as Amendment A left it; restatements below supersede it where
+they conflict. Executor-authored prose is marked as such wherever it
+appears. This is the final Spec 04 amendment (operator decision,
+2026-09-26): findings outside its acceptance criteria and below P1 are
+recorded for Spec 05 or a backlog, not remediated here.
+
+## A2.1: Withdrawal text asserts nothing false
+
+**The defect.** The informed withdrawal variant asserted a history the
+player may not have: "your kit went out keeping stations alive on the way
+here." The review's zero-help reproduction — P2/N6, RNG seed 34 from the
+discovery scene, legal choices CE-02[2], CE-03[1], TE-02[1], TE-04[0],
+AE-02[1] with knowledge rewards — reaches the informed withdrawal state
+(knowledge 13 ≥ effective threshold 11; modules 2 < effective fix cost 3;
+rapport 0; **all five communities ignored**). Amendment A's validation had
+checked only the documentation-inadequacy claim, so the invented history
+escaped it.
+
+**Final withdrawal variants** (both variants and the bridge are
+executor-authored: M3 and the GDD are silent on withdrawal-state prose; the
+bridge is new in this amendment):
+
+Variant 1 — informed withdrawal (renders only when k ≥ T, m < F; scene
+`scene-confrontation-withdraw-informed`):
+
+> You stand in front of the terminal holding the argument that would end
+> this, and no way to hand it over. The correction wants bypass modules to
+> bridge its maintenance circuit, and your kit can't cover it.
+>
+> "I know exactly what's wrong with you. I just can't afford to fix it."
+>
+> You log out of the terminal, mark the rack row where it lives, and start
+> the long walk back up the way you came.
+>
+> The mark you leave is not a fix. It is a map for the crew that comes down
+> here with a full kit.
+
+Variant 2 — uninformed withdrawal (renders only when k < T, m < F; scene
+`scene-confrontation-withdraw-gate`):
+
+> You stand in front of the terminal with nothing that can act on it. You
+> don't have the documentation to argue whatever is wrong with this place,
+> and you don't have the components to force anything. You mark what you
+> found and fall back toward the surface.
+>
+> "I got here. That's all I got."
+>
+> The mark you leave is not a fix. It is a map for the crew that comes down
+> here with a full kit.
+
+**The bridge.** Both variants now end with the same narrator line — "The
+mark you leave is not a fix. It is a map for the crew that comes down here
+with a full kit." The destruction ending that follows both withdrawal
+routes ("The archive core went offline at 0347") now follows from the mark
+and the report the epilogue already describes ("You filed the report.
+Dispatch acknowledged."). No threshold, cost, outcome rule, or scoring
+constant changed; `scene-ending-destruction` itself is untouched.
+
+**Sentence-by-sentence truth conditions.** The worklog
+(`work-logs/05b-pr6-second-review-remediation/worklog.md`, gate A2.1) lists
+every sentence of both variants with the state condition under which it is
+true. Summary: every historical claim in the informed variant reduces to
+its render conditions (knowledge ≥ T for the argument, modules < F for the
+can't-cover claim); the uninformed variant's claims reduce to knowledge < T
+and modules < F; the bridge lines assert no run history at all — they
+describe the mark the player just left and state its purpose.
+
+**Guard.** `npm run test:live` now drives both reproductions and asserts no
+community-help claim (`/keeping stations alive|kept (the )?stations?|kit
+went out (on|for|keeping)|spent (your |the )?kit (on|helping)|helped (the
+)?(stations|communities)/i`) appears in either variant's text. The
+zero-help check pins the recorded path exactly (knowledge 13, modules 2,
+rapport 0, five communities ignored) so the reproduction cannot silently
+drift into a state where the old claim would be true. A data mutation
+reinserting "keeping stations alive" into the informed variant fails two
+live checks (`npm run test:mutation`, 7/7 mutations rejected).

@@ -68,6 +68,12 @@ const MUTATIONS = [
     find: 'Ticket #4471-C: Behavioral Anomaly — RELAY-7',
     replace: 'Ticket #4471-C: Behavioral Anomaly — Unit Vasquez, M.',
   },
+  {
+    name: 'A2.1 reinserts the community-help claim into the informed withdrawal text',
+    file: 'data/scenes.json',
+    find: "and your kit can't cover it.",
+    replace: 'and your kit went out keeping stations alive on the way here.',
+  },
 ];
 
 // ─── Runner ───────────────────────────────────────────────────────────────────

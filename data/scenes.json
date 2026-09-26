@@ -269,6 +269,10 @@
         {
           "speaker": "protagonist",
           "text": "I got here. That's all I got."
+        },
+        {
+          "speaker": "narrator",
+          "text": "The mark you leave is not a fix. It is a map for the crew that comes down here with a full kit."
         }
       ]
     },
@@ -280,7 +284,7 @@
       "dialogue": [
         {
           "speaker": "narrator",
-          "text": "You stand in front of the terminal holding the argument that would end this, and no way to hand it over. The correction wants bypass modules to bridge its maintenance circuit, and your kit went out keeping stations alive on the way here."
+          "text": "You stand in front of the terminal holding the argument that would end this, and no way to hand it over. The correction wants bypass modules to bridge its maintenance circuit, and your kit can't cover it."
         },
         {
           "speaker": "protagonist",
@@ -289,6 +293,10 @@
         {
           "speaker": "narrator",
           "text": "You log out of the terminal, mark the rack row where it lives, and start the long walk back up the way you came."
+        },
+        {
+          "speaker": "narrator",
+          "text": "The mark you leave is not a fix. It is a map for the crew that comes down here with a full kit."
         }
       ]
     },

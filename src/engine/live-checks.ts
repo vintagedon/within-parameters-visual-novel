@@ -1476,15 +1476,25 @@ check('A1.1 save/resume: Practiced fixture restores the consumed-discount state'
 
 // ─── A1.3: ending narrative coherence ────────────────────────────────────────
 
+/** A community-help claim: withdrawal text asserting the player's kit was
+ *  spent keeping stations/communities alive en route. Only true for runs
+ *  that actually helped — the zero-help reproduction (A2.1) must render no
+ *  such claim. */
+const COMMUNITY_HELP_CLAIM =
+  /keeping stations alive|kept (?:the )?stations?|kit went out (?:on|for|keeping)|spent (?:your |the )?kit (?:on|helping)|helped (?:the )?(?:stations|communities)/i;
+
 /** Drives a full legal run from the discovery scene to the withdrawal gate,
  *  choosing the withdrawal action (enabled only when nothing else is
  *  executable), and returns the rendered gate scene. `spend` prefers the
  *  heaviest module spend with the lowest knowledge gain, so a low-knowledge
- *  low-module state is reachable by legal choices. */
+ *  low-module state is reachable by legal choices. `script` pins the choice
+ *  index per scene id (a recorded legal path); other choice scenes fall back
+ *  to `first`. */
 function driveToWithdrawGate(
   h: Harness,
   rewardIndex: number,
-  choicePolicy: 'first' | 'spend'
+  choicePolicy: 'first' | 'spend',
+  script?: Record<string, number>
 ): { gate: Scene; text: string } {
   h.runner.loadScene('scene-discovery-01');
   for (let guard = 0; guard < 3000; guard++) {
@@ -1504,7 +1514,13 @@ function driveToWithdrawGate(
     if (scene.choices && scene.choices.length > 0) {
       const views = h.runner.getChoiceViews(scene);
       let idx = views.findIndex((v) => v.enabled);
-      if (choicePolicy === 'spend') {
+      if (script && Object.prototype.hasOwnProperty.call(script, scene.id)) {
+        idx = script[scene.id]!;
+        assert(
+          idx >= 0 && idx < scene.choices.length && views[idx]!.enabled,
+          `scripted choice ${idx} on ${scene.id} is not an enabled choice`
+        );
+      } else if (choicePolicy === 'spend') {
         let best = -1;
         let bestSpend = 1;
         let bestKnowledge = 99;
@@ -1606,10 +1622,49 @@ check('A1.3 withdrawal: the informed state (R3) reads truthfully to a coherent d
   assert(state.stats.consumables < F, `reached withdrawal with modules ${state.stats.consumables} < effective fix cost ${F}`);
   assert(!/documentation/i.test(text), 'no documentation-inadequacy claim above the threshold');
   assert(!/keeps processing/i.test(text), 'no keeps-processing claim in the withdrawal text');
+  assert(!COMMUNITY_HELP_CLAIM.test(text), 'no community-help claim in the withdrawal text');
   const result = driveWithdrawToEnding(h, gate);
   eq(result.ending, 'destruction', 'the persisted outcome routes destruction');
   assert(/went offline/i.test(result.text), 'the ending narrative says the archive went offline');
   return `k${state.stats.knowledge}/m${state.stats.consumables}: informed gate, coherent destruction ending`;
+});
+
+/** The zero-help reproduction (review finding 04a-01): P2/N6, RNG seed 34
+ *  from the discovery scene, the recorded legal choices — all five
+ *  communities ignored. The facility is still reached in the informed
+ *  withdrawal state (knowledge above the effective threshold, modules below
+ *  the effective fix cost, rapport 0), so a community-help claim would be
+ *  false here. */
+check('A2.1 withdrawal: the zero-help reproduction renders no community-help claim', () => {
+  const h = makeHarness({ positive: 'P2', negative: 'N6', events: eventsData, runSeed: 34 });
+  const T = h.runner.getEffectiveConfig().knowledgeThreshold;
+  const F = h.runner.getEffectiveConfig().consumableFixCost;
+  const script: Record<string, number> = {
+    'evt-ce02-situation': 2,
+    'evt-ce03-situation': 1,
+    'evt-te02-arrive': 1,
+    'evt-te04-arrive': 0,
+    'evt-ae02-arrive': 1,
+  };
+  const { gate, text } = driveToWithdrawGate(h, 1, 'first', script);
+  eq(gate.id, 'scene-confrontation-withdraw-informed', 'the informed withdrawal gate renders on the zero-help path');
+  const state = h.runner.getState();
+  eq(state.stats.knowledge, 13, 'zero-help path reaches the recorded knowledge');
+  eq(state.stats.consumables, 2, 'zero-help path reaches the recorded module count');
+  eq(state.stats.rapport, 0, 'zero-help path carries rapport 0');
+  eq(state.communities.length, 5, 'the journey drew all five stop communities');
+  eq(
+    state.communities.filter((c) => c.state === 'ignored').length,
+    5,
+    'all five communities ignored on this path'
+  );
+  assert(state.stats.knowledge >= T, `reached withdrawal with knowledge ${state.stats.knowledge} >= effective threshold ${T}`);
+  assert(state.stats.consumables < F, `reached withdrawal with modules ${state.stats.consumables} < effective fix cost ${F}`);
+  assert(!COMMUNITY_HELP_CLAIM.test(text), 'no community-help claim in the zero-help withdrawal text');
+  const result = driveWithdrawToEnding(h, gate);
+  eq(result.ending, 'destruction', 'the persisted outcome routes destruction');
+  assert(/went offline/i.test(result.text), 'the ending narrative says the archive went offline');
+  return `P2/N6 seed 34: k${state.stats.knowledge}/m${state.stats.consumables}/r${state.stats.rapport}, 5 communities ignored — informed gate, no community-help claim`;
 });
 
 /** The other withdrawal-reachable state: knowledge below the effective
@@ -1627,6 +1682,7 @@ check('A1.3 withdrawal: the uninformed state carries the documentation claim, en
   assert(state.stats.consumables < F, `reached withdrawal with modules ${state.stats.consumables} < effective fix cost ${F}`);
   assert(/documentation/i.test(text), 'documentation-inadequacy claim present below the threshold');
   assert(!/keeps processing/i.test(text), 'no keeps-processing claim in the withdrawal text');
+  assert(!COMMUNITY_HELP_CLAIM.test(text), 'no community-help claim in the withdrawal text');
   const result = driveWithdrawToEnding(h, gate);
   eq(result.ending, 'destruction', 'the persisted outcome routes destruction');
   assert(/went offline/i.test(result.text), 'the ending narrative says the archive went offline');
