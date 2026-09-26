@@ -945,3 +945,59 @@ carries the in-place correction.
 resolves all five gated choices with legal paths — the refactor moved the
 bound and assignment construction into shared functions without changing
 their output (`npm run test:live`, 46/46).
+
+## A2.5: Unobscured ending capture and evidence refresh
+
+**The harness fix (not a game change).** The walk can return while the
+run's next reward surface has already opened — the acked document's
+consequence flows straight into a reward pick — and `triggerEnding()`
+then rendered the ending screen beneath it. `tests/capture.py` now
+dismisses any open reward surface through the real controls before
+triggering, and asserts no reward surface is visible in the DOM at
+capture time (`ending: reward surface visible in the DOM at capture
+time` is a harness failure). Nothing in `src/` changed for this gate.
+
+**Capture 08 — new candidate, unobscured.** The candidate shows the
+correction ending screen only: the M3 epilogue with the three community
+paragraphs, the filed-report line, the persisted score breakdown (grade
+A, final score 76, component rows, reroll penalty ×92%, backstory and
+trait lines), and the NEW RUN / TITLE action row. No reward overlay is
+present; the DOM assertion ran at capture. Before/after pair:
+`staging/2026-09-26-a25-ending-capture/` (`before-head/08-ending.png` =
+the A1.6 candidate at the gate start; `after-candidate/08-ending.png` =
+this capture).
+
+**Capture 06 — changed by the demonstrated A2.3 cause.** The captured
+reward surface offers Dead Power Run (clock suppression) at a moment the
+intrusion clock reads 0/10 (the HUD behind the overlay shows it). The
+A2.3 truthful-text repair changes that card's body from "buying 1 clock
+units" — false at clock 0 — to "buying nothing — the intrusion clock
+holds at 0." The other two cards are byte-identical. Before/after pair:
+same directory (`06-reward-overlay.png` in `before-head/` and
+`after-candidate/`).
+
+**Status: pending operator approval.** Both candidates replace the A1.6
+candidates for their captures; the A1.6 rows for captures other than 06
+and 08 are untouched and remain pending as they were. Approval is never
+inferred from a passing screenshot comparison.
+
+**Operator answer record (A2.5 additions; supersedes the 08 and 06 rows
+above for these new candidates):**
+
+| Capture | Approve as new baseline? |
+|---------|--------------------------|
+| 08-ending (A2.5 candidate — unobscured) | |
+| 06-reward-overlay (A2.5 candidate — truthful clock text) | |
+
+**Stale evidence copy of capture 05 refreshed.** The A1.6 pair directory's
+`after-candidate/05-save-load-confirm.png` had depicted the interim style
+change. It now matches the committed file byte-for-byte, and the committed
+file is unchanged from `main` at `2272814` (sha1 `48480a19…` in all three
+places). No new baseline approval is needed for unchanged 05.
+
+**Regression evidence.** Capture mode regenerated all 11 baselines; only
+`06-reward-overlay.png`, `08-ending.png`, and their `.sha1` sidecars
+differ from the gate-start head — all nine other committed baseline files
+are byte-identical. Check mode is all green (11/11) and leaves the
+baseline directory hash unchanged across the run; expected differences
+were recorded here before the check ran, and none remain unexplained.

@@ -359,7 +359,20 @@ def capture_ending(page: Page, captured: set[str], errors: list[str]):
     scroll repair (spec 03a gate A1.2) the ending overlay is a scroll
     container, and the driver scrolls it to the bottom before capturing so
     the baseline shows the score breakdown and the action row rather than a
-    clipped top."""
+    clipped top.
+
+    A2.5 fix (approval finding: capture 08 retained a reward overlay): the
+    walk can return while the run's next reward surface has already opened —
+    the acked document's consequence flows straight into a reward pick — and
+    triggerEnding() then renders the ending screen beneath it. Dismiss any
+    open reward surface through the real controls first, and assert no
+    reward surface is visible in the DOM at capture time: the ending
+    baseline must depict the ending screen unobscured."""
+    for _ in range(10):
+        if not visible(page, "#reward-overlay:not(.hidden)"):
+            break
+        click_first(page, ".wp-reward-cards .gui-card")
+        page.wait_for_timeout(ACTION_INTERVAL_MS)
     page.evaluate("window.__wp && window.__wp.triggerEnding()")
     page.wait_for_selector("#ending-screen:not(.hidden)", timeout=5000)
     page.wait_for_timeout(500)
@@ -375,6 +388,9 @@ def capture_ending(page: Page, captured: set[str], errors: list[str]):
     if page.locator("#ending-score .wp-score-penalty").count() == 0:
         errors.append("ending: reroll penalty line missing")
         print("    FRAMEWORK-FAIL ending: #ending-score .wp-score-penalty")
+    if visible(page, "#reward-overlay:not(.hidden)"):
+        errors.append("ending: reward surface visible in the DOM at capture time")
+        print("    FRAMEWORK-FAIL ending: #reward-overlay visible at capture")
     if "ending" not in captured:
         assert_framework(page, "ending", errors)
         capture(page, SCREEN_MAP["ending"], errors)

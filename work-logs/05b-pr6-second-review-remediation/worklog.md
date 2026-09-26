@@ -256,3 +256,38 @@ Commit: (pending — recorded at commit)
 - `npx tsc --noEmit`: clean; production build clean.
 
 Commit: (pending — recorded at commit)
+
+## Gate A2.5: Unobscured ending capture and evidence refresh
+
+**Changes.**
+
+- `tests/capture.py` (`capture_ending` only): dismiss any open reward
+  surface through the real controls before `triggerEnding()`, and fail the
+  harness if a reward surface is visible in the DOM at capture time. The
+  game was not changed to suit the harness.
+- `tests/baseline/`: 08-ending and 06-reward-overlay regenerated with their
+  sidecars. 06's change is the demonstrated A2.3 cause: the captured Dead
+  Power Run card reads "buying nothing — the intrusion clock holds at 0"
+  (clock 0/10 visible behind the overlay) where the prior candidate said
+  "buying 1 clock units". 08 is the ending screen unobscured. The other
+  nine baseline files are byte-identical to the gate-start head.
+- Evidence: `staging/2026-09-26-a25-ending-capture/` (before-head /
+  after-candidate pairs for 06 and 08); the A1.6 pair directory's stale
+  `after-candidate/05-save-load-confirm.png` refreshed in place — now
+  byte-identical to the committed file and to `2272814` (sha1
+  `48480a19…`).
+
+**Validation evidence (gate A2.5).**
+
+- Capture run: all green, zero non-origin requests, the DOM assertion
+  (no reward surface at capture) passed on the 08 capture.
+- Check run: 11/11 ok, baseline directory hash unchanged across the run.
+- `git status tests/baseline/`: only `06-reward-overlay.png(.sha1)` and
+  `08-ending.png(.sha1)` modified.
+- Visual verification of both candidates (read as images): 08 shows
+  epilogue + full breakdown + action row with no overlay; 06 shows the
+  truthful clock text change.
+- Review surface: A2.5 section with both pairs, pending-approval status,
+  and the operator answer rows for the two new candidates.
+
+Commit: (pending — recorded at commit)
