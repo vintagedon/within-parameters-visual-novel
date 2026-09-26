@@ -291,3 +291,51 @@ Commit: (pending — recorded at commit)
   and the operator answer rows for the two new candidates.
 
 Commit: (pending — recorded at commit)
+
+## Gate A2.6: Spec defect register rows
+
+**Changes.** Central register `/opt/agents/repos/spec/spec-defect-register.md`
+(shared platform surface — no commit; frontmatter version 1.53 → 1.54):
+appended SD-277 through SD-288.
+
+- SD-277–SD-281: the five author defects from Amendment B's "Whose defect
+  this is", source = PR 6's second review, evidence = executed Amendment A
+  v1.1 quoted verbatim (A1.3 false-cause requirement and its single-claim
+  validation; A1.1's five-element restored-state line; A1.5's counter
+  validation; A1.5's synthetic-fixture validation; A1.6's pair-and-cause
+  validation). Classes: `validation-drops-required-dimensions` ×3,
+  `validation-scoped-by-artifact-not-property` ×1 (fourth instance; patch
+  already owed), `detector-not-discriminator` ×1 (SD-167/168 lineage).
+- SD-282: the rounding mismatch, attributed from the diff: `Math.floor`
+  entered at `7f1d81d` (initial commit, engine build, pre-spec-driven
+  history); commit `9d22488` (Spec 01 engine reconciliation, PR #3) rewrote
+  `calculateClockReduction`, added the "Mirrors simulator.py" docstring,
+  and kept `Math.floor` against the simulator's `int()`; its parity
+  instrument was aggregate statistical replay, which a sign-dependent
+  rounding difference cannot move. Class `detector-not-discriminator`.
+- SD-283–SD-288: the six 04b pre-dispatch acceptance defects (preflight
+  PF-01…PF-06), verbatim evidence from the preserved v1.0 snapshot
+  (`reviews/2026-09-26-wp-spec-04b/original.md`). Classes:
+  `validation requiring an unspecified contract change` (SD-283 — reaches
+  the two-instance promotion threshold; patch owed to the skill repo),
+  `spec-asserts-unverified-artifact-shape` (SD-284 — same, threshold
+  reached, patch owed), `spec-internally-inconsistent` ×2 (SD-285, SD-286),
+  `spec-asserts-unverified-state` (SD-287), `spec-contract-drift` (SD-288).
+
+**Executor defects NOT registered.** The four executor defects against
+clear text (the `docs/project-brief.md` sweep into `09bdfbb`, the
+correction decision undercount, F-04's two-gates narrative, the stale 05
+evidence copy) are named in the register entry as triaged
+executor-attributed and deliberately carry no rows — registering them as
+spec defects would claim the specs permitted them.
+
+**Duplicate check.** SD-262–SD-270, SD-199, and the SD-173 vocabulary-gap
+row checked before allocation; no duplicates. Existing classes only; no
+vocabulary gap found that the existing classes do not cover, and none
+invented. Append-count note records the increments (including the two
+newly reached promotion thresholds as owed patches); class-table rows left
+to the next full reconciliation per the register's derived-count
+convention. The central spec tree is not a git repository, so the append
+is recorded here rather than committed.
+
+Commit: (pending — recorded at commit)
