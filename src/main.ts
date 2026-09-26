@@ -28,6 +28,7 @@ import { initNewGame, deriveRapport } from './engine/game-state';
 import {
   SceneRunner,
   buildSceneRegistry,
+  slotResumeProblem,
   type SceneRunnerCallbacks,
 } from './engine/scene-runner';
 import { buildEffectiveConfig } from './engine/traits';
@@ -71,6 +72,7 @@ import {
   hideTitleScreen,
   showSaveLoadScreen,
   hideSaveLoadScreen,
+  showLoadRefusal,
   showEndingScreen,
   hideEndingScreen,
   showSettings,
@@ -157,20 +159,11 @@ async function boot(): Promise<void> {
       startNewGame();
     },
     onContinue: () => {
-      const slot = loadSlot('auto');
-      if (slot) {
-        hideTitleScreen();
-        startGameFromState(slot.state, slot.engine);
-      }
+      loadSlotGuarded(loadSlot('auto'), () => {});
     },
     onLoad: () => {
       showSaveLoadScreen('load', getSlotSummaries(), (slotId) => {
-        const slot = loadSlot(slotId);
-        if (slot) {
-          hideSaveLoadScreen();
-          hideTitleScreen();
-          startGameFromState(slot.state, slot.engine);
-        }
+        loadSlotGuarded(loadSlot(slotId), hideSaveLoadScreen);
       }, hideSaveLoadScreen);
     },
     onSettings: () => {
@@ -325,9 +318,14 @@ function startNewGame(): void {
   runner.beginNewRun();
 }
 
-/** Resume path for CONTINUE/LOAD — does NOT regenerate the protagonist. */
+/** Resume path for CONTINUE/LOAD — does NOT regenerate the protagonist.
+ *  Restores the journey presentation (sidebar, clock, stats, route, SAVE):
+ *  a loaded run renders exactly like one that never saved. Event scenes do
+ *  not carry showGameUI, so the layout mode is set here, not left to the
+ *  first loaded scene (amendment A1.2, review finding R2). */
 function startGameFromState(state: GameState, slotEngine?: SaveSlot['engine']): void {
   clearDialogue();
+  setGameUI();
   const registry = buildSceneRegistry(scenesData, eventsData, documentsData, commsBeatsData);
   const effConfig = effectiveConfigFromState(state);
   const runRng = createRunRng(0);
@@ -336,6 +334,45 @@ function startGameFromState(state: GameState, slotEngine?: SaveSlot['engine']): 
     runner.restoreEngine(slotEngine);
   }
   runner.start();
+}
+
+/**
+ * Guard for every load entry point: refuse visibly (slot preserved) when the
+ * slot cannot resume into this build's data, instead of crashing on restore
+ * or resuming into a blank screen. Comms-window saves — including legacy
+ * pre-amendment slots — resume through the stop transition and pass here.
+ */
+function slotCanBeResumed(slot: SaveSlot): boolean {
+  return (
+    slotResumeProblem(slot, {
+      scenes: scenesData,
+      events: eventsData,
+      journeyStops: config.journeyStops,
+    }) === null
+  );
+}
+
+/** Loads a slot through the real entry points, refusing visibly when the
+ *  slot cannot resume. The slot is never cleared or overwritten; the title
+ *  screen and its LOAD control stay usable after a refusal. */
+function loadSlotGuarded(slot: SaveSlot | null, afterRefusal: () => void): void {
+  if (!slot) {
+    afterRefusal();
+    return;
+  }
+  const problem = slotResumeProblem(slot, {
+    scenes: scenesData,
+    events: eventsData,
+    journeyStops: config.journeyStops,
+  });
+  if (problem !== null) {
+    console.warn(`[main] load refused: ${problem}`);
+    showLoadRefusal(problem, afterRefusal);
+    return;
+  }
+  hideSaveLoadScreen();
+  hideTitleScreen();
+  startGameFromState(slot.state, slot.engine);
 }
 
 /** Manual save surface (gate 4.7): reachable from the HUD during a run. */
@@ -434,13 +471,11 @@ function buildRunnerCallbacks(): SceneRunnerCallbacks {
                 startNewGame();
               },
               onContinue: () => {
-                const slot = loadSlot('auto');
-                if (slot) { hideTitleScreen(); startGameFromState(slot.state, slot.engine); }
+                loadSlotGuarded(loadSlot('auto'), () => {});
               },
               onLoad: () => {
                 showSaveLoadScreen('load', getSlotSummaries(), (slotId) => {
-                  const slot = loadSlot(slotId);
-                  if (slot) { hideSaveLoadScreen(); hideTitleScreen(); startGameFromState(slot.state, slot.engine); }
+                  loadSlotGuarded(loadSlot(slotId), hideSaveLoadScreen);
                 }, hideSaveLoadScreen);
               },
               onSettings: () => {

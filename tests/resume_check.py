@@ -86,10 +86,10 @@ class PhaseResult:
         self.failed_requests: list[str] = []
 
 
-def new_context(browser, result: PhaseResult, base: str, viewport: dict | None = None):
+def new_context(browser, result: PhaseResult, base: str, viewport: dict | None = None, seed: int = SEED):
     context: BrowserContext = browser.new_context(viewport=viewport or VIEWPORT)
     page = context.new_page()
-    page.add_init_script(f"window.__wpSeed = {SEED};")
+    page.add_init_script(f"window.__wpSeed = {seed};")
     origin = urlparse(base).netloc
     page.on(
         "response",
@@ -237,9 +237,9 @@ def assert_actionable_continuation(page, result: PhaseResult, phase: str) -> Non
     )
 
 
-def run_phase(browser, base: str, phase: str, viewport: dict | None = None) -> PhaseResult:
+def run_phase(browser, base: str, phase: str, viewport: dict | None = None, seed: int = SEED) -> PhaseResult:
     result = PhaseResult(phase)
-    context, page = new_context(browser, result, base, viewport)
+    context, page = new_context(browser, result, base, viewport, seed)
     try:
         before = new_game_to_first_choice(base, page, result)
 
@@ -259,6 +259,127 @@ def run_phase(browser, base: str, phase: str, viewport: dict | None = None) -> P
                 result,
                 lambda p: FACILITY_MARKER in (p.locator("#dialogue-text").text_content() or ""),
             )
+        elif phase == "save-menu-policy":
+            # A phase whose SAVE is disabled shows the action disabled, not
+            # hidden, with a reason; an enabled SAVE still writes its slot.
+            page.click("#hud-save")
+            page.wait_for_selector("#save-load-screen:not(.hidden)", timeout=5000)
+            auto_panel = page.locator(".wp-slot-panel", has_text="AUTOSAVE").first
+            auto_btn = auto_panel.locator(".gui-btn").first
+            assert auto_btn.is_visible(), "AUTOSAVE action hidden in save mode (must be disabled, not hidden)"
+            assert auto_btn.is_disabled(), "AUTOSAVE action enabled in save mode (the silent no-op)"
+            assert "automatically" in (auto_panel.locator(".wp-slot-meta").text_content() or ""), \
+                "AUTOSAVE row carries no reason for the disabled action"
+            slot2 = page.locator(".wp-slot-panel", has_text="SLOT 2").locator(".gui-btn").first
+            assert slot2.is_enabled(), "an empty manual slot must offer SAVE"
+            slot2.click()
+            time.sleep(0.4)
+            assert page.evaluate("localStorage.getItem('wp_save_1')"), "SLOT 2 save did not write"
+            assert page.locator("#save-load-screen.hidden").count() > 0, "save screen stayed open after a successful save"
+            result.ok = True
+            return result
+        elif phase == "load-refusal":
+            # A slot referencing an active event absent from the build is
+            # refused visibly; the slot survives and the title stays usable.
+            save_via_hud(page)
+            page.evaluate(
+                """() => {
+                    const slot = JSON.parse(localStorage.getItem('wp_save_0'));
+                    slot.state.activeEventId = 'CE-99';
+                    slot.state.currentScene = 'evt-ce99-situation';
+                    localStorage.setItem('wp_save_0', JSON.stringify(slot));
+                }"""
+            )
+            load_via_title(page)
+            page.wait_for_selector(".gui-modal.is-open", timeout=5000)
+            modal_text = page.locator(".gui-modal").text_content() or ""
+            assert "LOAD FAILED" in modal_text, f"no visible refusal modal (got: {modal_text[:120]})"
+            assert "CE-99" in modal_text, "refusal does not name the missing event"
+            page.locator(".gui-modal__footer .gui-btn", has_text="OK").first.click()
+            time.sleep(0.3)
+            assert page.locator("#title-screen:not(.hidden)").count() > 0, "title not usable after refusal"
+            page.locator("#title-menu .gui-btn", has_text="LOAD GAME").first.click()
+            page.wait_for_selector("#save-load-screen:not(.hidden)", timeout=5000)
+            assert page.evaluate("localStorage.getItem('wp_save_0')"), "refused slot was not preserved"
+            result.ok = True
+            return result
+        elif phase == "legacy-comms-slot":
+            # The pre-amendment comms save (review R1): stale event-scene id,
+            # no resumePhase, no active event, mid-journey. It must resume
+            # through the stop transition — never a blank screen.
+            pump_until(page, result, lambda p: p.locator("#comms-overlay:not(.hidden)").count() > 0)
+            save_via_hud(page)
+            page.evaluate(
+                """async () => {
+                    const slot = JSON.parse(localStorage.getItem('wp_save_0'));
+                    const data = await (await fetch('/data/events.json')).json();
+                    const used = slot.state.usedEventIds;
+                    const ev = data.events.find((e) => e.id === used[used.length - 1]);
+                    slot.state.currentScene = ev.rewardScene;
+                    slot.state.eventPhase = null;
+                    if (slot.engine) slot.engine.resumePhase = null;
+                    localStorage.setItem('wp_save_0', JSON.stringify(slot));
+                }"""
+            )
+            before = read_hud(page)
+            load_via_title(page)
+            assert_journey_restored(page, before, phase)
+            page.wait_for_selector("#comms-overlay:not(.hidden)", timeout=8000)
+            page.locator("#comms-panel-body .gui-btn").first.click()
+            pump_until(
+                page,
+                result,
+                lambda p: has_choices(p) or p.locator("#comms-overlay:not(.hidden)").count() > 0
+                or p.locator("#reward-overlay:not(.hidden)").count() > 0,
+                max_actions=400,
+            )
+            result.ok = True
+            return result
+        elif phase == "document-scroll":
+            # Two long documents in one run: scrolling the first, closing it,
+            # and opening the second must still open at the top of
+            # #document-body (the scrolling element). Real document bodies do
+            # not overflow the panel at the harness viewport, so this phase
+            # constrains the body's height — geometry is the fixture here;
+            # the behavior under test is the scroll reset on the right
+            # element when the second document opens.
+            page.add_style_tag(content=".wp-document-body { max-height: 220px !important; }")
+            docs_seen = 0
+            for _ in range(MAX_ACTIONS):
+                if page.locator("#document-overlay:not(.hidden)").count() > 0:
+                    docs_seen += 1
+                    if docs_seen == 1:
+                        page.evaluate(
+                            "() => { const b = document.getElementById('document-body'); b.scrollTop = 400; }"
+                        )
+                        top = page.evaluate("() => document.getElementById('document-body').scrollTop")
+                        assert top > 0, f"first document could not scroll (scrollTop {top}) — fixture invalid"
+                        page.click("#document-footer .gui-btn")
+                        time.sleep(ACTION_MS / 1000)
+                        continue
+                    top = page.evaluate("() => document.getElementById('document-body').scrollTop")
+                    assert top == 0, f"second long document opened scrolled (scrollTop {top})"
+                    page.click("#document-footer .gui-btn")
+                    result.ok = True
+                    return result
+                if page.locator("#ending-screen:not(.hidden)").count() > 0:
+                    raise RuntimeError(f"run ended after {docs_seen} documents; need two")
+                if page.locator("#comms-overlay:not(.hidden)").count() > 0:
+                    page.click("#comms-panel-body .gui-btn")
+                    time.sleep(ACTION_MS / 1000)
+                    continue
+                if page.locator("#reward-overlay:not(.hidden)").count() > 0:
+                    page.locator(".wp-reward-cards .gui-card").nth(1).click()
+                    time.sleep(ACTION_MS / 1000)
+                    continue
+                choices = page.query_selector_all("#choices-area .gui-btn:not([disabled])")
+                if choices:
+                    choices[0].click()
+                    time.sleep(ACTION_MS / 1000)
+                    continue
+                page.click("#bottom-bar")
+                time.sleep(ACTION_MS / 1000)
+            raise RuntimeError("document-scroll never reached a second document")
         else:
             raise RuntimeError(f"unknown phase {phase}")
 
@@ -312,10 +433,17 @@ def main() -> int:
             # The comms panel (bottom-right, fixed) occludes the sidebar's
             # SAVE control at the 1440x900 harness viewport; at 2560x1440 —
             # the viewport the independent review used to reproduce R1 — the
-            # control is reachable. The comms phase runs there.
+            # control is reachable. The comms phases run there.
             for phase in ("event-choice", "event-consequence", "comms", "facility-entry"):
                 viewport = {"width": 2560, "height": 1440} if phase == "comms" else None
                 phases.append(run_phase(browser, base, phase, viewport))
+            phases.append(run_phase(browser, base, "save-menu-policy"))
+            phases.append(run_phase(browser, base, "load-refusal"))
+            phases.append(
+                run_phase(browser, base, "legacy-comms-slot", viewport={"width": 2560, "height": 1440})
+            )
+            # 20260916 knowledge reads two found documents in one run.
+            phases.append(run_phase(browser, base, "document-scroll", seed=20260916))
             phases.append(run_autosave_continue(browser, base))
             browser.close()
     finally:

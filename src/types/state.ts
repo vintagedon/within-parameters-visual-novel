@@ -239,6 +239,14 @@ export interface EngineSnapshot {
     availableCommunities: string[];
     usedEventIds: string[];
   } | null;
+  /**
+   * Interrupted-flow marker for a resume contract with no stale scene id
+   * (amendment A1.2): 'comms' when the save was taken during a comms window,
+   * where the run has already advanced past the completed stop and the
+   * continuation is the next stop's transition — the beat re-fires on
+   * resume and no already-taken reward is re-granted. Null elsewhere.
+   */
+  resumePhase?: 'comms' | null;
 }
 
 /** Persistent data across runs (stored separately from saves) */

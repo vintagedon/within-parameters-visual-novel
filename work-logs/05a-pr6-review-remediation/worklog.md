@@ -131,4 +131,79 @@ A1.2 repair):**
 `npm run test:mutation` 4/4 mutations discriminate;
 `npm run replay` 6/6; `npm run build` clean.
 
+**Commit:** `3863a36` — test: resume checks that can fail (gate A1.1); branch pushed, PR 6 updated in place.
+
+## Gate A1.2: Save and resume repairs
+
+**Final SAVE policy per phase** (the A1.1 list; every phase resumes — no
+phase needed SAVE disabled, and the one action that could not do what it
+said was the AUTOSAVE row, now disabled with a reason):
+
+| Phase | Policy | Resumable continuation |
+|-------|--------|------------------------|
+| Event dialogue / choice / consequence | SAVE enabled; resumes | `activeEventId` re-registers the event's scenes on restore; the saved scene reloads and the run continues |
+| Reward selection | SAVE not offered (inset-covering overlay) | engine-level: resumes and re-offers the same rewards; nothing granted before the pick |
+| Found document | SAVE not offered (inset-covering overlay) | engine-level: resumes and re-surfaces the unread document; the read applies exactly once |
+| Comms window | SAVE enabled (corner panel; reachable at larger viewports) | snapshot `resumePhase: 'comms'` — the saved current scene anchors to the registered `scene-journey-transition` hold scene; resume re-enters the stop transition, the beat re-fires, and the already-taken reward is not re-granted |
+| Facility scenes | SAVE enabled; resumes | base scenes; the persisted outcome authority is untouched |
+| Ending | SAVE not offered (fullscreen; HUD hidden) | n/a |
+
+**Repairs.**
+
+- `src/engine/scene-runner.ts`: comms-hold anchoring and resume — the hold
+  scene is registered by every runner; `beginCommsHold()` sets
+  `resumePhase: 'comms'` on the snapshot and anchors `currentScene`/
+  `currentBeat`/`eventPhase` to the hold; `start()` resumes a comms marker
+  through the stop transition (refreshing the HUD first, since no scene
+  loads before the player acknowledges); `restoreEngine` recognizes legacy
+  pre-amendment comms saves by shape (mid-journey, no active event,
+  `eventPhase` null, current scene unresolvable) and resumes them the same
+  way, so a pre-amendment slot neither stalls nor duplicates effects. Pool
+  ids missing from the loaded data are dropped from the restored pool (no
+  `undefined` can enter it). New exported `slotResumeProblem()` is the one
+  validation shared by the UI and the engine: it accepts every resumable
+  shape (base scene, active-event scene, comms snapshot, legacy comms) and
+  refuses a save whose active event is absent from the build's data.
+- `src/main.ts`: `startGameFromState` restores the journey layout
+  (`setGameUI`) before the first scene renders — a loaded run shows sidebar,
+  clock, stats, route, and SAVE exactly like an unsaved run (R2). All three
+  load entry points (title LOAD, title CONTINUE, ending-screen title LOAD)
+  route through `loadSlotGuarded`: a refused load shows a visible
+  `LOAD FAILED` dialog naming the problem, preserves the slot byte-for-byte,
+  and leaves the title and its LOAD control usable. No silent no-ops remain.
+- `src/ui/screens.ts`: the AUTOSAVE row's action is disabled in save mode
+  with the reason "written automatically at journey points" — visible, not
+  hidden; there is no path that closes an overwrite confirm without effect.
+  `showDocumentOverlay` resets `#document-body.scrollTop` after the overlay
+  becomes visible (scroll writes on a `display:none` element are ignored and
+  the browser restores the old position on show — the original reset was a
+  no-op twice over).
+- `src/types/state.ts`: `EngineSnapshot.resumePhase` for the resume
+  contract (explicitly permitted type change).
+
+**Checks added** (`src/engine/live-checks.ts`): nonexistent pooled event id
+degrades (dropped from the pool, no `undefined`, remaining route completes);
+nonexistent active event id is refused by `slotResumeProblem` (names the
+missing id, slot untouched); a legacy pre-amendment comms slot (stale
+`evt-*-reward` id, `resumePhase` stripped, `eventPhase` null) resumes
+through the transition to twin parity with no second grant; the shared
+validation accepts every resumable shape and refuses unresolvable ones.
+
+**Browser phases added** (`tests/resume_check.py`, real controls on the
+production build): save-menu policy (AUTOSAVE action disabled and visible
+with its reason; an enabled SLOT 2 save writes and closes); load refusal
+(poisoned slot → CONFIRM → `LOAD FAILED` naming `CE-99` → OK → title usable,
+slot preserved); legacy comms slot (real comms save mutated to the R1 shape
+→ LOAD → CONFIRM → journey HUD visible, comms overlay re-fires, run
+continues); document scroll (first long document scrolled to a non-zero
+offset, closed, second long document opens at `#document-body.scrollTop`
+0; the phase constrains the body's height because real bodies do not
+overflow at the harness viewport — geometry is the fixture, the reset is
+the behavior under test).
+
+**Verification:** `tsc --noEmit` clean; `npm run test:live` 34/34;
+`npm run test:mutation` 4/4 discriminate; `npm run replay` 6/6;
+`npm run audit:events` 36/36; `tests/resume_check.py` 9/9 phases on the
+production build.
+
 **Commit:** (recorded after commit)

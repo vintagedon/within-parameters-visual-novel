@@ -353,11 +353,13 @@ export function showSaveLoadScreen(
   const slotList = document.getElementById('slot-list')!;
   slotList.innerHTML = '';
 
-  // Autosave slot
+  // Autosave slot. In save mode its action is disabled with a reason: the
+  // autosave slot is engine-written, and an offered action that silently did
+  // nothing would be a defect (amendment A1.2). It stays visible, not hidden.
   const autoSlot = slots.find((s) => s.id === 'auto');
   appendSlotItem(slotList, 'AUTOSAVE', autoSlot, mode, () => {
     confirmSlotAction(mode, 'AUTOSAVE', autoSlot, 'auto', onSlotSelect);
-  });
+  }, mode === 'save' ? 'written automatically at journey points' : undefined);
 
   // Manual slots 0-4
   for (let i = 0; i < 5; i++) {
@@ -384,13 +386,15 @@ export function showSaveLoadScreen(
 }
 
 /** Renders a single save slot as a GameUI panel with a gui-btn action. Empty
- *  slots in load mode render their action disabled. */
+ *  slots in load mode render their action disabled. A disabledReason renders
+ *  the action disabled with an explanation instead of hiding it. */
 function appendSlotItem(
   container: HTMLElement,
   label: string,
   slot: SaveSlot | undefined,
   mode: 'save' | 'load',
-  onClick: () => void
+  onClick: () => void,
+  disabledReason?: string
 ): void {
   const panel = document.createElement('div');
   const accent = slot ? 'success' : '';
@@ -405,7 +409,7 @@ function appendSlotItem(
 
   const body = document.createElement('div');
   body.className = 'wp-slot-meta';
-  body.textContent = slot ? slot.sceneLabel : '— empty —';
+  body.textContent = disabledReason ?? (slot ? slot.sceneLabel : '— empty —');
 
   const footer = document.createElement('div');
   footer.className = 'gui-panel__footer wp-slot-footer';
@@ -418,7 +422,7 @@ function appendSlotItem(
     label: mode === 'save' ? 'SAVE' : 'LOAD',
     accent: 'primary',
     variant: 'outline',
-    disabled: mode === 'load' && !slot,
+    disabled: (mode === 'load' && !slot) || disabledReason !== undefined,
     onClick,
   });
 
@@ -456,17 +460,39 @@ function confirmSlotAction(
   openDangerConfirm(title, body, () => onSlotSelect(slotId));
 }
 
-/** Builds, mounts, and opens a one-shot danger confirm dialog. */
-function openDangerConfirm(title: string, body: string, onConfirm: () => void): void {
+/** Builds, mounts, and opens a one-shot confirm dialog. Confirm-label and
+ *  accent are parameterized so informational refusals (LOAD FAILED) can
+ *  reuse the flow with a single acknowledging action. */
+function openDangerConfirm(
+  title: string,
+  body: string,
+  onConfirm: () => void,
+  opts?: { confirmLabel?: string; cancelLabel?: string | null; accent?: 'danger' | 'primary' }
+): void {
+  const accent = opts?.accent ?? 'danger';
+  const buttons: Array<{
+    label: string;
+    variant: 'solid' | 'outline' | 'ghost';
+    accent?: string;
+    closes: boolean;
+    onClick?: () => void;
+  }> = [];
+  if (opts?.cancelLabel !== null) {
+    buttons.push({ label: opts?.cancelLabel ?? 'CANCEL', variant: 'ghost', closes: true });
+  }
+  buttons.push({
+    label: opts?.confirmLabel ?? 'CONFIRM',
+    variant: accent === 'danger' ? 'outline' : 'solid',
+    accent: accent === 'danger' ? 'danger' : 'primary',
+    closes: true,
+    onClick: () => onConfirm(),
+  });
   const modal: ModalControl = createModal({
     title,
     body,
     variant: 'dialog',
-    accent: 'danger',
-    buttons: [
-      { label: 'CANCEL', variant: 'ghost', closes: true },
-      { label: 'CONFIRM', accent: 'danger', closes: true, onClick: () => onConfirm() },
-    ],
+    accent,
+    buttons,
   });
   document.body.appendChild(modal.el);
   modal.onClose(() => {
@@ -483,6 +509,23 @@ function formatDate(ts: number): string {
 
 export function hideSaveLoadScreen(): void {
   saveLoadScreen.classList.add('hidden');
+}
+
+/**
+ * Visible refusal for a slot that cannot resume into this build's data
+ * (amendment A1.2): a recoverable message over the title screen, with the
+ * slot untouched and the title's LOAD control usable after dismissal. A
+ * refused load never stalls and never renders a blank journey.
+ */
+export function showLoadRefusal(problem: string, onClose: () => void): void {
+  hideSaveLoadScreen();
+  openDangerConfirm(
+    'LOAD FAILED',
+    `<p>This save cannot be loaded: ${escapeHtml(problem)}.</p>` +
+      '<p>The save was not changed. You can return to the title and load a different slot.</p>',
+    onClose,
+    { confirmLabel: 'OK', cancelLabel: null, accent: 'primary' }
+  );
 }
 
 // ─── Ending Screen ────────────────────────────────────────────────────────────
@@ -860,9 +903,13 @@ export function showDocumentOverlay(doc: FoundDocument, onContinue: () => void):
   });
   footer.appendChild(ack.el);
 
-  // Reset scroll so long documents start at the top.
-  documentOverlay.scrollTo(0, 0);
+  // Reset scroll so long documents always open at the top. The scrolling
+  // element is the document body panel (#document-body), not the outer
+  // overlay — and the reset must run after the overlay is visible: scroll
+  // writes on a display:none element are ignored and the browser restores
+  // the previous position on show (amendment A1.2).
   documentOverlay.classList.remove('hidden');
+  body.scrollTop = 0;
 }
 
 export function hideDocumentOverlay(): void {

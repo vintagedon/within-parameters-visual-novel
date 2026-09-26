@@ -21,6 +21,7 @@ import type {
   CommsBeatsData,
   CommsBeatDef,
   DialogueLine,
+  SaveSlot,
 } from '../types/index';
 import {
   applyStatChanges,
@@ -133,7 +134,64 @@ export function buildSceneRegistry(
   };
 }
 
+// ─── Slot resume validation (amendment A1.2) ──────────────────────────────────
+
+/**
+ * Decides whether a save slot can resume into this build's data, and why not
+ * when it cannot. One source of truth shared by the LOAD/CONTINUE entry
+ * points (which refuse visibly, preserving the slot) and by restoreEngine
+ * (which resumes comms-window saves through the stop transition).
+ *
+ * Resume is allowed when the saved current scene resolves against the base
+ * scenes or the active event's scenes. A comms-window save (new-style, via
+ * the snapshot's resumePhase, or legacy pre-amendment, recognized by shape)
+ * resolves through the stop transition instead. A save whose active event is
+ * absent from the loaded data cannot rebuild its scenes and is refused; a
+ * save that merely pools an absent event id degrades in restoreEngine and is
+ * not refused here.
+ */
+export function slotResumeProblem(
+  slot: SaveSlot,
+  data: { scenes: Scene[]; events: EventDef[]; journeyStops: number }
+): string | null {
+  const st = slot.state;
+  const activeEvent = st.activeEventId
+    ? data.events.find((e) => e.id === st.activeEventId)
+    : undefined;
+  if (st.activeEventId && !activeEvent) {
+    return `the saved event ${st.activeEventId} is not part of this build`;
+  }
+  const inBase = data.scenes.some((s) => s.id === st.currentScene);
+  const inActiveEvent = activeEvent?.scenes.some((s) => s.id === st.currentScene) ?? false;
+  if (inBase || inActiveEvent) return null;
+  if (slot.engine?.resumePhase === 'comms') return null;
+  const midJourney =
+    st.currentStop >= 1 && st.currentStop <= data.journeyStops;
+  if (!st.activeEventId && st.eventPhase === null && midJourney) {
+    // Legacy pre-amendment comms-window save: resumes into the stop
+    // transition (restoreEngine sets the same marker).
+    return null;
+  }
+  return `the saved scene ${st.currentScene} cannot be restored from this build's data`;
+}
+
 // ─── Scene Runner ─────────────────────────────────────────────────────────────
+
+/**
+ * Registered anchor for the between-stops transition (amendment A1.2). While
+ * a comms beat holds the run, no event scene is current — the previous stop's
+ * reward scene id would be stale the moment a fresh registry exists. A save
+ * taken during the hold carries this registered, renderable scene as the
+ * current scene, and the snapshot's resumePhase tells the restored runner to
+ * re-enter the stop transition instead of loading a scene.
+ */
+const TRANSITION_HOLD_SCENE: Scene = {
+  id: 'scene-journey-transition',
+  beat: 'journey',
+  background: 'bg-transit-tunnel',
+  dialogue: [],
+  flags: { showGameUI: true },
+};
 
 /** Stateful game controller. One instance per run — create a new one for each new game or loaded save. */
 export class SceneRunner {
@@ -153,6 +211,16 @@ export class SceneRunner {
    * resolver's per-stop contract.
    */
   private practicedAvailable = true;
+
+  /**
+   * Interrupted-flow marker for the resume contract. Set while a comms beat
+   * holds the run between stops; carried on the engine snapshot so a save
+   * taken during the hold resumes into the stop transition (the beat
+   * re-fires; no reward is re-granted). Also set by restoreEngine for legacy
+   * pre-amendment comms-window slots whose saved scene id can no longer
+   * resolve.
+   */
+  private resumePhase: 'comms' | null = null;
 
   // Chargen phase state (spec 03). Present only when the runner was constructed
   // for a new game (chargen pool + rng supplied). Resume runners omit it.
@@ -184,6 +252,7 @@ export class SceneRunner {
     this.callbacks = callbacks;
     this.chargen = chargen ?? null;
     this.runRng = runRng ?? (chargen?.rng as RunRng | undefined) ?? null;
+    this.registry.scenes.set(TRANSITION_HOLD_SCENE.id, { ...TRANSITION_HOLD_SCENE });
   }
 
   getState(): GameState {
@@ -211,6 +280,7 @@ export class SceneRunner {
             usedEventIds: Array.from(this.eventPool.usedEventIds),
           }
         : null,
+      resumePhase: this.resumePhase,
     };
   }
 
@@ -218,12 +288,19 @@ export class SceneRunner {
    * Restores an engine snapshot: RNG stream, Practiced availability, and the
    * event pool ordering. Re-injects the active event's scenes and pending
    * reward tracking so a mid-event resume continues where the save left off.
+   *
+   * Pool ids missing from the loaded data are dropped from the pool rather
+   * than crashing the restore: no `undefined` can enter the pool, and the
+   * degraded run continues without the removed event. An active event
+   * missing from the data is a refusal case, decided by slotResumeProblem
+   * before a runner is built; restoreEngine never throws on it.
    */
   restoreEngine(snap: EngineSnapshot): void {
     this.runRng?.setState(snap.rngState);
     this.practicedAvailable = snap.practicedAvailable;
+    this.resumePhase = snap.resumePhase ?? null;
     if (snap.eventPool) {
-      const byId = (id: string) => this.registry.events.get(id)!;
+      const byId = (id: string) => this.registry.events.get(id);
       const communityById = (id: string) =>
         this.communities.find((c) => c.id === id) ?? {
           id,
@@ -232,9 +309,9 @@ export class SceneRunner {
         };
       this.eventPool = {
         byZone: {
-          community: snap.eventPool.community.map(byId),
-          transit: snap.eventPool.transit.map(byId),
-          approach: snap.eventPool.approach.map(byId),
+          community: snap.eventPool.community.map(byId).filter((e): e is EventDef => !!e),
+          transit: snap.eventPool.transit.map(byId).filter((e): e is EventDef => !!e),
+          approach: snap.eventPool.approach.map(byId).filter((e): e is EventDef => !!e),
         },
         availableCommunities: snap.eventPool.availableCommunities.map(communityById),
         usedEventIds: new Set(snap.eventPool.usedEventIds),
@@ -250,12 +327,34 @@ export class SceneRunner {
         }
         this._pendingEventForStop = { event, stop: this.state.currentStop };
       }
+    } else if (
+      !this.resumePhase &&
+      this.state.eventPhase === null &&
+      this.state.currentStop >= 1 &&
+      this.state.currentStop <= this.config.journeyStops &&
+      !this.registry.scenes.get(this.state.currentScene)
+    ) {
+      // Legacy pre-amendment comms-window save: the run had already advanced
+      // past the completed stop when the beat fired, the saved scene id is an
+      // event scene no fresh registry carries, and no active event can
+      // re-register it. Resume into the stop transition — the beat re-fires
+      // and nothing already taken is granted twice.
+      this.resumePhase = 'comms';
     }
   }
 
   // ─── Entry point ─────────────────────────────────────────────────────────
 
   start(): void {
+    if (this.resumePhase === 'comms') {
+      this.resumePhase = null;
+      // The resumed run renders the comms overlay, not a scene: refresh the
+      // HUD here, since no onSceneStart will fire before the player
+      // acknowledges the re-fired beat.
+      this.callbacks.onStateUpdate(this.state);
+      this.runNextStop();
+      return;
+    }
     this.loadScene(this.state.currentScene);
   }
 
@@ -335,6 +434,9 @@ export class SceneRunner {
       console.error(`[scene-runner] Scene not found: ${sceneId}`);
       return;
     }
+
+    // Any scene load ends a comms hold: the transition resolved.
+    this.resumePhase = null;
 
     this.state = addToHistory(this.state, sceneId);
     this.state = { ...this.state, currentScene: sceneId, currentBeat: scene.beat };
@@ -623,6 +725,7 @@ export class SceneRunner {
     // (afterStop) and the bands (min/max) come from data.
     const beat = this.pendingCommsBeat(stop);
     if (beat) {
+      this.beginCommsHold();
       this.callbacks.onCommsInterrupt(this.state, beat.beat, beat.tierId, () => {
         this.runStop(stop);
       });
@@ -630,6 +733,25 @@ export class SceneRunner {
     }
 
     this.runStop(stop);
+  }
+
+  /**
+   * Enters the comms hold: the save-enabled window between stops where the
+   * previous stop's reward scene id would be stale. The state's current
+   * scene is anchored to the registered transition-hold scene, and the
+   * resumePhase rides the snapshot so a save taken here resumes into the
+   * stop transition (the beat re-fires; no already-taken reward is
+   * re-granted).
+   */
+  private beginCommsHold(): void {
+    this.resumePhase = 'comms';
+    this.registry.scenes.set(TRANSITION_HOLD_SCENE.id, { ...TRANSITION_HOLD_SCENE });
+    this.state = {
+      ...this.state,
+      currentScene: TRANSITION_HOLD_SCENE.id,
+      currentBeat: TRANSITION_HOLD_SCENE.beat,
+      eventPhase: 'transition',
+    };
   }
 
   /**

@@ -26,7 +26,7 @@ import type {
   EventCategory,
 } from '../types/index';
 import { initNewGame } from './game-state';
-import { SceneRunner, buildSceneRegistry, type SceneRunnerCallbacks, type ChoiceView, type SceneRegistry } from './scene-runner';
+import { SceneRunner, buildSceneRegistry, slotResumeProblem, type SceneRunnerCallbacks, type ChoiceView, type SceneRegistry } from './scene-runner';
 import { buildEffectiveConfig } from './traits';
 import { scoreRun } from './scoring';
 import { initEventPool, drawEvent } from './event-system';
@@ -269,8 +269,14 @@ function makeHarness(opts: {
     get heldComms() {
       return heldComms;
     },
+    set heldComms(v) {
+      heldComms = v;
+    },
     get heldDoc() {
       return heldDoc;
+    },
+    set heldDoc(v) {
+      heldDoc = v;
     },
     get grantCount() {
       return grantCount;
@@ -375,6 +381,21 @@ function driveToSavePhase(h: Harness, phase: SavePhase): void {
   for (let guard = 0; guard < 600; guard++) {
     if (phase === 'comms' && h.heldComms) return;
     if (phase === 'document' && h.heldDoc) return;
+    // Holding phases other than the target one auto-continue: a comms-phase
+    // save may sit behind a document surface, and vice versa. The hold is
+    // cleared before continuing — the continuation is synchronous.
+    if (h.heldDoc && phase !== 'document') {
+      const cont = h.heldDoc.onContinue;
+      h.heldDoc = null;
+      cont();
+      continue;
+    }
+    if (h.heldComms && phase !== 'comms') {
+      const cont = h.heldComms.onContinue;
+      h.heldComms = null;
+      cont();
+      continue;
+    }
     if (h.pendingReward) {
       if (phase === 'reward-pick') return;
       h.pendingReward.onSelect(1);
@@ -1446,6 +1467,154 @@ check('A1.1 save/resume: Practiced fixture restores the consumed-discount state'
   eq(r.ending!.state.outcome!.finalScore, twin.ending!.state.outcome!.finalScore, 'practiced-fixture: score parity');
   eq(grantsBefore + r.grantCount, twin.grantCount, 'practiced-fixture: grant count preserved');
   return `saved after the discount was consumed; resumed run restored practicedAvailable=false and matched the twin`;
+});
+
+// ─── A1.2: save and resume repairs ───────────────────────────────────────────
+
+/** A save pooling an event id that is absent from the loaded data degrades:
+ *  the missing id is dropped from the pool, no `undefined` enters it, and the
+ *  remaining route (still valid after the drop) is playable. */
+check('A1.2 save/resume: a nonexistent pooled event id degrades without crashing', () => {
+  const seed = 61021;
+  const b = makeHarness({ positive: 'P6', negative: 'N4', events: eventsData, runSeed: seed });
+  driveToSavePhase(b, 'event-choice');
+  const slot = saveThroughManager(b);
+  assert(slot.engine!.eventPool !== null, 'pool present in snapshot');
+  const pool = slot.engine!.eventPool!;
+  const victim = pool.transit[0];
+  if (victim === undefined) throw new Error('a pooled transit id exists to remove from the data');
+  assert(
+    pool.transit.length >= 2,
+    'enough transit events remain for the remaining transit stops after the drop'
+  );
+  const reducedEvents = eventsData.filter((e) => e.id !== victim);
+
+  // The resumed harness builds its registry from the reduced data, exactly
+  // as a build without the removed event would.
+  const r = makeHarness({
+    resumeSlot: { slot, autostart: false },
+    positive: 'P6',
+    negative: 'N4',
+    events: reducedEvents,
+  });
+  r.runner.start();
+  const snap = r.runner.snapshot()!;
+  assert(snap.eventPool !== null, 'pool restored');
+  const allIds = [
+    ...snap.eventPool!.community,
+    ...snap.eventPool!.transit,
+    ...snap.eventPool!.approach,
+  ];
+  assert(!allIds.includes(victim), 'the missing id was dropped from the restored pool');
+  for (const id of allIds) {
+    assert(reducedEvents.some((e) => e.id === id), `pool id ${id} exists in the reduced data (no undefined)`);
+  }
+  driveToCompletion(r, 1, false);
+  assert(r.ending !== null, 'degraded resume still completes the remaining route');
+  return `pool minus ${victim} resumed and completed as ${r.ending!.ending}`;
+});
+
+/** A save whose ACTIVE event is absent from the data is refused by the
+ *  shared slotResumeProblem decision — not crashed on, not blank-screened. */
+check('A1.2 save/resume: a nonexistent active event id is refused, not crashed', () => {
+  const seed = 61022;
+  const b = makeHarness({ positive: 'P6', negative: 'N4', events: eventsData, runSeed: seed });
+  driveToSavePhase(b, 'event-choice');
+  const slot = saveThroughManager(b);
+  assert(slot.state.activeEventId !== null, 'active event present at the save point');
+  const poisoned = JSON.parse(
+    JSON.stringify(slot)
+  ) as import('../types/index').SaveSlot;
+  poisoned.state.activeEventId = 'CE-99';
+  poisoned.state.currentScene = 'evt-ce99-situation';
+  const problem = slotResumeProblem(poisoned, {
+    scenes: scenesData,
+    events: eventsData,
+    journeyStops: baseConfig.journeyStops,
+  });
+  assert(problem !== null, 'active event absent from the data is refused');
+  assert(problem!.includes('CE-99'), 'refusal names the missing event');
+  // The slot was preserved bit-for-bit by the refusal path.
+  const after = JSON.parse(JSON.stringify(slot)) as import('../types/index').SaveSlot;
+  eq(
+    JSON.stringify(after.state.activeEventId),
+    JSON.stringify(slot.state.activeEventId),
+    'slot untouched by validation'
+  );
+  return `refused: ${problem}`;
+});
+
+/** A pre-amendment comms-window slot (stale event-scene id, no resumePhase,
+ *  no active event, mid-journey) resumes through the stop transition: the
+ *  beat re-fires, the run continues, and nothing is granted twice. */
+check('A1.2 save/resume: a legacy pre-amendment comms slot resumes without duplicated effects', () => {
+  const seed = 61023;
+  // Twin for outcome comparison.
+  const twin = makeHarness({ positive: 'P6', negative: 'N4', events: eventsData, runSeed: seed });
+  driveToCompletion(twin, 1);
+  assert(twin.ending !== null, 'twin ended');
+
+  // Reproduce the R1 save shape: the runner as it was pre-amendment — mid
+  // stop transition, stale reward-scene id, reward already taken.
+  const b = makeHarness({ positive: 'P6', negative: 'N4', events: eventsData, runSeed: seed, hold: true });
+  driveToSavePhase(b, 'comms');
+  const grantsBefore = b.grantCount;
+  const slot = saveThroughManager(b);
+  // Force the legacy shape: strip the resumePhase and restore the stale
+  // reward-scene id the pre-amendment runner used to leave in the state —
+  // including eventPhase null, since nothing marked the transition then.
+  const legacy = JSON.parse(JSON.stringify(slot)) as import('../types/index').SaveSlot;
+  if (legacy.engine) legacy.engine.resumePhase = null;
+  legacy.state.eventPhase = null;
+  const drawnEvent = eventsData.find((e) => e.id === (legacy.state.usedEventIds.slice(-1)[0] ?? ''));
+  if (!drawnEvent) throw new Error('drawn event found');
+  legacy.state.currentScene = drawnEvent.rewardScene;
+  assert(
+    !scenesData.some((s) => s.id === legacy.state.currentScene),
+    'legacy scene id is not a base scene (the R1 shape)'
+  );
+
+  const r = makeHarness({ positive: 'P6', negative: 'N4', events: eventsData, resumeSlot: { slot: legacy, autostart: true } });
+  eq(r.commsFired.length, 1, 'legacy comms slot: the beat re-fires on resume');
+  driveToCompletion(r, 1, false);
+  assert(r.ending !== null, 'legacy comms slot: resumed run completed');
+  eq(r.ending!.ending, twin.ending!.ending, 'legacy comms slot: ending parity');
+  eq(r.ending!.state.outcome!.finalScore, twin.ending!.state.outcome!.finalScore, 'legacy comms slot: score parity');
+  eq(grantsBefore + r.grantCount, twin.grantCount, 'legacy comms slot: no second grant');
+  return `legacy slot (${legacy.state.currentScene}) resumed through the transition to ${r.ending!.ending} @ ${r.ending!.state.outcome!.finalScore}`;
+});
+
+/** The shared validation refuses a save whose current scene cannot resolve
+ *  in any legal way, and passes every shape that must resume. */
+check('A1.2 save/resume: slot validation accepts every resumable shape and refuses the rest', () => {
+  const data = { scenes: scenesData, events: eventsData, journeyStops: baseConfig.journeyStops };
+  // A live comms-window save passes via resumePhase.
+  const b = makeHarness({ positive: 'P6', negative: 'N4', events: eventsData, runSeed: 61024, hold: true });
+  driveToSavePhase(b, 'comms');
+  const commsSlot = saveThroughManager(b);
+  eq(slotResumeProblem(commsSlot, data), null, 'comms-window save accepted');
+  eq(commsSlot.state.currentScene, 'scene-journey-transition', 'comms save anchors the registered transition scene');
+  // A live mid-event save passes on the event's own scenes.
+  const c = makeHarness({ positive: 'P6', negative: 'N4', events: eventsData, runSeed: 61024 });
+  driveToSavePhase(c, 'event-choice');
+  eq(slotResumeProblem(saveThroughManager(c), data), null, 'mid-event save accepted');
+  // A pre-journey base-scene save passes on the base scenes.
+  const baseSlot: import('../types/index').SaveSlot = {
+    id: 1,
+    label: 'Slot 2',
+    state: { ...initNewGame(buildEffectiveConfig(baseConfig, 'P6', 'N4')), currentScene: 'scene-discovery-01' },
+    savedAt: 0,
+    sceneLabel: 'x',
+    beatLabel: 'y',
+  };
+  eq(slotResumeProblem(baseSlot, data), null, 'base-scene save accepted');
+  // Garbage is refused.
+  const junk: import('../types/index').SaveSlot = {
+    ...baseSlot,
+    state: { ...baseSlot.state, currentScene: 'scene-does-not-exist', currentStop: 9, activeEventId: null, eventPhase: 'choice' },
+  };
+  assert(slotResumeProblem(junk, data) !== null, 'unresolvable scene refused');
+  return 'comms (snapshot + legacy), mid-event, and base-scene saves accepted; unresolvable refused';
 });
 
 /** Same-seed parity: a save+resume run scores exactly what the uninterrupted run scored. */
