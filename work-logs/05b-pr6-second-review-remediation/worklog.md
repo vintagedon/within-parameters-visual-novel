@@ -203,3 +203,56 @@ Commit: (pending — recorded at commit)
   or 06 is preserved, per the demonstrated-difference rule.
 
 Commit: (pending — recorded at commit)
+
+## Gate A2.4: Regression guards that guard
+
+**Changes.**
+
+- `tests/complete_run.py`: (1) the correction strategy's reward branch now
+  increments `decisions` (it had bypassed the increment, undercounting
+  every correction-policy run by its five reward picks); (2) a new check
+  asserts `instant_chars == Σ instant_breakdown` for every run — the
+  aggregate that drives the duration estimate is validated against the
+  same categories the reference assertions read.
+- `scripts/run-counter-mutations.mjs`: mutation 3 reproduces the review's
+  aggregate mutation (drops only the epilogue's contribution to
+  `instant_chars`); each mutation now names the assertion that must fail,
+  and mutation 3's named assertion is the aggregate check — the category
+  references stay intact under it.
+- `src/engine/live-checks.ts`: the corrected bound and the ordered
+  assignment enumeration are extracted into `correctedUpperBoundFor` and
+  `zoneAssignmentsFor`; the live reachability check drives them, and the
+  synthetic self-credit fixture now passes its catalog through the SAME
+  functions instead of computing a `bestOther + 2 + 1` replica. The
+  fixture's rejection assert names self-credit leakage explicitly.
+- `scripts/run-mutation-checks.mjs`: mutation A2.4 reintroduces self-credit
+  into the shared evaluator.
+- Review surface: F-04's "two gates" corrected in place (the check reports
+  one — CE-05[2]); Amendment B section carries the refreshed F-05 table,
+  the rounding/measurement separation, and the statement of record.
+
+**Validation evidence (gate A2.4).**
+
+- Full inventory re-run on the corrected build and counter: 37/37
+  completed; 13/13 checks PASS including the new aggregate assertion;
+  zero console errors; zero failed same-origin requests;
+  `tests/baseline/` untouched.
+- Outcome stability: all 36 full runs reproduce the recorded endings,
+  scores, and grades exactly (verified programmatically against the
+  recorded table) — the rounding repair changed no outcomes; the deltas
+  are measurement-only (correction decisions 6 → 11; decisions minimum
+  6 → 10; leisured median 11.84 → 11.94 minutes; attentive median 9.57 ≈
+  9.6 unchanged).
+- Seed 506 decisions: 11 = 5 event choices + 5 reward choices + the
+  facility choice, as the review projected.
+- `node scripts/run-counter-mutations.mjs`: 3/3 rejected, each against its
+  named assertion.
+- `npm run test:mutation`: 9/9 rejected; the A2.4 mutation fails the
+  self-credit fixture (`bound 21 >= gate 10`) — verified from the mutated
+  run's output. Unmutated fixture: `shared corrected evaluator bound
+  6 < 10 (rejected)`.
+- `npm run test:live`: 46/46 (the five positive legal-path proofs still
+  pass through the shared evaluator).
+- `npx tsc --noEmit`: clean; production build clean.
+
+Commit: (pending — recorded at commit)

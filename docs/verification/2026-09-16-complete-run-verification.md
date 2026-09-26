@@ -478,7 +478,11 @@ implicitly did.
    150-seed budget is reported **unresolved**, not unreachable.
 
 **Result.** 5 gated choices; 5 reachable with legal paths; 0 proved
-unreachable; 0 unresolved. Two gates are crossed only by a document:
+unreachable; 0 unresolved. One gate is crossed only by a document —
+corrected in place by Amendment B (gate A2.4): this section said "two
+gates," which the check's own report contradicts
+("(1 require rewards/documents)"; the corrected count statement of record
+is in the Amendment B A2.4 section):
 
 | Gate | Legal path (reproducible) | Pre-choice knowledge |
 |------|---------------------------|----------------------|
@@ -870,3 +874,74 @@ negative reductions are reachable in live play — a clock-reduction card
 taken at rapport ≤ −4 adds intrusion-clock segments, and the text now says
 so. The F-05 product decision and everything in Spec 05 remain as carried
 elsewhere in this section.
+
+## A2.4: Regression guards that guard
+
+**The duration guard validates the aggregate it uses.** `instant_chars`
+drives the duration estimate, but the seed-555555 reference assertions read
+the breakdown fields — the review demonstrated that dropping the epilogue
+from `instant_chars` (2,418 → 800) left every reference assertion passing.
+The counter now also asserts, for every run, that the aggregate equals the
+sum of its validated categories (`instant_chars == Σ instant_breakdown`).
+The review's exact aggregate mutation is mutation 3 in
+`node scripts/run-counter-mutations.mjs`: it removes only the epilogue's
+contribution to the aggregate, the category references stay intact, and
+the named aggregate assertion fails (3/3 counter mutations rejected, each
+against its named check).
+
+**Correction-strategy decisions.** The correction branch handled reward
+picks without incrementing `decisions`, undercounting every
+correction-policy run by exactly its five reward picks (seed 506 recorded
+6 against 5 event choices + 5 reward choices + the facility choice). The
+branch now counts the pick. All six correction runs report **11 decisions**
+— event choices, reward choices, and the facility choice actually reached
+(501–505 end destruction at the facility; 506 reaches the correction
+ending; no facility decision is added to a run that ended earlier).
+
+**F-05 figures refreshed** (same seeds, strategies, rerolls, resume
+inventory; corrected build and counter; 37/37 completed, zero console
+errors, zero failed same-origin requests by HTTP status; the aggregate
+assertion passes on every run):
+
+| Measure | Min | Median | Max |
+|---------|-----|--------|-----|
+| Typed dialogue characters | 4,833 | 6,474 | 7,095 |
+| Typed lines | 44 | 60 | 64 |
+| Instant-surface characters | 1,930 | 4,254 | 5,882 |
+| Typewriter time at 30 ms/char | 145 s | 194 s | 213 s |
+| Decision points (choices + rewards) | 10 | 11 | 11 |
+
+- Attentive (method unchanged): **median ~9.6 minutes** (range 5.5–12.0).
+- Leisured (~108 wpm reading, 5 s per decision): **median ~11.9 minutes**
+  (range 6.8–15.2).
+
+**Rounding vs measurement, separated.** Every ending, score, and grade in
+the inventory reproduces the recorded table exactly (36/36 full runs) —
+the A2.3 rounding repair changed no outcome in the set. What moved is
+measurement only: correction-run decision counts 6 → 11 (the
+increment fix; the old minimum of 6 was an undercounted correction run,
+not an early run), the decisions minimum 6 → 10 (a redhunt early-ender,
+previously hidden by the undercount), and the leisured median 11.84 →
+11.94 minutes. Console/HTTP-status coverage is preserved (both zero) and
+the F-05 closed question stands as restated in Amendment A, unanswered.
+
+**The reachability fixture drives the real evaluator.** The synthetic
+self-credit fixture previously computed its own `bestOther + 2 + 1` bound,
+so reintroducing self-credit into the real evaluator left both reachability
+checks passing. The corrected bound and the assignment enumeration are now
+shared functions (`correctedUpperBoundFor`, `zoneAssignmentsFor`); the live
+check and the fixture both drive them. Mutation
+`A2.4 reintroduces self-credit into the shared reachability evaluator`
+makes the fixture fail with `bound 21 >= gate 10`
+(`npm run test:mutation`, 9/9 mutations rejected).
+
+**F-04 statement of record.** The check reports **one** gated choice
+requiring rewards or documents (CE-05[2] gate 4: best legal choices-only
+knowledge 3 < 4, crossed by the document's +1). The prior narrative's
+"two gates" was an error against the check's own report; the A1.5 section
+carries the in-place correction.
+
+**Five positive legal-path proofs.** The corrected-bound check still
+resolves all five gated choices with legal paths — the refactor moved the
+bound and assignment construction into shared functions without changing
+their output (`npm run test:live`, 46/46).

@@ -80,6 +80,13 @@ const MUTATIONS = [
     find: 'const raw = config.clockReductionBase + Math.trunc(rapport * config.rapportClockScale);',
     replace: 'const raw = config.clockReductionBase + Math.floor(rapport * config.rapportClockScale);',
   },
+  {
+    name: 'A2.4 reintroduces self-credit into the shared reachability evaluator',
+    file: 'src/engine/live-checks.ts',
+    find: /if \(assignment\[stop\]!\.id === event\.id\) \{\n(\s*)bound = Math\.max\(bound, prior\);\n(\s*)break;/,
+    replace:
+      'if (assignment[stop]!.id === event.id) {\n$1bound = Math.max(bound, prior + bestChoiceYield(event));\n$2break;',
+  },
 ];
 
 // ─── Runner ───────────────────────────────────────────────────────────────────

@@ -2202,6 +2202,77 @@ function bestChoiceYield(event: EventDef): number {
   return Math.max(...situation.choices!.map((c) => c.statChanges?.knowledge ?? 0));
 }
 
+/** Legal ordered assignments (A2.4 shared builder): every way each zone's
+ *  pool can draw onto its stops with no repeats. The live reachability
+ *  check and the synthetic self-credit fixture both build their
+ *  assignments here, so the fixture enumerates exactly the shapes the
+ *  live check reasons over. */
+function zoneAssignmentsFor(
+  pools: Record<string, EventDef[]>,
+  zoneStops: Record<string, number[]>
+): Array<Record<number, EventDef>> {
+  const perms = <T>(arr: T[], k: number): T[][] => {
+    if (k === 0) return [[]];
+    if (arr.length === 0) return [];
+    const out: T[][] = [];
+    for (let i = 0; i < arr.length; i++) {
+      const rest = [...arr.slice(0, i), ...arr.slice(i + 1)];
+      for (const tail of perms(rest, k - 1)) out.push([arr[i]!, ...tail]);
+    }
+    return out;
+  };
+  const zoneNames = Object.keys(zoneStops);
+  let combos: EventDef[][][] = [[]];
+  for (const zone of zoneNames) {
+    const perZone = perms(pools[zone] ?? [], zoneStops[zone]!.length);
+    const next: EventDef[][][] = [];
+    for (const combo of combos) {
+      for (const p of perZone) next.push([...combo, p]);
+    }
+    combos = next;
+  }
+  const assignments: Array<Record<number, EventDef>> = [];
+  for (const combo of combos) {
+    const m: Record<number, EventDef> = {};
+    combo.forEach((zoneList, zi) => {
+      zoneStops[zoneNames[zi]!]!.forEach((stop, si) => {
+        const e = zoneList[si];
+        if (e !== undefined) m[stop] = e;
+      });
+    });
+    assignments.push(m);
+  }
+  return assignments;
+}
+
+/** THE corrected bound evaluator (A2.4): best legal prior knowledge for one
+ *  gated event over every ordered assignment, crediting only PRIOR stops'
+ *  best choice yield, the knowledge reward, and a document read — never the
+ *  gated event's own yield. The live reachability check and the synthetic
+ *  self-credit fixture both drive this function, so reintroducing
+ *  self-credit here makes the fixture fail together with the live check. */
+function correctedUpperBoundFor(
+  event: EventDef,
+  assignments: Array<Record<number, EventDef>>,
+  rewardKnowledge: number,
+  docBonus: number,
+  journeyStops: number
+): number {
+  let bound = 0;
+  for (const assignment of assignments) {
+    let prior = 0;
+    for (let stop = 1; stop <= journeyStops; stop++) {
+      if (assignment[stop]!.id === event.id) {
+        bound = Math.max(bound, prior);
+        break;
+      }
+      const e = assignment[stop]!;
+      prior += bestChoiceYield(e) + rewardKnowledge + ((e.foundDocumentIds ?? []).length > 0 ? docBonus : 0);
+    }
+  }
+  return bound;
+}
+
 check('A1.5 reachability: corrected bounds exclude self-credit; every reachable gate carries a legal path', () => {
   // One consistent effective configuration for bound AND search: P6/N2 has
   // no Distracted flag, so the document's +1 is real and the knowledge
@@ -2216,57 +2287,23 @@ check('A1.5 reachability: corrected bounds exclude self-credit; every reachable 
       | 'approach';
   const zoneEvents = (zone: string) => eventsData.filter((e) => e.category === zone);
 
-  // Ordered assignments per zone: which events draw at which stops.
-  const perms = <T>(arr: T[], k: number): T[][] => {
-    if (k === 0) return [[]];
-    if (arr.length === 0) return [];
-    const out: T[][] = [];
-    for (let i = 0; i < arr.length; i++) {
-      const rest = [...arr.slice(0, i), ...arr.slice(i + 1)];
-      for (const tail of perms(rest, k - 1)) out.push([arr[i]!, ...tail]);
-    }
-    return out;
-  };
-  const zoneStops: Record<string, number[]> = { community: [1, 2], transit: [3, 4], approach: [5] };
-  const assignments: Array<Record<number, EventDef>> = [];
-  const commPerms = perms(zoneEvents('community'), 2);
-  const transPerms = perms(zoneEvents('transit'), 2);
-  const apprPerms = perms(zoneEvents('approach'), 1);
-  for (const c of commPerms) {
-    for (const t of transPerms) {
-      for (const a of apprPerms) {
-        const m: Record<number, EventDef> = {};
-        const zones = [c, t, a];
-        const zoneNames = ['community', 'transit', 'approach'];
-        zones.forEach((zoneList, zi) => {
-          const stops = zoneStops[zoneNames[zi] ?? ''];
-          if (!stops) return;
-          stops.forEach((stop, si) => {
-            const e = zoneList[si];
-            if (e !== undefined) m[stop] = e;
-          });
-        });
-        assignments.push(m);
-      }
-    }
-  }
+  // Ordered assignments per zone: which events draw at which stops — built
+  // by the shared builder the self-credit fixture also drives (A2.4).
+  const assignments = zoneAssignmentsFor(
+    {
+      community: zoneEvents('community'),
+      transit: zoneEvents('transit'),
+      approach: zoneEvents('approach'),
+    },
+    { community: [1, 2], transit: [3, 4], approach: [5] }
+  );
 
   // Corrected upper bound per gated choice: best prior knowledge over all
-  // legal assignments, crediting only prior stops (self-credit excluded).
+  // legal assignments, crediting only prior stops (self-credit excluded) —
+  // the shared evaluator, not an inline replica.
   const reaches: GateReach[] = [];
   for (const { event, index, gate } of gatedChoices()) {
-    let bound = 0;
-    for (const assignment of assignments) {
-      let prior = 0;
-      for (let stop = 1; stop <= baseConfig.journeyStops; stop++) {
-        if (assignment[stop]!.id === event.id) {
-          bound = Math.max(bound, prior);
-          break;
-        }
-        const e = assignment[stop]!;
-        prior += bestChoiceYield(e) + rewardKnowledge + ((e.foundDocumentIds ?? []).length > 0 ? docBonus : 0);
-      }
-    }
+    const bound = correctedUpperBoundFor(event, assignments, rewardKnowledge, docBonus, baseConfig.journeyStops);
     reaches.push({ label: `${event.id}[${index}]`, gate, bound, status: bound >= gate ? 'unresolved' : 'proved-unreachable' });
   }
 
@@ -2384,21 +2421,28 @@ check('A1.5 reachability: the self-credit fixture passes the old calculation and
     rewards: [] as unknown as EventDef['rewards'],
   };
   // Old calculation replica: zone-wide best choice credited at every stop of
-  // the zone, self-credit included.
+  // the zone, self-credit included. Historical contrast only — the rejection
+  // below comes from the shared evaluator, not from a replica of it.
   const community = [...zoneEventsForFixture(eventsData), fakeEvent];
   const oldBest = Math.max(...community.map(bestChoiceYieldForFixture));
   const oldCumulativeByStop2 = oldBest + 1; // + doc bonus for the zone
   assert(oldCumulativeByStop2 >= 10, 'old calculation passes the self-credit fixture (precondition)');
 
-  // Corrected bound: XX-99 draws at community stop 1 or 2; its own yield is
-  // excluded either way. At stop 1 the prior knowledge is 0; at stop 2 the
-  // best legal prior is one other community event's choice + reward + doc.
-  const others = community.filter((e) => e.id !== 'XX-99');
-  const bestOther = Math.max(...others.map(bestChoiceYieldForFixture));
-  const rewardKnowledge = 2;
-  const correctedBound = bestOther + rewardKnowledge + 1;
-  assert(correctedBound < 10, `corrected bound rejects the fixture (bound ${correctedBound} < gate 10)`);
-  return `old attainable ${oldCumulativeByStop2} >= 10 (passes); corrected bound ${correctedBound} < 10 (rejected)`;
+  // Shared evaluator (A2.4): the synthetic catalog passes through the SAME
+  // assignment builder and bound evaluator the live reachability check
+  // drives. XX-99 draws at community stop 1 or 2; its own yield is excluded
+  // either way — at stop 1 the prior knowledge is 0; at stop 2 the best
+  // legal prior is one other community event's choice + reward + doc.
+  // Mutating the evaluator to credit the gated event's own yield pushes the
+  // bound past the gate and fails THIS assertion (and the live check's
+  // bounds with it).
+  const assignments = zoneAssignmentsFor({ community }, { community: [1, 2] });
+  const correctedBound = correctedUpperBoundFor(fakeEvent, assignments, 2, 1, 2);
+  assert(
+    correctedBound < 10,
+    `self-credit leaked into the shared evaluator: bound ${correctedBound} >= gate 10 (fixture must be rejected)`
+  );
+  return `old attainable ${oldCumulativeByStop2} >= 10 (passes); shared corrected evaluator bound ${correctedBound} < 10 (rejected)`;
 });
 
 function zoneEventsForFixture(events: EventDef[]): EventDef[] {

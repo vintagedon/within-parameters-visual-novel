@@ -1,12 +1,16 @@
 /**
- * Counter mutations (A1.5) — prove the dialogue counter discriminates.
+ * Counter mutations (A1.5, A2.4) — prove the dialogue counter discriminates.
  *
  * Copies tests/complete_run.py to a temporary mutated variant inside tests/,
  * runs it with --trace-check (one natural seed-555555 run against the
- * production build), and asserts the counter's equality assertion against
- * the independent reference trace FAILS under each mutation:
+ * production build), and asserts the named equality assertion FAILS under
+ * each mutation:
  *   1. drop ordinary dialogue counting (the .typing observer never arms);
- *   2. drop epilogue counting (the ending epilogue is never added).
+ *   2. drop epilogue counting (the ending epilogue is never added);
+ *   3. drop the epilogue's contribution to the instant AGGREGATE while the
+ *      breakdown entry stays — the review's aggregate mutation: the
+ *      category references remain intact, only the aggregate assertion
+ *      fails. The aggregate drives the duration estimate (A2.4).
  * A mutation the trace check survives would mean the counter cannot detect
  * the corresponding under-count.
  *
@@ -25,11 +29,19 @@ const MUTATIONS = [
     name: 'A1.5 drops ordinary dialogue counting (observer never arms)',
     find: "if (node.classList.contains('typing')) { armed = true; return; }",
     replace: "if (false) { armed = true; return; }",
+    expect: /counter matches the reconciled independent trace/,
   },
   {
     name: 'A1.5 drops epilogue counting at the ending',
     find: 'result.instant_breakdown["epilogue"] = len(epilogue)',
     replace: 'pass',
+    expect: /counter matches the reconciled independent trace/,
+  },
+  {
+    name: 'A2.4 drops the epilogue from the instant aggregate (duration input)',
+    find: 'result.instant_chars += len(epilogue) + len(breakdown)',
+    replace: 'result.instant_chars += len(breakdown)',
+    expect: /instant aggregate equals its category breakdown/,
   },
 ];
 
@@ -54,11 +66,11 @@ try {
         timeout: 300000,
       });
       const output = (res.stdout ?? '') + (res.stderr ?? '');
-      const failedEquality = /\[FAIL\] counter matches the reconciled independent trace/.test(output);
-      if (res.status !== 0 && failedEquality) {
-        console.log(`  [GOOD] ${mutation.name}: trace equality check FAILED as required`);
+      const failedExpected = mutation.expect.test(output);
+      if (res.status !== 0 && failedExpected) {
+        console.log(`  [GOOD] ${mutation.name}: named equality check FAILED as required`);
       } else {
-        console.log(`  [BAD ] ${mutation.name}: trace check PASSED against the mutated counter (status ${res.status})`);
+        console.log(`  [BAD ] ${mutation.name}: expected check PASSED against the mutated counter (status ${res.status})`);
         bad++;
       }
     } finally {

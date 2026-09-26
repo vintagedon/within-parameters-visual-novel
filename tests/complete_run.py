@@ -257,8 +257,12 @@ def play_run(
                 result.completed = True
                 break
 
-            # Correction strategy: keep the kit above the fix cost.
+            # Correction strategy: keep the kit above the fix cost. The pick
+            # is a decision like any other reward pick and counts as one
+            # (A2.4: the branch previously bypassed the decision increment,
+            # undercounting every correction-policy run by its reward picks).
             if strategy == "correction" and page.locator("#reward-overlay:not(.hidden)").count() > 0:
+                result.decisions += 1
                 resources = int((page.locator("#resources-value").text_content() or "0").strip() or "0")
                 pick = 0 if resources <= 2 else 1
                 page.locator(".wp-reward-cards .gui-card").nth(pick).click()
@@ -564,6 +568,12 @@ def main() -> int:
          and trace_report["harness_comms_chars"] == trace_report["current_data_comms_chars_for_seen_beats"]
          and trace_report["trace_comms_chars"] > 0
          and trace_report["harness_epilogue_chars"] == trace_report["trace_epilogue_chars"]),
+        # A2.4: the aggregate that drives the duration estimate must equal
+        # the sum of its validated categories — instant_chars collects the
+        # same epilogue/comms/document/breakdown contributions the breakdown
+        # records, so a mutation to either side alone breaks this equality.
+        ("instant aggregate equals its category breakdown for every run",
+         all(r.instant_chars == sum(r.instant_breakdown.values()) for r in runs)),
     ]
     failed = 0
     for label, ok in checks:
