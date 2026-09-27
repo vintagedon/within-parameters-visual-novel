@@ -63,6 +63,7 @@ All agent-executed specs produce work on feature branches. Never commit directly
 - Balance sweeps v1/v2 and the locked winning config
 - Spec 04 complete playable run: live resolver wiring, single ending authority, 12-event production pool, found documents, three-tier comms beats, M3 scenes/NPCs/epilogues, asset packaging, manual save with exact resume, complete-run verification (37 natural runs; review surface at `docs/verification/2026-09-16-complete-run-verification.md`)
 - Spec 04 Amendment A (PR 6 review remediation): save/resume repaired for every SAVE-enabled phase including the comms window (no reward re-grant; legacy comms slots resume; unresolvable slots refused visibly), coherent withdrawal narrative for both reachable facility states, speaker-prefix cleanup with a crew-leader character, FD-01/FD-08 name fixes, comms bands green 0-2 / amber 3-5 / red 6-9, corrected run-length counter reconciled against an independent trace, corrected reachability evidence with legal paths, and the replaced screenshot baselines presented as candidates pending operator approval
+- Spec 04 Amendment B (PR 6 second review remediation; final Spec 04 amendment): withdrawal text asserting no false history with a zero-help live-path guard and a destruction-bridge line, journey audio restored on load with browser and mutation coverage, clock-reduction rounding parity with the simulator (`int()` truncation, no clamp) and truthful reward text (displayed effect = applied effect, including zero and negative reductions), the duration aggregate validated against its categories, the correction decision count fixed, the reachability fixture driven through the shared evaluator, refreshed F-05 figures, the unobscured ending capture 08 and the text-changed capture 06 presented as candidates pending operator approval, and register rows SD-277 through SD-288
 - Placeholder art: 19 portraits, 13 backgrounds via `simulation/generate_placeholders.py`; asset manifest pipeline operational
 - Verification harnesses: live-path checks (`npm run test:live`), mutation checks, event audit, replay parity, screenshot regression (11 baselines), complete-run and preview checks (Playwright), browser resume check (`tests/resume_check.py`), counter mutations (`scripts/run-counter-mutations.mjs`)
 
@@ -76,14 +77,15 @@ All agent-executed specs produce work on feature branches. Never commit directly
 - Cutscenes (Seedance 1.5 Pro)
 - Launch verification (WP Spec 05; the old queue file describes a superseded placeholder-launch unit and must be reconciled before dispatch)
 
-### Known Open Findings (spec 04 review surface, restated by amendment A)
+### Known Open Findings (spec 04 review surface, restated by amendments A and B)
 
-- F-05: run length restated on corrected counts — attentive median ~9.6 min (range 5.5-12.0), leisured ~11.8 min, against the 25-35 min target; the operator's a/b/c decision re-asked, not made
+- F-05: run length refreshed on the corrected build and counter (amendment B) — attentive median ~9.6 min (range 5.5-12.0), leisured ~11.9 min, against the 25-35 min target; the operator's a/b/c decision re-asked, not made
 - F-06: comms bands rebalanced (green 0-2, amber 3-5, red 6-9); red appears in 10/37 runs of the re-run set — operator confirmation pending
-- F-04: reachability restated on corrected bounds plus legal paths; all five gated choices reachable, two only via a document read
-- Six replaced baselines plus new capture 11 await the operator's per-capture approval; the parent's "re-approved with evidence" claim is retracted in the review surface
+- F-04: reachability restated on corrected bounds plus legal paths; all five gated choices reachable; the check reports exactly one gate requiring rewards or documents (CE-05[2]) — amendment B corrected the earlier "two gates" narrative
+- Carried, not fixed: clock-reduction clamp question — the validated simulator applies negative reductions (reachable at rapport ≤ -4; zero at -3..-2; Narrow Focus zero at ≤ 1, never negative); clamping would be a balance change requiring a sweep
+- The A1.6 replaced baselines plus new capture 11, and amendment B's new capture 08 (unobscured ending) and text-changed capture 06 (truthful clock text), await the operator's per-capture approval; the parent's "re-approved with evidence" claim is retracted in the review surface
 - F-03: two SFX source files absent (non-blocking)
-- See `docs/verification/2026-09-16-complete-run-verification.md` (amendment A sections) for the full list and operator questions
+- See `docs/verification/2026-09-16-complete-run-verification.md` (amendment A and B sections) for the full list and operator questions
 
 ## Key Documents
 

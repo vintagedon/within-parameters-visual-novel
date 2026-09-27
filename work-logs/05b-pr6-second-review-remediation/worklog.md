@@ -4,8 +4,8 @@ title: "PR 6 Second Review Remediation Worklog"
 description: "Per-gate checkpoint worklog for WP spec 04 amendment B (PR 6 second review remediation); mirrored to the central worklog at closeout"
 author: "executor agent"
 date: "2026-09-26"
-version: "1.0"
-status: "active"
+version: "1.1"
+status: "completed"
 tags:
   - type: worklog
   - domain: [engine, content, verification]
@@ -102,7 +102,7 @@ Variant 2 — uninformed (renders iff knowledge < T and modules < F):
   touches `data/scenes.json` text, live-check harness code, and the
   mutation script only.
 
-Commit: (pending — recorded at commit)
+**Commit:** `957bdc2` — feat: withdrawal text asserts nothing false, zero-help guard and bridge (gate A2.1); branch pushed, PR 6 updated in place.
 
 <!--
 Checkpoint discipline: one commit per gate, referencing the gate number,
@@ -151,7 +151,7 @@ then restores the tree and rebuilds.
   uninterrupted fixture settles before capture; (2) the manager's fade
   timers do not cancel, which is why the restore is instant.
 
-Commit: (pending — recorded at commit)
+**Commit:** `983202e` — feat: journey audio restored on load with browser and mutation coverage (gate A2.2); branch pushed, PR 6 updated in place.
 
 ## Gate A2.3: Clock reduction parity and truthful reward text
 
@@ -202,7 +202,7 @@ Commit: (pending — recorded at commit)
   Run") will change wording — regeneration with attribution happens there
   or 06 is preserved, per the demonstrated-difference rule.
 
-Commit: (pending — recorded at commit)
+**Commit:** `a9b3b6d` — feat: clock reduction parity with the simulator and truthful reward text (gate A2.3); branch pushed, PR 6 updated in place.
 
 ## Gate A2.4: Regression guards that guard
 
@@ -255,7 +255,7 @@ Commit: (pending — recorded at commit)
   pass through the shared evaluator).
 - `npx tsc --noEmit`: clean; production build clean.
 
-Commit: (pending — recorded at commit)
+**Commit:** `a799f5b` — test: regression guards that guard, corrected counter, F-04/F-05 refresh (gate A2.4); branch pushed, PR 6 updated in place.
 
 ## Gate A2.5: Unobscured ending capture and evidence refresh
 
@@ -290,7 +290,7 @@ Commit: (pending — recorded at commit)
 - Review surface: A2.5 section with both pairs, pending-approval status,
   and the operator answer rows for the two new candidates.
 
-Commit: (pending — recorded at commit)
+**Commit:** `4adf537` — art: unobscured ending capture and truthful reward-text capture (gate A2.5); branch pushed, PR 6 updated in place.
 
 ## Gate A2.6: Spec defect register rows
 
@@ -338,4 +338,70 @@ to the next full reconciliation per the register's derived-count
 convention. The central spec tree is not a git repository, so the append
 is recorded here rather than committed.
 
-Commit: (pending — recorded at commit)
+**Commit:** `3631659` — docs: spec defect register rows SD-277 through SD-288 (gate A2.6); branch pushed, PR 6 updated in place.
+
+## Gate A2.7: Closeout
+
+**Consistency pass (final head `3631659` + docs).** Fresh production build
+clean; `npm run test:live` 46/46; `npm run audit:events` 36/36; screenshot
+check (`--check`, read-only) 11/11 all green on run and re-run with the
+baseline directory hash unchanged — a single transient
+`07-comms-interrupt.png` regression appeared in one check run and passed
+on immediate re-run; the baseline was untouched (check mode is read-only)
+and no game or content change is involved. Recorded as a sub-P1 harness
+observation carried to **Spec 05** (which already re-establishes every
+baseline and moves the stage to 1920x1080); it is not remediated here.
+Reused from unchanged suites per the amendment's reuse rule:
+`npm run test:mutation` 9/9 and counter mutations 3/3 (A2.4/A2.5-final
+code), `npm run replay` 6/6 (A2.3; replay inputs unchanged since),
+`tests/complete_run.py` 13/13 on 37/37 runs (A2.4; final counter),
+`tests/reward_boundary_check.py` 5/5 (A2.3), browser resume suite 11/11
+(A2.2; `main.ts` and `resume_check.py` unchanged in effect since — the
+A2.3 `main.ts` delta is a DEV-gated hook stripped from the production
+build the suite runs).
+
+**Operator interaction record.** No question was put to the operator
+during this run. Every discretionary point (withdrawal and bridge wording,
+reward-text wording, track resolution, aggregate design, helper naming,
+test organization) was spec-delegated to the executor. The brief
+disposition and preflight corrections were obtained by the preflight
+before dispatch and are recorded there and in the review surface, not by
+this run.
+
+**Deviations noted (spec-closeout on the reused branch, per the
+amendment's startup exception).**
+
+1. The six gate commits reference their gate numbers and stage explicit
+   paths only, but none carries the estate's attestation trailer; the
+   Amendment A gate commits carried the `Co-authored-by` line. History is
+   not rewritten (a constraint of this amendment); the closeout commit
+   carries the full three-trailer block, and this deviation is the record.
+2. The archive target named by the spec
+   (`spec/2026-06/2026-09-15-wp-spec-04b-pr6-second-review-remediation.md`)
+   carries the parent's date prefix while the active file is dated
+   2026-09-26. The spec's explicit archive path is followed verbatim
+   (placement beside the parent and Amendment A is the stated intent); the
+   naming is recorded here.
+3. Pre-existing drift recorded, not repaired (outside this amendment's
+   scope): AGENTS.md's Key Documents table references
+   `spec/archive/engine-spec.md`, `wp-simulator-spec.md`, `wp-sweep-spec.md`,
+   and `wp-sweep-v2-spec.md`, but the repository's `spec/archive/` is empty
+   and no central `spec/archive/` exists — the parent and Amendment A
+   archives live at `/opt/agents/repos/spec/2026-06/`. Flagged for the
+   operator; not silently edited.
+
+**Docs pass.** AGENTS.md Current State: Amendment B added to Complete;
+Known Open Findings restated (F-05 refreshed figures, F-04's one-gate
+count, the carried clamp ranges, the A2.5 capture candidates superseding
+the 06/08 rows). `work-logs/05b-pr6-second-review-remediation/README.md`
+added per the worklog-directory convention. No interior README otherwise
+touched by the spec's changes required refreshing; no standing platform
+path changed.
+
+**Closeout actions.** Branch pushed; PR 6 updated in place with a summary
+comment naming the pending capture approvals and the carried clamp issue;
+central worklog mirrored; registry row appended; spec archived to
+`spec/2026-06/2026-09-15-wp-spec-04b-pr6-second-review-remediation.md`,
+beside the parent and Amendment A, out of the active queue.
+
+**Commit:** this commit — docs: amendment B closeout (gate A2.7).
