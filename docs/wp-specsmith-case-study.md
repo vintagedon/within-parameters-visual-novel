@@ -10,7 +10,7 @@ tags:
   - type: case-study
   - domain: [methodology, balance]
 related_documents:
-  - "[SpecSmith Repository](https://github.com/radioastronomyio/specsmith)"
+  - "[SpecSmith Repository](https://github.com/vintagedon/specsmith)"
   - "[Spec 01: Engine Build](../spec/2026-03-15-spec-01-engine-build.md)"
   - "[Spec 02: Balance Simulator](../spec/2026-04-05-spec-02-balance-simulator.md)"
 ---

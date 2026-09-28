@@ -1,0 +1,147 @@
+/**
+ * Mutation checks — prove the live-path checks discriminate.
+ *
+ * Copies src/ and data/ to a scratch directory, applies each mutation to the
+ * scratch copy only, runs the live-path checks there, and asserts the checks
+ * FAIL. A mutation that the checks survive means the checks do not guard the
+ * behavior the mutation breaks.
+ *
+ * Mutations reproduce the pre-change defect behavior (gate 4.1: raw authored
+ * deltas in selectChoice; gate 4.2: authored endingType overriding the
+ * computed outcome).
+ *
+ * Usage: node scripts/run-mutation-checks.mjs
+ */
+import { build } from 'esbuild';
+import { resolve, dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { spawnSync } from 'node:child_process';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const root = resolve(here, '..');
+
+// ─── Mutations ────────────────────────────────────────────────────────────────
+
+const MUTATIONS = [
+  {
+    name: '4.1 revert selectChoice to raw authored deltas (pre-change behavior)',
+    file: 'src/engine/scene-runner.ts',
+    find: /if \(category !== null\) \{[\s\S]*?\n    \} else if/,
+    replace: `if (category !== null) {
+      const sc = choice.statChanges ?? {};
+      this.state = applyStatChanges(this.state, {
+        knowledge: sc.knowledge ?? 0,
+        consumables: sc.consumables ?? 0,
+        clock: sc.clock ?? 0,
+      });
+    } else if`,
+  },
+  {
+    name: '4.2 authored ending routing overrides the computed outcome (pre-change behavior)',
+    file: 'src/engine/scene-runner.ts',
+    find: /const endingSceneId = `scene-ending-\$\{outcome\.ending\}`;/,
+    replace: `const endingSceneId = 'scene-ending-correction'; // mutation: authored routing wins`,
+  },
+  {
+    name: 'A1.1 restoreEngine drops the run RNG stream restoration',
+    file: 'src/engine/scene-runner.ts',
+    find: /this\.runRng\?\.setState\(snap\.rngState\);/,
+    replace: `// mutation: RNG stream restoration dropped`,
+  },
+  {
+    name: 'A1.1 restoreEngine drops the Practiced availability restoration',
+    file: 'src/engine/scene-runner.ts',
+    find: /this\.practicedAvailable = snap\.practicedAvailable;/,
+    replace: `// mutation: Practiced availability restoration dropped`,
+  },
+  {
+    name: 'A1.4 reinserts an in-text speaker prefix into a scenes.json line',
+    file: 'data/scenes.json',
+    find: '"text": "Cleared. Log it when you\'re done."',
+    replace: '"text": "TORRES: Cleared. Log it when you\'re done."',
+  },
+  {
+    name: 'A1.4 reinserts the Vasquez surname into FD-01',
+    file: 'data/found-documents.json',
+    find: 'Ticket #4471-C: Behavioral Anomaly — RELAY-7',
+    replace: 'Ticket #4471-C: Behavioral Anomaly — Unit Vasquez, M.',
+  },
+  {
+    name: 'A2.1 reinserts the community-help claim into the informed withdrawal text',
+    file: 'data/scenes.json',
+    find: "and your kit can't cover it.",
+    replace: 'and your kit went out keeping stations alive on the way here.',
+  },
+  {
+    name: 'A2.3 reverts clock reduction to Math.floor (pre-parity rounding)',
+    file: 'src/engine/game-state.ts',
+    find: 'const raw = config.clockReductionBase + Math.trunc(rapport * config.rapportClockScale);',
+    replace: 'const raw = config.clockReductionBase + Math.floor(rapport * config.rapportClockScale);',
+  },
+  {
+    name: 'A2.4 reintroduces self-credit into the shared reachability evaluator',
+    file: 'src/engine/live-checks.ts',
+    find: /if \(assignment\[stop\]!\.id === event\.id\) \{\n(\s*)bound = Math\.max\(bound, prior\);\n(\s*)break;/,
+    replace:
+      'if (assignment[stop]!.id === event.id) {\n$1bound = Math.max(bound, prior + bestChoiceYield(event));\n$2break;',
+  },
+];
+
+// ─── Runner ───────────────────────────────────────────────────────────────────
+
+async function runChecksIn(scratchRoot) {
+  const outfile = join(scratchRoot, 'live-checks.mjs');
+  const result = await build({
+    entryPoints: [join(scratchRoot, 'src/engine/live-checks.ts')],
+    bundle: true,
+    platform: 'node',
+    format: 'esm',
+    target: 'node18',
+    outfile,
+    write: false,
+    logLevel: 'silent',
+  });
+  writeFileSync(outfile, result.outputFiles[0].text);
+  const res = spawnSync('node', [outfile], { cwd: scratchRoot, encoding: 'utf-8' });
+  return { status: res.status ?? 0, output: (res.stdout ?? '') + (res.stderr ?? '') };
+}
+
+let bad = 0;
+for (const mutation of MUTATIONS) {
+  const tmpDir = mkdtempSync(join(tmpdir(), 'wp-mutation-'));
+  try {
+    cpSync(join(root, 'src'), join(tmpDir, 'src'), { recursive: true });
+    cpSync(join(root, 'data'), join(tmpDir, 'data'), { recursive: true });
+    cpSync(join(root, 'vendor'), join(tmpDir, 'vendor'), { recursive: true });
+    // The A2.3 parity check executes simulation/simulator.py from the working
+    // directory; the scratch tree needs the two simulator modules.
+    mkdirSync(join(tmpDir, 'simulation'), { recursive: true });
+    cpSync(join(root, 'simulation', 'simulator.py'), join(tmpDir, 'simulation', 'simulator.py'));
+    cpSync(join(root, 'simulation', 'game_data.py'), join(tmpDir, 'simulation', 'game_data.py'));
+
+    const target = join(tmpDir, mutation.file);
+    const original = readFileSync(target, 'utf-8');
+    const mutated = original.replace(mutation.find, mutation.replace);
+    if (mutated === original) {
+      console.log(`  [BAD ] ${mutation.name}: pattern not found (mutation never applied)`);
+      bad++;
+      continue;
+    }
+    writeFileSync(target, mutated);
+
+    const { status, output } = await runChecksIn(tmpDir);
+    const failedLines = (output.match(/\[FAIL\]/g) ?? []).length;
+    if (status !== 0 && failedLines > 0) {
+      console.log(`  [GOOD] ${mutation.name}: checks failed (${failedLines} failing check(s)) as required`);
+    } else {
+      console.log(`  [BAD ] ${mutation.name}: checks PASSED against the mutated code (do not discriminate)`);
+      bad++;
+    }
+  } finally {
+    rmSync(tmpDir, { recursive: true, force: true });
+  }
+}
+
+process.exit(bad > 0 ? 1 : 0);

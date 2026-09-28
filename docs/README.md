@@ -36,6 +36,8 @@ docs/
 │   └── README.md
 ├── balance-methodology.html       # Balance methodology reference page
 ├── wp-specsmith-case-study.md     # SpecSmith project case study
+├── verification/                  # Verification review surfaces (operator approval artifacts)
+│   └── 2026-09-16-complete-run-verification.md
 └── README.md                      # This file
 ```
 

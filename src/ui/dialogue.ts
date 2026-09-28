@@ -8,11 +8,10 @@
 
 import type {
   DialogueLine,
-  Choice,
   Character,
-  GameState,
   GameConfig,
 } from '../types/index';
+import type { ChoiceView } from '../engine/scene-runner';
 import { createButton } from './gameui';
 
 // ─── DOM References ───────────────────────────────────────────────────────────
@@ -112,7 +111,15 @@ function updatePortrait(
   character: Character | null,
   portraitColors: Map<string, string>
 ): void {
-  if (!character || character.id === 'narrator' || character.id === 'protagonist') {
+  // The protagonist never renders a portrait in the dialogue bar (engine
+  // contract), the narrator has none, and the archive is a voice on a
+  // terminal rather than a face.
+  if (
+    !character ||
+    character.id === 'narrator' ||
+    character.id === 'protagonist' ||
+    character.id === 'archive'
+  ) {
     portraitArea.classList.add('hidden');
     return;
   }
@@ -213,41 +220,39 @@ export function isTypewriterActive(): boolean {
 
 // ─── Choices ──────────────────────────────────────────────────────────────────
 
-/** Renders choice buttons. Choices with unmet conditions are rendered as disabled/grayed rather than hidden — player sees the gate exists. */
+/**
+ * Renders choice buttons from the runner-resolved views. The view's label
+ * already carries the effective (trait-adjusted) cost and its enabled flag is
+ * the affordability/gate decision computed from the same effective values the
+ * resolution will charge — display, gating, and deduction cannot disagree.
+ * Unavailable choices render disabled (with the reason as a tooltip) rather
+ * than hidden, so the player sees the gate exists.
+ */
 export function renderChoices(
-  choices: Choice[],
-  state: GameState,
+  views: ChoiceView[],
   onSelect: (index: number) => void
 ): void {
   advanceIndicatorEl.style.display = 'none';
   clearChoices();
 
-  choices.forEach((choice, i) => {
-    // Check condition gate
-    const conditionMet = checkCondition(choice, state);
+  views.forEach((view) => {
     const btn = createButton({
-      label: choice.label,
+      label: view.label,
       accent: 'info',
       variant: 'outline',
-      disabled: !conditionMet,
+      disabled: !view.enabled,
       onClick: (event) => {
         event.stopPropagation(); // prevent bottom-bar advance handler
-        onSelect(i);
+        onSelect(view.index);
       },
     });
     btn.el.classList.add('wp-choice-btn');
+    if (!view.enabled && view.reason) {
+      btn.el.title = view.reason;
+    }
 
     choicesAreaEl.appendChild(btn.el);
   });
-}
-
-function checkCondition(choice: Choice, state: GameState): boolean {
-  if (!choice.condition) return true;
-  const { stat, min } = choice.condition;
-  if (stat === 'knowledge') return state.stats.knowledge >= min;
-  if (stat === 'consumables') return state.stats.consumables >= min;
-  if (stat === 'rapport') return state.stats.rapport >= min;
-  return true;
 }
 
 export function clearChoices(): void {

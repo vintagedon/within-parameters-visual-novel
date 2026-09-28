@@ -18,13 +18,18 @@ import type {
   RewardOption,
   CharacterManifest,
   Character,
+  FoundDocument,
+  CommsBeatsData,
+  SaveSlot,
 } from './types/index';
 
 // Engine
 import { initNewGame, deriveRapport } from './engine/game-state';
+import { getRewardsForStop, applyReward } from './engine/event-system';
 import {
   SceneRunner,
   buildSceneRegistry,
+  slotResumeProblem,
   type SceneRunnerCallbacks,
 } from './engine/scene-runner';
 import { buildEffectiveConfig } from './engine/traits';
@@ -35,10 +40,12 @@ import {
   type ProtagonistPool,
 } from './engine/chargen';
 import { createRng } from './engine/rng';
+import { createRunRng } from './engine/run-rng';
 import {
   autosave,
   saveToSlot,
   loadFromSlot,
+  loadSlot,
   getSlotSummaries,
   hasAutosave,
   loadPersistentData,
@@ -66,14 +73,17 @@ import {
   hideTitleScreen,
   showSaveLoadScreen,
   hideSaveLoadScreen,
+  showLoadRefusal,
   showEndingScreen,
   hideEndingScreen,
   showSettings,
   hideSettings,
   showRewardOverlay,
   showCommsOverlay,
+  showDocumentOverlay,
   showDossierScreen,
   hideDossierScreen,
+  type CommsLineView,
 } from './ui/screens';
 
 // Audio
@@ -85,6 +95,8 @@ let manifest: CharacterManifest;
 let scenesData: Scene[];
 let eventsData: EventDef[];
 let communitiesData: Community[];
+let documentsData: FoundDocument[];
+let commsBeatsData: CommsBeatsData;
 let pool: ProtagonistPool;
 
 let runner: SceneRunner | null = null;
@@ -105,7 +117,7 @@ async function boot(): Promise<void> {
   initScreens(document.body);
 
   // Load all data files in parallel
-  [config, manifest, scenesData, eventsData, { communities: communitiesData }, pool] =
+  [config, manifest, scenesData, eventsData, { communities: communitiesData }, pool, documentsData, commsBeatsData] =
     await Promise.all([
       fetch('/data/config.json').then((r) => r.json()) as Promise<GameConfig>,
       fetch('/data/characters.json').then((r) => r.json()) as Promise<CharacterManifest>,
@@ -113,6 +125,8 @@ async function boot(): Promise<void> {
       fetch('/data/events.json').then((r) => r.json()).then((d) => d.events) as Promise<EventDef[]>,
       fetch('/data/communities.json').then((r) => r.json()) as Promise<{ communities: Community[] }>,
       fetch('/data/protagonist-pool.json').then((r) => r.json()).then(parseProtagonistPool) as Promise<ProtagonistPool>,
+      fetch('/data/found-documents.json').then((r) => r.json()).then((d) => d.documents ?? []) as Promise<FoundDocument[]>,
+      fetch('/data/comms-beats.json').then((r) => r.json()) as Promise<CommsBeatsData>,
     ]);
 
   // Register backgrounds for layout crossfade
@@ -134,7 +148,7 @@ async function boot(): Promise<void> {
   initDialogue(layout.bottomBar, config);
 
   // Init HUD (hidden until game starts)
-  initHUD(layout.sidebar, config);
+  initHUD(layout.sidebar, config, () => openSaveMenu());
 
   // Show title screen
   Audio.playBGM('bgm-title', false);
@@ -146,20 +160,11 @@ async function boot(): Promise<void> {
       startNewGame();
     },
     onContinue: () => {
-      const state = loadFromSlot('auto');
-      if (state) {
-        hideTitleScreen();
-        startGameFromState(state);
-      }
+      loadSlotGuarded(loadSlot('auto'), () => {});
     },
     onLoad: () => {
       showSaveLoadScreen('load', getSlotSummaries(), (slotId) => {
-        const state = loadFromSlot(slotId);
-        if (state) {
-          hideSaveLoadScreen();
-          hideTitleScreen();
-          startGameFromState(state);
-        }
+        loadSlotGuarded(loadSlot(slotId), hideSaveLoadScreen);
       }, hideSaveLoadScreen);
     },
     onSettings: () => {
@@ -190,21 +195,34 @@ async function boot(): Promise<void> {
   const devEnv = (import.meta as { env?: { DEV?: boolean } }).env;
   if (devEnv?.DEV) {
     const sampleCommunities = [
-      { community: { name: 'Georgetown Hydro' }, state: 'helped', stop: 1 },
-      { community: { name: 'Foggy Bottom Relay' }, state: 'helped', stop: 2 },
-      { community: { name: 'Silver Spring Junction' }, state: 'harmed', stop: 3 },
+      { community: { name: 'Georgetown Hydro', description: 'a water reclamation community dependent on surface-fed filtration' }, state: 'helped', stop: 1 },
+      { community: { name: 'Foggy Bottom Relay', description: 'a transit workers\' cooperative maintaining the eastern tunnel network' }, state: 'helped', stop: 2 },
+      { community: { name: 'Silver Spring Junction', description: 'a small trading post at the intersection of three major tunnel routes' }, state: 'harmed', stop: 3 },
     ] as unknown as GameState['communities'];
     (window as unknown as {
       __wp?: {
         triggerComms: () => void;
         triggerEnding: () => void;
+        triggerReward: (caseName: string) => void;
         seedAutosave: () => void;
         setClock: (current: number) => void;
         setKnowledge: (knowledge: number) => void;
       };
     }).__wp = {
       triggerComms: () => {
-        showCommsOverlay("CHEN: Clock is climbing. What's your status?", () => {});
+        // Renders a real beat from the loaded data (amber, after stop 1) so
+        // the surface is captured with production content.
+        const tier = commsBeatsData.commsBeats.find((t) => t.id === 'amber');
+        const beat = tier?.beats.find((b) => b.afterStop === 1) ?? tier?.beats[0];
+        if (!beat) return;
+        const lines: CommsLineView[] = beat.lines.map((line) => ({
+          speaker:
+            line.speaker === 'protagonist'
+              ? 'RELAY-7'
+              : characterMap.get(line.speaker)?.name ?? line.speaker.toUpperCase(),
+          text: line.text,
+        }));
+        showCommsOverlay(lines, () => {});
       },
       triggerEnding: () => {
         // Build a representative complete run state (committed protagonist,
@@ -234,6 +252,38 @@ async function boot(): Promise<void> {
       },
       seedAutosave: () => {
         autosave(initNewGame(config, 1), 'scene-discovery-01', 'discovery');
+      },
+      triggerReward: (caseName: string) => {
+        // Boundary fixture (A2.3): renders the REAL reward overlay from the
+        // real event data for a controlled (rapport, clock) state, and
+        // applies the picked card through the REAL getRewardsForStop /
+        // applyReward pair. A boundary fixture only — not natural-run
+        // reachability evidence; no production hook (DEV-gated like the
+        // other harness triggers).
+        const event = eventsData.find((e) => e.rewards.some((r) => r.type === 'clock-reduction'));
+        if (!event) return;
+        const presets: Record<string, { rapport: number; clock: number }> = {
+          remove: { rapport: 0, clock: 4 },
+          zeroReduction: { rapport: -2, clock: 4 },
+          negativeReduction: { rapport: -5, clock: 2 },
+          clockEmpty: { rapport: 0, clock: 0 },
+          capped: { rapport: 2, clock: 1 },
+        };
+        const preset = presets[caseName];
+        if (!preset) return;
+        const base = initNewGame(config, 1);
+        const state: GameState = {
+          ...base,
+          stats: { ...base.stats, rapport: preset.rapport, startingRapport: preset.rapport },
+          clock: { ...base.clock, current: preset.clock },
+          communities: [],
+        };
+        const rewards = getRewardsForStop(event, state, config);
+        refreshHud(state);
+        showRewardOverlay(rewards, (index) => {
+          const after = applyReward(rewards[index]!, state, config);
+          refreshHud(after);
+        });
       },
       // Presentation probes: re-render the HUD through the real refreshHud
       // path with a clock or knowledge override, so urgency accents and the
@@ -269,10 +319,13 @@ function effectiveConfigFromState(state: GameState): GameConfig {
 }
 
 /** Single HUD refresh path: stats against the run's effective knowledge
- *  threshold (from the committed protagonist's configuration — Clear-Headed
- *  lowers it), plus the journey timeline. */
+ *  threshold, plus the journey timeline. When a runner is live its effective
+ *  config is the display authority — the same object the resolver and the
+ *  ending determination read — so the bar and the ending gate cannot diverge
+ *  (including under threshold-modifying traits like Clear-Headed). */
 function refreshHud(state: GameState): void {
-  updateStats(state, effectiveConfigFromState(state).knowledgeThreshold);
+  const effConfig = runner?.getEffectiveConfig() ?? effectiveConfigFromState(state);
+  updateStats(state, effConfig.knowledgeThreshold);
   updateTimeline(state.currentStop, config.journeyStops, state.communities);
 }
 
@@ -282,28 +335,103 @@ function startNewGame(): void {
   savePersistentData(persistent);
 
   const state = initNewGame(config, persistent.runsStarted);
-  const registry = buildSceneRegistry(scenesData, eventsData);
+  const registry = buildSceneRegistry(scenesData, eventsData, documentsData, commsBeatsData);
   clearDialogue();
-  // New game: supply the chargen pool + a seeded RNG so the runner can roll a
-  // protagonist and show the dossier before the lore card. The Playwright harness
-  // sets window.__wpSeed for deterministic captures; in normal play it is unset,
+  // New game: supply the chargen pool + the run's stateful RNG (one stream
+  // for the protagonist roll and everything after it: pool shuffles,
+  // community assignment, clock jitter). The Playwright harness sets
+  // window.__wpSeed for deterministic captures; in normal play it is unset,
   // so the seed is time+random (truly random per run). No-op in production.
   const harnessSeed = (window as unknown as { __wpSeed?: number }).__wpSeed;
   const seed = harnessSeed ?? ((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0);
+  const runRng = createRunRng(seed);
   runner = new SceneRunner(state, config, registry, communitiesData, buildRunnerCallbacks(), {
     pool,
-    rng: createRng(seed),
+    rng: runRng,
   });
   runner.beginNewRun();
 }
 
-/** Resume path for CONTINUE/LOAD — does NOT regenerate the protagonist. */
-function startGameFromState(state: GameState): void {
+/** Resume path for CONTINUE/LOAD — does NOT regenerate the protagonist.
+ *  Restores the journey presentation (sidebar, clock, stats, route, SAVE)
+ *  and the journey audio: a loaded run renders and sounds exactly like one
+ *  that never saved. Event scenes do not carry showGameUI, so the layout
+ *  mode is set here, not left to the first loaded scene (amendment A1.2,
+ *  review finding R2). Restore the latest scene-declared music from the
+ *  saved history, including tracks inherited by later facility scenes.
+ *  Do this instantly before the runner starts to avoid overlapping fades
+ *  from title music and the resumed scene. */
+function startGameFromState(state: GameState, slotEngine?: SaveSlot['engine']): void {
   clearDialogue();
-  const registry = buildSceneRegistry(scenesData, eventsData);
+  setGameUI();
+  const registry = buildSceneRegistry(scenesData, eventsData, documentsData, commsBeatsData);
   const effConfig = effectiveConfigFromState(state);
-  runner = new SceneRunner(state, effConfig, registry, communitiesData, buildRunnerCallbacks());
+  const runRng = createRunRng(0);
+  runner = new SceneRunner(state, effConfig, registry, communitiesData, buildRunnerCallbacks(), undefined, runRng);
+  const resumeBgm = [state.currentScene, ...state.sceneHistory.slice().reverse()]
+    .map((id) => registry.scenes.get(id)?.bgm)
+    .find((bgm): bgm is string => typeof bgm === 'string') ?? 'bgm-ambient';
+  Audio.playBGM(resumeBgm, false);
+  if (slotEngine) {
+    runner.restoreEngine(slotEngine);
+  }
   runner.start();
+}
+
+/**
+ * Guard for every load entry point: refuse visibly (slot preserved) when the
+ * slot cannot resume into this build's data, instead of crashing on restore
+ * or resuming into a blank screen. Comms-window saves — including legacy
+ * pre-amendment slots — resume through the stop transition and pass here.
+ */
+function slotCanBeResumed(slot: SaveSlot): boolean {
+  return (
+    slotResumeProblem(slot, {
+      scenes: scenesData,
+      events: eventsData,
+      journeyStops: config.journeyStops,
+    }) === null
+  );
+}
+
+/** Loads a slot through the real entry points, refusing visibly when the
+ *  slot cannot resume. The slot is never cleared or overwritten; the title
+ *  screen and its LOAD control stay usable after a refusal. */
+function loadSlotGuarded(slot: SaveSlot | null, afterRefusal: () => void): void {
+  if (!slot) {
+    afterRefusal();
+    return;
+  }
+  const problem = slotResumeProblem(slot, {
+    scenes: scenesData,
+    events: eventsData,
+    journeyStops: config.journeyStops,
+  });
+  if (problem !== null) {
+    console.warn(`[main] load refused: ${problem}`);
+    showLoadRefusal(problem, afterRefusal);
+    return;
+  }
+  hideSaveLoadScreen();
+  hideTitleScreen();
+  startGameFromState(slot.state, slot.engine);
+}
+
+/** Manual save surface (gate 4.7): reachable from the HUD during a run. */
+function openSaveMenu(): void {
+  if (!runner) return;
+  showSaveLoadScreen('save', getSlotSummaries(), (slotId) => {
+    if (slotId === 'auto') return; // autosave slot is not manually writable
+    const state = runner!.getState();
+    saveToSlot(
+      slotId,
+      state,
+      state.currentScene,
+      state.currentBeat,
+      runner!.snapshot() ?? undefined
+    );
+    hideSaveLoadScreen();
+  }, hideSaveLoadScreen);
 }
 
 function buildRunnerCallbacks(): SceneRunnerCallbacks {
@@ -385,13 +513,11 @@ function buildRunnerCallbacks(): SceneRunnerCallbacks {
                 startNewGame();
               },
               onContinue: () => {
-                const s = loadFromSlot('auto');
-                if (s) { hideTitleScreen(); startGameFromState(s); }
+                loadSlotGuarded(loadSlot('auto'), () => {});
               },
               onLoad: () => {
                 showSaveLoadScreen('load', getSlotSummaries(), (slotId) => {
-                  const s = loadFromSlot(slotId);
-                  if (s) { hideSaveLoadScreen(); hideTitleScreen(); startGameFromState(s); }
+                  loadSlotGuarded(loadSlot(slotId), hideSaveLoadScreen);
                 }, hideSaveLoadScreen);
               },
               onSettings: () => {
@@ -407,12 +533,21 @@ function buildRunnerCallbacks(): SceneRunnerCallbacks {
       );
     },
 
-    onCommsInterrupt(currentState, onContinue) {
-      const rapport = deriveRapport(currentState);
-      const msg = rapport >= 0
-        ? `CHEN: Clock is climbing. What's your status?`
-        : `CHEN: Clock is climbing and I'm getting reports from the communities along your route. What's happening out there?`;
-      showCommsOverlay(msg, onContinue);
+    onCommsInterrupt(currentState, beat, _tierId, onContinue) {
+      // Comms speakers keep the callsign: Jay addresses RELAY-7 and the
+      // protagonist's rolled name never appears on the comms channel.
+      const lines: CommsLineView[] = beat.lines.map((line) => ({
+        speaker:
+          line.speaker === 'protagonist'
+            ? currentState.protagonist.callsign
+            : characterMap.get(line.speaker)?.name ?? line.speaker.toUpperCase(),
+        text: line.text,
+      }));
+      showCommsOverlay(lines, onContinue);
+    },
+
+    onFoundDocument(doc, onContinue) {
+      showDocumentOverlay(doc, onContinue);
     },
   };
 }
@@ -427,8 +562,15 @@ function runDialogueSequence(
   if (lineIndex >= scene.dialogue.length) {
     // All lines done — show choices or complete scene
     if (scene.choices && scene.choices.length > 0) {
-      const currentState = runner?.getState() ?? state;
-      renderChoices(scene.choices, currentState, (choiceIndex) => {
+      // Runner-resolved views: effective costs, gates, and trait restrictions.
+      // Falls back to plain labels only when no runner exists (not reachable
+      // in normal play; keeps the function total).
+      const views = runner?.getChoiceViews(scene) ?? scene.choices.map((c, i) => ({
+        index: i,
+        label: c.label,
+        enabled: true,
+      }));
+      renderChoices(views, (choiceIndex) => {
         runner?.selectChoice(scene, choiceIndex);
       });
     } else {
@@ -441,7 +583,18 @@ function runDialogueSequence(
   }
 
   const line = scene.dialogue[lineIndex]!;
-  const character = characterMap.get(line.speaker) ?? null;
+  let character = characterMap.get(line.speaker) ?? null;
+
+  // Internal-monologue headers carry the generated protagonist's first name
+  // (character-generation.md: headers are "[First]:"). Comms channels keep
+  // the RELAY-7 callsign, and the dialogue bar shows no protagonist portrait
+  // (updatePortrait), so this is the only protagonist-name surface here.
+  if (line.speaker === 'protagonist' && state.protagonist.name) {
+    const first = state.protagonist.name.split(' ')[0] ?? null;
+    if (first && character) {
+      character = { ...character, name: first };
+    }
+  }
 
   // Handle per-line triggers
   if (line.background) setBackground(line.background);

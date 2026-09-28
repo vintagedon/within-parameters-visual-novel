@@ -5,10 +5,10 @@ Entry point for AI coding agents working on this repository.
 ## Project Identity
 
 **Domain:** Game Development / Visual Novel / Roguelike
-**Repository:** https://github.com/radioastronomyio/within-parameters-visual-novel
+**Repository:** https://github.com/vintagedon/within-parameters-visual-novel
 **Purpose:** A roguelike visual novel set in a post-solar-storm underground civilization where narrow maintenance AIs govern humanity using operational logic never designed for the task. The player is a randomly generated relay technician investigating an archive AI that is cannibalizing inhabited infrastructure in a relentless attempt to reconnect to an internet that no longer exists. Portfolio piece targeting Azure Static Web Apps and itch.io publication.
 
-**Methodology:** This project uses [SpecSmith](https://github.com/radioastronomyio/specsmith). Specs define outcomes and verification criteria; agents implement from specs.
+**Methodology:** This project uses [SpecSmith](https://github.com/vintagedon/specsmith). Specs define outcomes and verification criteria; agents implement from specs.
 
 **Stack:** Vite + TypeScript (strict mode), vanilla DOM manipulation, CSS custom properties, localStorage saves
 
@@ -19,22 +19,23 @@ All agent-executed specs produce work on feature branches. Never commit directly
 ### Branch Lifecycle
 
 1. **Before starting work:** `git checkout -b agent/{spec-name}` from `main` (e.g., `agent/wp-sweep` for `wp-sweep-spec.md`). If the spec specifies a branch name, use that instead.
-2. **During work:** Commit as needed with conventional commit messages. Commits are local only.
-3. **When finished:** Commit all deliverables. Do not push. Do not create a PR. Report completion.
-4. **Orchestrator reviews** the branch locally, then pushes and merges (or discards).
+2. **During work:** Commit as needed with conventional commit messages. One commit per gate where the spec defines gates.
+3. **When finished:** Commit all deliverables, then run the spec closeout: push the working branch and open exactly one pull request against `main`. Do not merge; merge authority is the operator's alone.
+4. **Orchestrator** reviews the pull request, then merges (or discards).
 
 ### Rules
 
 - One branch per spec. Do not reuse branches across specs.
-- Do not push to `origin`. The orchestrator handles all pushes.
+- Push only the working branch the spec opened. Never push to `main`, never force-push.
+- Exactly one pull request per working branch; a later push updates it in place.
 - Do not modify files outside the scope defined in the spec.
 - Generated output (heatmaps, CSVs, build artifacts) follows the spec's instructions for whether to commit or gitignore. When the spec is silent, gitignore generated output.
 - If the branch already exists, stop and report the conflict. Do not force-create or overwrite.
 
 ## Current State
 
-**Phase:** Phase 2, Content Design & Balance
-**Date:** April 2026
+**Phase:** Phase 3, Complete Playable Run (on placeholders)
+**Date:** September 2026
 
 ### Locked
 
@@ -45,37 +46,47 @@ All agent-executed specs produce work on feature branches. Never commit directly
 - Scoring system: 103 hard cap, 8% multiplicative reroll penalty, S/A/B/C/D/F grades, diminishing returns on surplus
 - Clock reduction cap: max 2 segments per reward regardless of rapport
 - Art direction style, concept drafts complete (10 scenes, 1 UI mockup)
-- Tech stack: Vite + TypeScript, vanilla DOM (no framework)
+- Tech stack: Vite + TypeScript, vanilla DOM (GameUI framework vendored under `vendor/gameui/`)
 - Engine spec: `spec/archive/engine-spec.md` (the authoritative build reference)
-- Engine build: all 22 source files built, five bugs patched, end-to-end functional with placeholder assets
+- Engine build: all source files built, end-to-end functional with placeholder assets
 - Journey structure: 5 modular stops (2 community, 2 transit, 1 approach) + fixed facility entry
 - Event pool: 12 events (5 community, 4 transit, 3 approach), draw 5 per run, no repeats
 - NPC cast: protagonist (random), Jay Chen (coworker), Torres (supervisor), Aguilar (authority), Dex (scrapper), Sato (believer)
 - Consumable identity: bypass module
+- Single ending authority: the persisted state-derived outcome (`GameState.outcome`); thresholds and costs read the effective (trait-adjusted) config
+- Choice resolution: every player choice routes through the validated resolver (`src/engine/resolution.ts`); the browser and the simulator agree (4608-resolution matrix)
 
 ### Complete
 
-- Engine build: all 22 source files, five bugs patched, end-to-end functional with placeholder assets
+- Engine build: all source files, five bugs patched, end-to-end functional with placeholder assets
 - Balance simulator (`simulation/`): Monte Carlo engine, heuristic agent, 640k-run validation
-- Balance sweep v1: 33 configs tested, identified 3 structural failures (scoring compression, P6 too strong, N7 doesn't scale)
-- Balance sweep v2: structural fixes applied, 38 configs tested (33 structured + 5 exploratory), winning config found (6/6 validation criteria)
-- Balance parameters locked: `kt=11, kr=0, ct=1, starting_modules=6, jitter_chance=0.35`
-- SpecSmith retrospective specs written (01-04) with case study
+- Balance sweeps v1/v2 and the locked winning config
+- Spec 04 complete playable run: live resolver wiring, single ending authority, 12-event production pool, found documents, three-tier comms beats, M3 scenes/NPCs/epilogues, asset packaging, manual save with exact resume, complete-run verification (37 natural runs; review surface at `docs/verification/2026-09-16-complete-run-verification.md`)
+- Spec 04 Amendment A (PR 6 review remediation): save/resume repaired for every SAVE-enabled phase including the comms window (no reward re-grant; legacy comms slots resume; unresolvable slots refused visibly), coherent withdrawal narrative for both reachable facility states, speaker-prefix cleanup with a crew-leader character, FD-01/FD-08 name fixes, comms bands green 0-2 / amber 3-5 / red 6-9, corrected run-length counter reconciled against an independent trace, corrected reachability evidence with legal paths, and the replaced screenshot baselines presented as candidates pending operator approval
+- Spec 04 Amendment B (PR 6 second review remediation; final Spec 04 amendment): withdrawal text asserting no false history with a zero-help live-path guard and a destruction-bridge line, journey audio restored on load with browser and mutation coverage, clock-reduction rounding parity with the simulator (`int()` truncation, no clamp) and truthful reward text (displayed effect = applied effect, including zero and negative reductions), the duration aggregate validated against its categories, the correction decision count fixed, the reachability fixture driven through the shared evaluator, refreshed F-05 figures, the unobscured ending capture 08 and the text-changed capture 06 presented as candidates pending operator approval, and register rows SD-277 through SD-288
+- Placeholder art: 19 portraits, 13 backgrounds via `simulation/generate_placeholders.py`; asset manifest pipeline operational
+- PR 6 review follow-up (2026-09-28): inherited facility music restored from saved scene history; browser resume coverage expanded to the archive core; counter mutations require the named failure and reject passing assertions in an unmutated control
+- Verification harnesses: live-path checks (`npm run test:live`), mutation checks, event audit, replay parity, screenshot regression (11 baselines), complete-run and preview checks (Playwright), browser resume check (`tests/resume_check.py`), counter mutations (`scripts/run-counter-mutations.mjs`)
 
 ### Ready for Agent Execution
 
-- Code commenting and repo cleanup (spec at `spec/2026-05-18-spec-05-code-commenting-and-cleanup.md`): dual-audience commenting on all source files, interior README fixes
-- Content build: translating approved design docs into engine JSON
-- Placeholder art generation complete (9 portraits, 13 backgrounds via `simulation/generate_placeholders.py`)
-- Asset manifest pipeline operational (`assets/asset-manifest.csv`)
+- Presentation/theming unit: GameUI framework migration follow-up and industrial theme (mechanics, content, thresholds, and the outcome authority are frozen by spec 04). Dispatch awaits the operator's merge decision on PR 6 and approval of the pending baseline captures.
 
 ### Not Started
 
-- Production JSON content (scenes.json, events.json rewrite with full content)
-- Playwright smoke tests against live dev server
 - Production art (NB2 finals from NightCafe concepts)
 - Cutscenes (Seedance 1.5 Pro)
-- Integration, polish, and deployment
+- Launch verification (WP Spec 05; the old queue file describes a superseded placeholder-launch unit and must be reconciled before dispatch)
+
+### Known Open Findings (spec 04 review surface, restated by amendments A and B)
+
+- F-05: run length refreshed on the corrected build and counter (amendment B) — attentive median ~9.6 min (range 5.5-12.0), leisured ~11.9 min, against the 25-35 min target; the operator's a/b/c decision re-asked, not made
+- F-06: comms bands rebalanced (green 0-2, amber 3-5, red 6-9); red appears in 10/37 runs of the re-run set — operator confirmation pending
+- F-04: reachability restated on corrected bounds plus legal paths; all five gated choices reachable; the check reports exactly one gate requiring rewards or documents (CE-05[2]) — amendment B corrected the earlier "two gates" narrative
+- Carried, not fixed: clock-reduction clamp question — the validated simulator applies negative reductions (reachable at rapport ≤ -4; zero at -3..-2; Narrow Focus zero at ≤ 1, never negative); clamping would be a balance change requiring a sweep
+- The A1.6 replaced baselines plus new capture 11, and amendment B's new capture 08 (unobscured ending) and text-changed capture 06 (truthful clock text), await the operator's per-capture approval; the parent's "re-approved with evidence" claim is retracted in the review surface
+- F-03: two SFX source files absent (non-blocking)
+- See `docs/verification/2026-09-16-complete-run-verification.md` (amendment A and B sections) for the full list and operator questions
 
 ## Key Documents
 
@@ -114,8 +125,8 @@ All agent-executed specs produce work on feature branches. Never commit directly
 
 | Stat | Type | Starting | Function |
 |------|------|----------|----------|
-| Knowledge | Accumulator | 0 | Gates choices, determines ending (threshold: 8, modified by Clear-Headed to 6) |
-| Bypass Modules | Spendable | 5 (trait-modified) | Spent on event choices, community help, facility fix (cost: 2, modified by Fragile Kit to 3) |
+| Knowledge | Accumulator | 0 | Gates choices, determines ending (threshold: 11, modified by Clear-Headed to 10) |
+| Bypass Modules | Spendable | 6 (trait-modified) | Spent on event choices, community help, facility fix (cost: 2, modified by Fragile Kit to 3) |
 | Rapport | Derived | 0 (trait-modified) | Helped minus harmed communities. Scales clock reduction (capped at 2). Determines epilogue quality. |
 | Intrusion Clock | Counter | 0 | Ticks each stop (base 1 + jitter). Max 10. Fills = loss. Only reduced via clock reduction reward. |
 
@@ -153,7 +164,7 @@ After stop 5, Beat 5 (Facility Penetration) begins as fixed narrative content.
 
 ## Architecture
 
-### Source Layout (22 files)
+### Source Layout (24 files)
 
 ```
 src/
@@ -161,20 +172,34 @@ src/
     index.ts, scene.ts, event.ts, state.ts, characters.ts
   engine/
     game-state.ts   # Immutable stat mutations (return new GameState)
-    scene-runner.ts  # Beat transitions, dialogue sequencing
+    scene-runner.ts  # Beat transitions, choice resolution, ending authority
     event-system.ts  # Zone-filtered pool draw, reward cycle
     save-manager.ts  # localStorage serialization, slot management
+    resolution.ts    # Validated choice resolver (simulator port; live path)
+    scoring.ts       # Locked scoring cascade and ending determination
+    traits.ts        # Effective-config trait pipeline
+    chargen.ts       # Random protagonist rolls, dossier view
+    rng.ts, run-rng.ts  # Seeded RNG; stateful variant for exact resume
+    replay-harness.ts, live-checks.ts  # Node verification harnesses
   ui/
     layout.ts     # Three-pane DOM (viewport 65% + sidebar 35% + bottom bar 33%)
     dialogue.ts   # Typewriter effect, skip-on-click, portraits, choices
-    hud.ts        # Stat bars, intrusion clock, location timeline
-    screens.ts    # Title, save/load modal, ending, lore card, settings
+    hud.ts        # Stat bars, intrusion clock, location timeline, SAVE action
+    screens.ts    # Title, save/load modal, dossier, ending, documents, comms
+    gameui.ts     # Vendored framework bindings
   audio/
     audio-manager.ts  # BGM crossfade, SFX, mute persistence
   styles.css
   main.ts         # Bootstrap: load data, init engine, attach DOM
 data/
-  config.json, scenes.json, events.json, communities.json, characters.json
+  config.json, scenes.json, events.json, communities.json, characters.json,
+  protagonist-pool.json, found-documents.json, comms-beats.json
+scripts/
+  run-replay.mjs, run-live-checks.mjs, run-mutation-checks.mjs,
+  audit-events.py, check-dist-assets.mjs
+tests/
+  capture.py (screenshot regression), complete_run.py (natural runs),
+  preview_check.py (built-package HTTP check)
 ```
 
 ### Key Design Patterns
@@ -202,7 +227,7 @@ npm run preview  # Preview production build locally
 - **Modifier-only traits:** Traits are stat modifiers, not content branches.
 - **Placeholder-first:** Engine must work with zero real assets.
 - **Client-side only:** No backend, localStorage for saves, no analytics.
-- **Portfolio scope:** 1 complete run, 3 endings, ~12 events, ~6 characters, ~25-35 minute runs.
+- **Portfolio scope:** 1 complete run, 3 endings, ~12 events, ~6 characters, ~25-35 minute runs (design target; F-05 restated the attentive median at ~9.6 min — operator decision pending)
 
 ### Out of Scope (v1)
 

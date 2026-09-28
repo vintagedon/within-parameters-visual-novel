@@ -1,11 +1,21 @@
 type,key,filename,dimensions,label,status,hash
 portrait,protagonist-neutral,portraits/protagonist-neutral.png,480x640,RELAY-7 / neutral,placeholder,e44a9b10b279fbe8
 portrait,protagonist-focused,portraits/protagonist-focused.png,480x640,RELAY-7 / focused,placeholder,ef8fa98fb39635a2
-portrait,coworker-neutral,portraits/coworker-neutral.png,480x640,CHEN / neutral,placeholder,8b073ed4d43f2691
-portrait,coworker-concerned,portraits/coworker-concerned.png,480x640,CHEN / concerned,placeholder,a6d2d4ad182e918b
-portrait,coworker-urgent,portraits/coworker-urgent.png,480x640,CHEN / urgent,placeholder,9ba674024cf5cfb6
-portrait,npc1-neutral,portraits/npc1-neutral.png,480x640,STATION REP / neutral,placeholder,5bb8454c930a91b5
-portrait,npc1-hostile,portraits/npc1-hostile.png,480x640,STATION REP / hostile,placeholder,2fb36405bbd1dcb7
+portrait,protagonist-female,portraits/protagonist-female.png,480x640,protagonist-female,placeholder,5b5a61335778a83a
+portrait,protagonist-male,portraits/protagonist-male.png,480x640,protagonist-male,placeholder,0f8ed4eee423d022
+portrait,coworker-neutral,portraits/coworker-neutral.png,480x640,JAY CHEN / neutral,placeholder,8b073ed4d43f2691
+portrait,coworker-concerned,portraits/coworker-concerned.png,480x640,JAY CHEN / concerned,placeholder,a6d2d4ad182e918b
+portrait,coworker-urgent,portraits/coworker-urgent.png,480x640,JAY CHEN / urgent,placeholder,9ba674024cf5cfb6
+portrait,supervisor-neutral,portraits/supervisor-neutral.png,480x640,TORRES / neutral,placeholder,959746dd4ce87810
+portrait,supervisor-dismissive,portraits/supervisor-dismissive.png,480x640,TORRES / dismissive,placeholder,6a1517a5c2315e9c
+portrait,aguilar-neutral,portraits/aguilar-neutral.png,480x640,AGUILAR / neutral,placeholder,f87237d536c9a884
+portrait,aguilar-stern,portraits/aguilar-stern.png,480x640,AGUILAR / stern,placeholder,695bc12562c65ec8
+portrait,dex-neutral,portraits/dex-neutral.png,480x640,DEX / neutral,placeholder,1c5d9bdabe8a7aef
+portrait,dex-wary,portraits/dex-wary.png,480x640,DEX / wary,placeholder,878601d5c884ae59
+portrait,sato-neutral,portraits/sato-neutral.png,480x640,SATO / neutral,placeholder,784a2d0b1c65cf0b
+portrait,sato-serene,portraits/sato-serene.png,480x640,SATO / serene,placeholder,b01ec6dedbfe7f95
+portrait,npc1-neutral,portraits/npc1-neutral.png,480x640,npc1-neutral,placeholder,5bb8454c930a91b5
+portrait,npc1-hostile,portraits/npc1-hostile.png,480x640,npc1-hostile,placeholder,2fb36405bbd1dcb7
 portrait,npc2-neutral,portraits/npc2-neutral.png,480x640,ENGINEER / neutral,placeholder,8c62fef732a72a18
 portrait,npc2-worried,portraits/npc2-worried.png,480x640,ENGINEER / worried,placeholder,48dd744d9e05b6cd
 background,bg-title,backgrounds/title.png,1280x720,WITHIN PARAMETERS,placeholder,beed53f947c87e37

@@ -1,0 +1,258 @@
+{
+  "seed": 555555,
+  "strategy": "knowledge / first enabled",
+  "ending": "destruction",
+  "score": 55,
+  "protagonist": {
+    "callsign": "RELAY-7",
+    "name": "Joss Adeyemi",
+    "gender": "female",
+    "backstoryId": "bs-apprentice-legacy",
+    "positiveTrait": "P2",
+    "negativeTrait": "N2",
+    "station": "Silver Spring Junction"
+  },
+  "events": [
+    "CE-02",
+    "CE-03",
+    "TE-03",
+    "TE-01",
+    "AE-02"
+  ],
+  "typedDialogueChars": 6879,
+  "typedSecondsAt30ms": 206.37,
+  "countedChoiceChars": 787,
+  "omittedTypedChars": 6092,
+  "documents": [],
+  "beats": [
+    {
+      "tierId": "green",
+      "chars": 185,
+      "lines": [
+        {
+          "speaker": "coworker",
+          "text": "RELAY-7, status check. Finding anything?"
+        },
+        {
+          "speaker": "protagonist",
+          "text": "Found something. Still working on what it is."
+        },
+        {
+          "speaker": "coworker",
+          "text": "Copy. Nothing critical on the board here. A few more fault alerts, probably related. Take your time."
+        }
+      ]
+    },
+    {
+      "tierId": "amber",
+      "chars": 242,
+      "lines": [
+        {
+          "speaker": "coworker",
+          "text": "RELAY-7. Station 14 just went to emergency rationing. Supervisor is fielding calls from three district councils."
+        },
+        {
+          "speaker": "protagonist",
+          "text": "How bad?"
+        },
+        {
+          "speaker": "coworker",
+          "text": "Bad enough that people are asking who authorized your field investigation. I'm handling it. Just... be close to something."
+        }
+      ]
+    }
+  ],
+  "epilogueChars": 1618,
+  "shown": [
+    {
+      "id": "scene-lore-01",
+      "chars": 282,
+      "lines": 3,
+      "hasChoices": false,
+      "lastLineChars": 27
+    },
+    {
+      "id": "scene-status-quo-01",
+      "chars": 179,
+      "lines": 3,
+      "hasChoices": false,
+      "lastLineChars": 15
+    },
+    {
+      "id": "scene-status-quo-02",
+      "chars": 454,
+      "lines": 3,
+      "hasChoices": false,
+      "lastLineChars": 133
+    },
+    {
+      "id": "scene-status-quo-03",
+      "chars": 224,
+      "lines": 3,
+      "hasChoices": false,
+      "lastLineChars": 82
+    },
+    {
+      "id": "scene-authorization-01",
+      "chars": 414,
+      "lines": 4,
+      "hasChoices": false,
+      "lastLineChars": 41
+    },
+    {
+      "id": "scene-discovery-01",
+      "chars": 298,
+      "lines": 3,
+      "hasChoices": false,
+      "lastLineChars": 9
+    },
+    {
+      "id": "evt-ce02-arrive",
+      "chars": 434,
+      "lines": 4,
+      "hasChoices": false,
+      "lastLineChars": 71
+    },
+    {
+      "id": "evt-ce02-situation",
+      "chars": 276,
+      "lines": 3,
+      "hasChoices": true,
+      "lastLineChars": 67
+    },
+    {
+      "id": "evt-ce02-b",
+      "chars": 236,
+      "lines": 2,
+      "hasChoices": false,
+      "lastLineChars": 78
+    },
+    {
+      "id": "evt-ce02-reward",
+      "chars": 20,
+      "lines": 1,
+      "hasChoices": false,
+      "lastLineChars": 20
+    },
+    {
+      "id": "evt-ce03-arrive",
+      "chars": 396,
+      "lines": 2,
+      "hasChoices": false,
+      "lastLineChars": 202
+    },
+    {
+      "id": "evt-ce03-situation",
+      "chars": 266,
+      "lines": 2,
+      "hasChoices": true,
+      "lastLineChars": 128
+    },
+    {
+      "id": "evt-ce03-a",
+      "chars": 289,
+      "lines": 2,
+      "hasChoices": false,
+      "lastLineChars": 148
+    },
+    {
+      "id": "evt-ce03-reward",
+      "chars": 20,
+      "lines": 1,
+      "hasChoices": false,
+      "lastLineChars": 20
+    },
+    {
+      "id": "evt-te03-arrive",
+      "chars": 239,
+      "lines": 1,
+      "hasChoices": true,
+      "lastLineChars": 239
+    },
+    {
+      "id": "evt-te03-a",
+      "chars": 269,
+      "lines": 2,
+      "hasChoices": false,
+      "lastLineChars": 54
+    },
+    {
+      "id": "evt-te03-reward",
+      "chars": 24,
+      "lines": 1,
+      "hasChoices": false,
+      "lastLineChars": 24
+    },
+    {
+      "id": "evt-te01-arrive",
+      "chars": 292,
+      "lines": 2,
+      "hasChoices": true,
+      "lastLineChars": 82
+    },
+    {
+      "id": "evt-te01-a",
+      "chars": 132,
+      "lines": 1,
+      "hasChoices": false,
+      "lastLineChars": 132
+    },
+    {
+      "id": "evt-te01-reward",
+      "chars": 21,
+      "lines": 1,
+      "hasChoices": false,
+      "lastLineChars": 21
+    },
+    {
+      "id": "evt-ae02-arrive",
+      "chars": 343,
+      "lines": 2,
+      "hasChoices": true,
+      "lastLineChars": 133
+    },
+    {
+      "id": "evt-ae02-a",
+      "chars": 314,
+      "lines": 2,
+      "hasChoices": false,
+      "lastLineChars": 113
+    },
+    {
+      "id": "evt-ae02-reward",
+      "chars": 29,
+      "lines": 1,
+      "hasChoices": false,
+      "lastLineChars": 29
+    },
+    {
+      "id": "scene-facility-01",
+      "chars": 474,
+      "lines": 3,
+      "hasChoices": false,
+      "lastLineChars": 125
+    },
+    {
+      "id": "scene-facility-02",
+      "chars": 709,
+      "lines": 7,
+      "hasChoices": true,
+      "lastLineChars": 138
+    },
+    {
+      "id": "scene-confrontation-destruction-gate",
+      "chars": 168,
+      "lines": 2,
+      "hasChoices": false,
+      "lastLineChars": 133
+    },
+    {
+      "id": "scene-ending-destruction",
+      "chars": 77,
+      "lines": 1,
+      "hasChoices": false,
+      "lastLineChars": 77
+    }
+  ],
+  "_provenance": "Independent scene-level dialogue count of seed 555555 produced outside the complete_run harness during the PR 6 review (cross-check evidence, not authority). Committed as a fixture for the A1.5 counter reconciliation; the trace predates the A1.4 speaker-prefix removal, so expected totals are reconciled at runtime."
+}

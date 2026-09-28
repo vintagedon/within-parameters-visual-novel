@@ -55,6 +55,15 @@ export default defineConfig({
       },
       closeBundle() {
         copyDir(resolve(__dirname, 'data'), resolve(__dirname, 'dist', 'data'));
+        // Ship every runtime-requested asset subtree. Vite's hashed bundle
+        // output lives in dist/assets/ under hashed filenames and does not
+        // collide with these fixed game subtrees.
+        for (const subtree of ['backgrounds', 'portraits', 'audio']) {
+          copyDir(
+            resolve(__dirname, 'assets', subtree),
+            resolve(__dirname, 'dist', 'assets', subtree)
+          );
+        }
       },
     },
   ],
