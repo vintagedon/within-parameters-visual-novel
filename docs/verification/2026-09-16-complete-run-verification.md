@@ -1001,3 +1001,32 @@ differ from the gate-start head — all nine other committed baseline files
 are byte-identical. Check mode is all green (11/11) and leaves the
 baseline directory hash unchanged across the run; expected differences
 were recorded here before the check ran, and none remain unexplained.
+
+
+## 2026-09-28 review follow-up: remaining 04b repairs
+
+The operator authorized direct fixes for review findings 04b-01 and
+04b-02 on PR 6. These complete Amendment B's existing acceptance criteria;
+no new amendment or balance change was introduced.
+
+- **04b-01, inherited facility music:** saving in the archive core and
+  loading previously replaced `bgm-tension` with `bgm-ambient`. LOAD and
+  CONTINUE now restore the latest scene-declared track from saved history
+  before starting the runner. The new facility-core browser phase failed
+  on the prior code and passes with the repair.
+- **04b-02, mutation verdict:** the runner previously accepted a passing
+  named assertion whenever unrelated checks made the process exit nonzero.
+  It now requires the exact named `[FAIL]` line and assertion exit status
+  1. A real unmutated trace control reproduces the false positive under
+  the old matcher and is correctly rejected as mutation evidence under
+  the repaired matcher. All three intended counter mutations are caught.
+
+Fresh verification: production build passes; browser resume 12/12; live
+checks 46/46; engine mutations 9/9; counter control plus 3/3 mutations; the audio-restore deletion mutation
+fails the audio assertion while its control passes; screenshot check 11/11, with every baseline file unchanged. The screenshot
+harness retains its previously documented dev-server audio warnings.
+Independent review found no actionable defect in this patch.
+
+Raw regression evidence stays in ignored local staging. Existing visual
+approvals, product decisions, and the carried clock-clamp question remain
+with the operator. This follow-up does not approve baselines or merge PR 6.

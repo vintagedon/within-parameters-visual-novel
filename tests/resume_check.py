@@ -23,12 +23,14 @@ Deterministic seed setup only; no forced state, no dev hooks.
 SAVE-enabled phases exercised here (the UI-reachable subset of the A1.1
 phase list; reward-pick and document are covered by inset-covering overlays
 and are exercised at the engine level in live-checks.ts):
-    event-choice, event-consequence, comms, facility-entry, autosave-continue.
+    event-choice, event-consequence, comms, facility-entry, facility-core,
+    autosave-continue.
 
 Amendment A2.2 adds audio-restore coverage to every LOAD/CONTINUE phase
 above: the active track after load must equal uninterrupted playback at
-the same phase (the journey ambient loop), the outgoing title track must
-be paused once the configured crossfade completes, a muted save must
+the same phase (ambient in the journey, tension inside the facility), the
+outgoing title track must be paused once the configured crossfade completes,
+a muted save must
 restore its track at zero volume (audio-muted-load), and the title and
 dossier surfaces must start no journey audio.
 
@@ -378,6 +380,14 @@ def run_phase(browser, base: str, phase: str, viewport: dict | None = None, seed
                 result,
                 lambda p: FACILITY_MARKER in (p.locator("#dialogue-text").text_content() or ""),
             )
+        elif phase == "facility-core":
+            # No BGM declaration here: uninterrupted play inherits the
+            # facility-entry track, which LOAD must also recover.
+            pump_until(
+                page,
+                result,
+                lambda p: (p.locator("#dialogue-text").text_content() or "").startswith("The archive core."),
+            )
         elif phase == "save-menu-policy":
             # A phase whose SAVE is disabled shows the action disabled, not
             # hidden, with a reason; an enabled SAVE still writes its slot.
@@ -587,7 +597,7 @@ def main() -> int:
                 # SAVE control at the 1440x900 harness viewport; at 2560x1440 —
                 # the viewport the independent review used to reproduce R1 — the
                 # control is reachable. The comms phases run there.
-                for phase in ("event-choice", "event-consequence", "comms", "facility-entry"):
+                for phase in ("event-choice", "event-consequence", "comms", "facility-entry", "facility-core"):
                     viewport = {"width": 2560, "height": 1440} if phase == "comms" else None
                     phases.append(run_phase(browser, base, phase, viewport))
                 # A2.2: the saved mute preference is preserved — the track

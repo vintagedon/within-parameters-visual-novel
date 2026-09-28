@@ -11,6 +11,8 @@
  *      breakdown entry stays — the review's aggregate mutation: the
  *      category references remain intact, only the aggregate assertion
  *      fails. The aggregate drives the duration estimate (A2.4).
+ * An unmutated control must pass both counter checks without being accepted
+ * as a mutation failure, even when unrelated inventory checks fail.
  * A mutation the trace check survives would mean the counter cannot detect
  * the corresponding under-count.
  *
@@ -29,23 +31,45 @@ const MUTATIONS = [
     name: 'A1.5 drops ordinary dialogue counting (observer never arms)',
     find: "if (node.classList.contains('typing')) { armed = true; return; }",
     replace: "if (false) { armed = true; return; }",
-    expect: /counter matches the reconciled independent trace/,
+    expect: /^\s*\[FAIL\] counter matches the reconciled independent trace \(seed 555555\)$/m,
   },
   {
     name: 'A1.5 drops epilogue counting at the ending',
     find: 'result.instant_breakdown["epilogue"] = len(epilogue)',
     replace: 'pass',
-    expect: /counter matches the reconciled independent trace/,
+    expect: /^\s*\[FAIL\] counter matches the reconciled independent trace \(seed 555555\)$/m,
   },
   {
     name: 'A2.4 drops the epilogue from the instant aggregate (duration input)',
     find: 'result.instant_chars += len(epilogue) + len(breakdown)',
     replace: 'result.instant_chars += len(breakdown)',
-    expect: /instant aggregate equals its category breakdown/,
+    expect: /^\s*\[FAIL\] instant aggregate equals its category breakdown for every run$/m,
   },
 ];
 
 const python = '/opt/agents/venv/bin/python';
+function failedExpectedCheck(res, expected) {
+  const output = (res.stdout ?? '') + (res.stderr ?? '');
+  return res.status === 1 && expected.test(output);
+}
+
+// The single-run trace control can exit nonzero on full-inventory checks.
+// Passing counter assertions must never count as a rejected mutation.
+const control = spawnSync(python, [join(root, 'tests', 'complete_run.py'), '--trace-check'], {
+  cwd: root,
+  encoding: 'utf-8',
+  timeout: 300000,
+});
+const controlOutput = (control.stdout ?? '') + (control.stderr ?? '');
+const controlPasses = /^\s*\[PASS\] counter matches the reconciled independent trace \(seed 555555\)$/m.test(controlOutput)
+  && /^\s*\[PASS\] instant aggregate equals its category breakdown for every run$/m.test(controlOutput);
+if (!controlPasses || MUTATIONS.some((mutation) => failedExpectedCheck(control, mutation.expect))) {
+  console.log('  [BAD ] unmutated control: passing counter checks must not count as mutation failures');
+  console.log(controlOutput);
+  process.exit(1);
+}
+console.log('  [GOOD] unmutated control: both counter checks pass; unrelated failures are not mutation evidence');
+
 let bad = 0;
 const scratchDir = mkdtempSync(join('/tmp/kilo', 'wp-counter-'));
 try {
@@ -65,12 +89,10 @@ try {
         encoding: 'utf-8',
         timeout: 300000,
       });
-      const output = (res.stdout ?? '') + (res.stderr ?? '');
-      const failedExpected = mutation.expect.test(output);
-      if (res.status !== 0 && failedExpected) {
+      if (failedExpectedCheck(res, mutation.expect)) {
         console.log(`  [GOOD] ${mutation.name}: named equality check FAILED as required`);
       } else {
-        console.log(`  [BAD ] ${mutation.name}: expected check PASSED against the mutated counter (status ${res.status})`);
+        console.log(`  [BAD ] ${mutation.name}: named failure not observed with assertion exit status 1 (status ${res.status})`);
         bad++;
       }
     } finally {

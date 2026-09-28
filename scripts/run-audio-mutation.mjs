@@ -23,7 +23,7 @@ const root = resolve(here, '..');
 const mainTs = join(root, 'src', 'main.ts');
 const python = '/opt/agents/venv/bin/python';
 
-const FIND = "Audio.playBGM('bgm-ambient', false);";
+const FIND = 'Audio.playBGM(resumeBgm, false);';
 const REPLACE = '// mutation: journey audio restore dropped (A2.2)';
 
 function build() {

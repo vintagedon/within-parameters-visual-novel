@@ -26,6 +26,7 @@ Playwright (Chromium headless) regression harness for the GameUI-migrated UI. Th
 |--------|---------|
 | [`capture.py`](capture.py) | Capture neon baselines + run framework/network/console assertions. Supports `--check` for regression comparison against committed `.sha1` sidecars. |
 | [`complete_run.py`](complete_run.py) | Gate 4.8 verification: complete natural runs against the production build (`vite preview`), no dev hooks, seeds recorded. Covers endings, reroll, documents, comms tiers, save/resume; reads HTTP status from responses; hash-guards `baseline/`. |
+| [`resume_check.py`](resume_check.py) | Production-build SAVE/LOAD/CONTINUE checks through real controls, including inherited facility-core music, mute preference, and restored presentation. |
 | [`preview_check.py`](preview_check.py) | Gate 4.7 verification: a run segment against the production build with zero failed same-origin asset requests by HTTP status. |
 
 ## Running
@@ -45,6 +46,8 @@ npm run audit:events           # events.json vs simulation/game_data.py audit
 /opt/agents/venv/bin/python tests/capture.py --check
 npm run build && /opt/agents/venv/bin/python tests/preview_check.py
 npm run build && /opt/agents/venv/bin/python tests/complete_run.py
+npm run build && /opt/agents/venv/bin/python tests/resume_check.py
+node scripts/run-counter-mutations.mjs # unmutated control + three named counter failures
 ```
 
 **Harness environment limitation:** this harness is an ML01 estate tool. It depends on the ML01 shared venv at `/opt/agents/venv` (hardcoded interpreter path) and on whatever Playwright version that venv carries — the Playwright version is not pinned or declared anywhere in this repository. Runs on other hosts require adapting the interpreter path and providing a Playwright install themselves.

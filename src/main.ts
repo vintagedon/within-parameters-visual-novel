@@ -357,11 +357,10 @@ function startNewGame(): void {
  *  and the journey audio: a loaded run renders and sounds exactly like one
  *  that never saved. Event scenes do not carry showGameUI, so the layout
  *  mode is set here, not left to the first loaded scene (amendment A1.2,
- *  review finding R2). Event scenes also select no music, so the load path
- *  restores the journey ambient track (amendment A2.2, review finding
- *  04a-02) — instantly, before the first loaded scene starts, so a scene
- *  that declares its own track (the facility's tension loop) crossfades
- *  over it with a single fade instead of overlapping ones. */
+ *  review finding R2). Restore the latest scene-declared music from the
+ *  saved history, including tracks inherited by later facility scenes.
+ *  Do this instantly before the runner starts to avoid overlapping fades
+ *  from title music and the resumed scene. */
 function startGameFromState(state: GameState, slotEngine?: SaveSlot['engine']): void {
   clearDialogue();
   setGameUI();
@@ -369,7 +368,10 @@ function startGameFromState(state: GameState, slotEngine?: SaveSlot['engine']): 
   const effConfig = effectiveConfigFromState(state);
   const runRng = createRunRng(0);
   runner = new SceneRunner(state, effConfig, registry, communitiesData, buildRunnerCallbacks(), undefined, runRng);
-  Audio.playBGM('bgm-ambient', false);
+  const resumeBgm = [state.currentScene, ...state.sceneHistory.slice().reverse()]
+    .map((id) => registry.scenes.get(id)?.bgm)
+    .find((bgm): bgm is string => typeof bgm === 'string') ?? 'bgm-ambient';
+  Audio.playBGM(resumeBgm, false);
   if (slotEngine) {
     runner.restoreEngine(slotEngine);
   }
