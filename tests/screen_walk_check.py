@@ -276,11 +276,38 @@ def main() -> int:
             if stop == "reward":
                 seen_surfaces.add("#reward-overlay")
                 check_overlays(page, failures, "reward")
-                page.locator(".wp-reward-cards .wp-card").first.click()
+                reward_card = page.locator(".wp-reward-cards .wp-card").first
+                reward_card.focus()
+                page.keyboard.press("Enter")
+                page.wait_for_timeout(200)
+                record(
+                    failures,
+                    "keyboard-only reward step activates with Enter",
+                    page.locator("#reward-overlay:not(.hidden)").count() == 0,
+                )
+                if page.locator("#reward-overlay:not(.hidden)").count() > 0:
+                    page.evaluate("() => window.__wp.hideOverlays()")
                 # The stop's tick may fire a comms beat; acknowledge it.
                 time.sleep(200 / 1000)
                 if page.locator("#comms-overlay:not(.hidden)").count() > 0:
                     page.click("#comms-panel-body .gc-button")
+
+            # The selectable-card contract includes Space as well as Enter.
+            # Use the real reward fixture and traverse the mandatory surface
+            # without a pointer.
+            page.evaluate("() => window.__wp.triggerReward('remove')")
+            page.wait_for_selector("#reward-overlay:not(.hidden)")
+            reward_card = page.locator(".wp-reward-cards .wp-card").nth(1)
+            reward_card.focus()
+            page.keyboard.press("Space")
+            page.wait_for_timeout(200)
+            record(
+                failures,
+                "keyboard-only reward step activates with Space",
+                page.locator("#reward-overlay:not(.hidden)").count() == 0,
+            )
+            if page.locator("#reward-overlay:not(.hidden)").count() > 0:
+                page.evaluate("() => window.__wp.hideOverlays()")
 
             # Found-document extreme (FD-07 is the longest body)
             page.evaluate("() => window.__wp.showDocument('FD-07')")

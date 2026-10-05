@@ -272,6 +272,13 @@ export function createCard(options: CardOptions = {}): CardControl {
   }
   if (options.onClick) {
     el.addEventListener('click', (event) => options.onClick!(event, { el }));
+    if (options.selectable) {
+      el.addEventListener('keydown', (event) => {
+        if (event.repeat || (event.key !== 'Enter' && event.key !== ' ')) return;
+        event.preventDefault();
+        el.click();
+      });
+    }
   }
   return { el };
 }
