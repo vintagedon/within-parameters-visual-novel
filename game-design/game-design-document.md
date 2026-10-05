@@ -519,7 +519,7 @@ src/
 | Character portraits | ~6 with expression variants |
 | Station AI interfaces | 3–4 terminal displays |
 | Video cutscenes | 3–4 (~8s each) |
-| Run length | ~25–35 minutes |
+| Run length | Reading-model estimates from counted content (operator decision 2026-09-28, F-05): attentive median ~9.6 minutes (range 5.5 to 12.0), leisured median ~11.9; not observed human playtime |
 | Meta-progression | Player knowledge only (no persistent unlocks) |
 
 ### Content Guardrails

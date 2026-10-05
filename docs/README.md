@@ -37,7 +37,9 @@ docs/
 ├── balance-methodology.html       # Balance methodology reference page
 ├── wp-specsmith-case-study.md     # SpecSmith project case study
 ├── verification/                  # Verification review surfaces (operator approval artifacts)
-│   └── 2026-09-16-complete-run-verification.md
+│   ├── 2026-09-16-complete-run-verification.md
+│   └── 2026-10-04-presentation-review.md
+├── presentation/                  # Framework-migration presentation artifacts (contract, normalization, parity reference)
 └── README.md                      # This file
 ```
 
@@ -57,6 +59,8 @@ docs/
 | Directory | Description |
 |-----------|-------------|
 | [documentation-standards/](documentation-standards/README.md) | Template library, controlled tags, script headers, and prose rules |
+| [verification/](verification/) | Review surfaces carrying open findings and operator answer records |
+| [presentation/](presentation/README.md) | Composition contract, normalized mockup, and the gate 5.1 parity reference record |
 
 ---
 

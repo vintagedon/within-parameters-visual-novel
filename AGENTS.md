@@ -34,8 +34,8 @@ All agent-executed specs produce work on feature branches. Never commit directly
 
 ## Current State
 
-**Phase:** Phase 3, Complete Playable Run (on placeholders)
-**Date:** September 2026
+**Phase:** Phase 4, Framework Migration (presentation on the vendored gc framework inside a 1920x1080 stage; journey and title composed, other screens functional and awaiting the follow-up unit)
+**Date:** October 2026
 
 ### Locked
 
@@ -46,8 +46,8 @@ All agent-executed specs produce work on feature branches. Never commit directly
 - Scoring system: 103 hard cap, 8% multiplicative reroll penalty, S/A/B/C/D/F grades, diminishing returns on surplus
 - Clock reduction cap: max 2 segments per reward regardless of rapport
 - Art direction style, concept drafts complete (10 scenes, 1 UI mockup)
-- Tech stack: Vite + TypeScript, vanilla DOM (GameUI framework vendored under `vendor/gameui/`)
-- Engine spec: `spec/archive/engine-spec.md` (the authoritative build reference)
+- Tech stack: Vite + TypeScript, vanilla DOM (gc framework vendored under `vendor/gc/` at a reviewed pin; WP compositions in WP files)
+- Engine spec: `/opt/agents/repos/spec/archived-manual/2026-04-05-within-spec-02-engine-spec.md` (the authoritative build reference)
 - Engine build: all source files built, end-to-end functional with placeholder assets
 - Journey structure: 5 modular stops (2 community, 2 transit, 1 approach) + fixed facility entry
 - Event pool: 12 events (5 community, 4 transit, 3 approach), draw 5 per run, no repeats
@@ -70,38 +70,40 @@ All agent-executed specs produce work on feature branches. Never commit directly
 
 ### Ready for Agent Execution
 
-- Presentation/theming unit: GameUI framework migration follow-up and industrial theme (mechanics, content, thresholds, and the outcome authority are frozen by spec 04). Dispatch awaits the operator's merge decision on PR 6 and approval of the pending baseline captures.
+- The presentation follow-up unit: carries the approved journey and title composition through the remaining screens, establishes approved baselines, and implements V-04 if the operator chooses an up-front route. Dispatch awaits the operator's approval of this unit's composition at the presentation review surface (docs/verification/2026-10-04-presentation-review.md).
 
 ### Not Started
 
 - Production art (NB2 finals from NightCafe concepts)
 - Cutscenes (Seedance 1.5 Pro)
-- Launch verification (WP Spec 05; the old queue file describes a superseded placeholder-launch unit and must be reconciled before dispatch)
+- The presentation follow-up unit (carries the approved composition through the remaining screens once the operator approves this unit's composition)
+- Launch verification (written after the presentation follow-up; the old queue file describes a superseded placeholder-launch unit)
 
 ### Known Open Findings (spec 04 review surface, restated by amendments A and B)
 
-- F-05: run length refreshed on the corrected build and counter (amendment B) — attentive median ~9.6 min (range 5.5-12.0), leisured ~11.9 min, against the 25-35 min target; the operator's a/b/c decision re-asked, not made
-- F-06: comms bands rebalanced (green 0-2, amber 3-5, red 6-9); red appears in 10/37 runs of the re-run set — operator confirmation pending
-- F-04: reachability restated on corrected bounds plus legal paths; all five gated choices reachable; the check reports exactly one gate requiring rewards or documents (CE-05[2]) — amendment B corrected the earlier "two gates" narrative
-- Carried, not fixed: clock-reduction clamp question — the validated simulator applies negative reductions (reachable at rapport ≤ -4; zero at -3..-2; Narrow Focus zero at ≤ 1, never negative); clamping would be a balance change requiring a sweep
-- The A1.6 replaced baselines plus new capture 11, and amendment B's new capture 08 (unobscured ending) and text-changed capture 06 (truthful clock text), await the operator's per-capture approval; the parent's "re-approved with evidence" claim is retracted in the review surface
+- F-04: answered (operator, 2026-09-28): the corrected upper bound plus demonstrated legal paths is the reachability standard; exactly one gated choice requires rewards or documents (CE-05[2])
+- F-05: answered (operator, 2026-09-28, option a): the 25 to 35 minute target is retired; accepted estimates are an attentive median of ~9.6 minutes (range 5.5 to 12.0) and a leisured median of ~11.9, derived from counted content as reading-model estimates, not timed human playtests
+- F-06: answered (operator, 2026-09-28): comms bands green 0-2, amber 3-5, red 6-9
+- Carried, not fixed: clock-reduction clamp question: the validated simulator applies negative reductions (reachable at rapport ≤ -4; zero at -3..-2; Narrow Focus zero at ≤ 1, never negative); clamping would be a balance change requiring a sweep
+- The A1.6 and A2.5 candidate captures (03, 06, 07, 08, 09, 10, 11) are superseded by operator decision 2026-09-28, not approved; the 1440x900 pending set is superseded by the same decision. This unit's fresh 1920x1080 set (title and journey candidates plus interim captures) awaits the operator's review at the presentation review surface
 - F-03: two SFX source files absent (non-blocking)
-- See `docs/verification/2026-09-16-complete-run-verification.md` (amendment A and B sections) for the full list and operator questions
+- Presentation unit findings carried to the review surface: the composition band deviation from the mockup proportion (F-P1), the unresolved 07-comms-interrupt transient hypothesis, and the dev-server SPA-fallback masking of missing assets
+- See docs/verification/2026-09-16-complete-run-verification.md (amendment sections) and docs/verification/2026-10-04-presentation-review.md for the current open questions
 
 ## Key Documents
 
 | Document | Path | Purpose |
 |----------|------|---------|
-| Engine Spec | `spec/archive/engine-spec.md` | **Build reference**: types, components, UI, data schemas, build order, success criteria |
+| Engine Spec | `/opt/agents/repos/spec/archived-manual/2026-04-05-within-spec-02-engine-spec.md` | **Build reference**: types, components, UI, data schemas, build order, success criteria |
 | Game Design Document | `game-design/game-design-document.md` | Authoritative design reference: all mechanics |
 | Storyboard | `game-design/storyboard.md` | Scene-by-scene narrative breakdown with asset specs |
 | Art Direction Bible | `game-design/art-direction-bible.md` | Visual identity, generation prompts, asset pipeline |
 | M3 Content Design | `game-design/m3-content-design-draft.md` | Full event specs, NPC profiles, comms beats, found documents, endings |
 | Character Generation | `game-design/character-generation.md` | Name pools, backstory templates, dossier screen, portrait strategy |
 | Trait System v2 | `game-design/m3-trait-system-v2.md` | Authoritative trait definitions, interaction matrix, scoring (post-GDR) |
-| Simulator Spec | `spec/archive/wp-simulator-spec.md` | Monte Carlo balance simulator agent execution target |
-| Sweep Spec (v1) | `spec/archive/wp-sweep-spec.md` | Parameter sweep v1 agent execution target |
-| Sweep Spec (v2) | `spec/archive/wp-sweep-v2-spec.md` | Structural fixes + exploration agent execution target |
+| Simulator Spec | `/opt/agents/repos/spec/archived-manual/2026-04-05-within-spec-04-wp-simulator-spec.md` | Monte Carlo balance simulator agent execution target |
+| Sweep Spec (v1) | `/opt/agents/repos/spec/archived-manual/2026-04-05-within-spec-05-wp-sweep-spec.md` | Parameter sweep v1 agent execution target |
+| Sweep Spec (v2) | `/opt/agents/repos/spec/archived-manual/2026-04-06-within-spec-03-wp-sweep-v2-spec.md` | Structural fixes + exploration agent execution target |
 | SpecSmith Case Study | `docs/wp-specsmith-case-study.md` | How spec-driven development shaped this project |
 | NB2 UI Mockup | `assets/concept-artwork/ui/ui-mockup-nano-banana-pro-2.png` | Visual target for the three-pane layout |
 
@@ -227,7 +229,7 @@ npm run preview  # Preview production build locally
 - **Modifier-only traits:** Traits are stat modifiers, not content branches.
 - **Placeholder-first:** Engine must work with zero real assets.
 - **Client-side only:** No backend, localStorage for saves, no analytics.
-- **Portfolio scope:** 1 complete run, 3 endings, ~12 events, ~6 characters, ~25-35 minute runs (design target; F-05 restated the attentive median at ~9.6 min — operator decision pending)
+- **Portfolio scope:** 1 complete run, 3 endings, ~12 events, ~6 characters; run length is the accepted reading-model estimate (attentive median ~9.6 minutes, range 5.5 to 12.0; leisured ~11.9; operator decision 2026-09-28), not timed human playtime
 
 ### Out of Scope (v1)
 
