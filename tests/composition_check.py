@@ -64,8 +64,32 @@ THEME_CONTRACT_JS = """
 }
 """
 
+OKLCH_TO_SRGB_JS = """
+function oklchToSrgb(L, C, H) {
+  const angle = H * Math.PI / 180;
+  const a = C * Math.cos(angle);
+  const b = C * Math.sin(angle);
+  const lPrime = L + 0.3963377774 * a + 0.2158037573 * b;
+  const mPrime = L - 0.1055613458 * a - 0.0638541728 * b;
+  const sPrime = L - 0.0894841775 * a - 1.2914855480 * b;
+  const l = lPrime * lPrime * lPrime;
+  const m = mPrime * mPrime * mPrime;
+  const s = sPrime * sPrime * sPrime;
+  const linear = [
+    4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+    -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+    -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s,
+  ];
+  const transfer = (channel) => channel <= 0.0031308
+    ? 12.92 * channel
+    : 1.055 * Math.pow(channel, 1 / 2.4) - 0.055;
+  return linear.map(transfer).map((value) => Math.min(1, Math.max(0, value)));
+}
+"""
+
 GREEN_CHECK_JS = """
 () => {
+""" + OKLCH_TO_SRGB_JS + """
   // Sample every visible element's color, background-color, border-color,
   // and outline-color on the given root; flag any green (HSL hue 90..160 at
   // saturation >= 0.25). Handles rgb(), oklch(), and color(srgb ...) forms.
@@ -78,15 +102,7 @@ GREEN_CHECK_JS = """
       m = s.match(/oklch\\(\\s*([\\d.]+)(?:%?)\\s+([\\d.]+)\\s+(-?[\\d.]+)/);
       if (!m) return null;
       let L = Number(m[1]); if (L > 1) L = L / 100;
-      const C = Number(m[2]), H = Number(m[3]) * Math.PI / 180;
-      const hr = L + 0.3963377774 * C * Math.cos(H) + 0.2158037573 * C * Math.sin(H);
-      const hg = L - 0.1055613458 * C * Math.cos(H) - 0.0638541728 * C * Math.sin(H);
-      const hb = L - 0.0894841775 * C * Math.cos(H) - 1.2914855480 * C * Math.sin(H);
-      const lin = (c) => {
-        const cc = c * c * c;
-        return cc <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
-      };
-      return [lin(hr), lin(hg), lin(hb)].map((v) => Math.min(1, Math.max(0, v)));
+      return oklchToSrgb(L, Number(m[2]), Number(m[3]));
     }
     m = s.match(/color\\(srgb\\s+([\\d.]+)\\s+([\\d.]+)\\s+([\\d.]+)/);
     if (m) return [Number(m[1]), Number(m[2]), Number(m[3])];
