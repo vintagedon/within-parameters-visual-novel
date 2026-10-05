@@ -62,4 +62,8 @@ Startup prerequisites, all four verified before the first change: (1) WP `main` 
 
 **Validation.** Pin check OK (16 files byte-identical to the framework checkout at the pin; the pin resolves to a commit reachable from framework `main`, verified at startup). Mutation: a scratch copy with one byte changed in `src/core/components.css` fails the check with a byte mismatch (exit 1), pristine passes. Production build passes with the vendored tree present.
 
-**Commit:** this commit (SHA recorded at the next checkpoint)
+**Commit:** `8250ff1`
+
+---
+
+## Gate 5.4: The stage host

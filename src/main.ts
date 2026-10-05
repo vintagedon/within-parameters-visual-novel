@@ -8,6 +8,7 @@
  */
 
 import './styles.css';
+import './ui/wp.css';
 
 import type {
   GameConfig,
@@ -85,6 +86,7 @@ import {
   hideDossierScreen,
   type CommsLineView,
 } from './ui/screens';
+import { createStageHost } from './ui/stage';
 
 // Audio
 import * as Audio from './audio/audio-manager';
@@ -200,14 +202,15 @@ async function boot(): Promise<void> {
       { community: { name: 'Silver Spring Junction', description: 'a small trading post at the intersection of three major tunnel routes' }, state: 'harmed', stop: 3 },
     ] as unknown as GameState['communities'];
     (window as unknown as {
-      __wp?: {
-        triggerComms: () => void;
-        triggerEnding: () => void;
-        triggerReward: (caseName: string) => void;
-        seedAutosave: () => void;
-        setClock: (current: number) => void;
-        setKnowledge: (knowledge: number) => void;
-      };
+    __wp?: {
+      triggerComms: () => void;
+      triggerEnding: () => void;
+      triggerReward: (caseName: string) => void;
+      seedAutosave: () => void;
+      setClock: (current: number) => void;
+      setKnowledge: (knowledge: number) => void;
+      stageFixture: () => void;
+    };
     }).__wp = {
       triggerComms: () => {
         // Renders a real beat from the loaded data (amber, after stop 1) so
@@ -297,6 +300,35 @@ async function boot(): Promise<void> {
         const s = runner?.getState();
         if (!s) return;
         refreshHud({ ...s, stats: { ...s.stats, knowledge } });
+      },
+      // Gate 5.4 isolated-host fixture: swaps the app root for the bare
+      // stage host with representative (game-concept-free) controls, so the
+      // stage-fit checks measure the host in isolation. DEV-gated like the
+      // other harness hooks; stripped from production builds.
+      stageFixture: () => {
+        // Remove the app's screen overlays (mounted on body, some visible at
+        // boot) so the bare host is the only hit-test target.
+        document.body.querySelectorAll('.screen-overlay, #reward-overlay, #comms-overlay, #document-overlay').forEach((el) => el.remove());
+        root.innerHTML = `
+          <div class="wp-stage-host" id="stage-host">
+            <div class="wp-stage" id="stage">
+              <button class="gc-button wp-fixture-control" id="fx-center" style="position:absolute;left:936px;top:516px;" type="button">CENTER</button>
+              <button class="gc-button wp-fixture-control" id="fx-topleft" style="position:absolute;left:48px;top:48px;" type="button">TOP LEFT</button>
+              <button class="gc-button wp-fixture-control" id="fx-bottomright" style="position:absolute;left:1720px;top:984px;" type="button">BOTTOM RIGHT</button>
+              <div class="gc-meter" data-shape="segmented" data-orientation="vertical" id="fx-vmeter" style="--gc-meter-count:10;position:absolute;left:100px;top:200px;width:56px;height:400px;">
+                <div class="gc-meter__track"><div class="gc-meter__fill" style="--amount:0.4;"></div></div>
+              </div>
+              <div class="gc-meter" data-shape="continuous" id="fx-hmeter" style="position:absolute;left:400px;top:200px;width:600px;height:24px;">
+                <div class="gc-meter__track"><div class="gc-meter__fill" style="--amount:0.6;"></div></div>
+              </div>
+              <p class="wp-fixture-text" id="fx-text" style="position:absolute;left:400px;top:300px;width:600px;">Stage host fixture text. The quick brown fox jumps over the lazy dog while measuring scale and input alignment.</p>
+            </div>
+          </div>
+        `;
+        const hostEl = document.getElementById('stage-host')!;
+        const stageEl = document.getElementById('stage')!;
+        const host = createStageHost({ host: hostEl, stage: stageEl });
+        (window as unknown as { __wpStageHost?: unknown }).__wpStageHost = host;
       },
     };
   }

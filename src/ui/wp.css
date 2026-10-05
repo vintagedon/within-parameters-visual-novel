@@ -1,0 +1,67 @@
+/*
+ * WP-owned presentation: stage host, WP theme tokens, and wp-* compositions
+ * over the vendored framework (vendor/gc). WP overrides live in the
+ * framework's `overrides` cascade layer, never inside the vendored tree.
+ *
+ * Stage host (gate 5.4): the outer host measures the window; the logical
+ * stage is authored at 1920x1080 and scaled uniformly by the host module
+ * (src/ui/stage.ts). Nothing inside the stage uses viewport units or
+ * width/height/orientation breakpoints; internal geometry resolves against
+ * stage regions, per charter 4.1.1.
+ */
+
+/* Import the framework first: its first statement declares the shared layer
+   order (reset, tokens, core, modules, theme, overrides), which establishes
+   cascade precedence for everything that follows. WP rules below sit in the
+   overrides layer and beat framework defaults by layer precedence, never by
+   specificity escalation or !important. */
+
+@import "../../vendor/gc/src/gc.css";
+
+/* ─── WP theme tokens ─── */
+
+@layer overrides {
+  :root {
+    /* Stage and chrome */
+    --wp-stage-bg: oklch(8% 0.025 250);
+    --wp-stage-width: 1920px;
+    --wp-stage-height: 1080px;
+
+    /* Journey region geometry (composition contract, gate 5.2) */
+    --wp-margin: 48px;
+    --wp-scene-width: 1423px;
+    --wp-rail-region-width: 401px;
+    --wp-rail-gutter: 24px;
+    --wp-upper-height: 688px;
+    --wp-band-gutter: 24px;
+    --wp-band-height: 272px;
+
+    /* Type scale (contract section 4; floor 20px) */
+    --wp-type-dialogue: 28px;
+    --wp-type-speaker: 26px;
+    --wp-type-choice: 26px;
+    --wp-type-rail-label: 22px;
+    --wp-type-readout: 22px;
+    --wp-type-route: 20px;
+    --wp-type-build-id: 20px;
+  }
+
+  /* ─── Stage host ─── */
+
+  .wp-stage-host {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    background: var(--wp-stage-bg);
+  }
+
+  .wp-stage {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: var(--wp-stage-width);
+    height: var(--wp-stage-height);
+    transform-origin: center;
+    background: var(--wp-stage-bg);
+  }
+}
