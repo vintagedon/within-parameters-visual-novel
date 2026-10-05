@@ -49,8 +49,9 @@ export function initDialogue(bottomBar: HTMLElement, config: GameConfig): void {
       </div>
     </div>
     <div id="dialogue-area">
-      <div id="speaker-name"></div>
-      <div id="dialogue-text"></div>
+      <div id="dialogue-row">
+        <span id="speaker-name"></span><span id="dialogue-text"></span>
+      </div>
       <div id="advance-indicator">▼</div>
       <div id="choices-area"></div>
     </div>

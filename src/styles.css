@@ -29,6 +29,7 @@
   --wp-band-gutter: 24px;
   --wp-band-height: 272px;
   --wp-portrait-width: 160px;
+  --wp-title-display: 96px;
   /* Owned display scale for the ending grade glyph. */
   --wp-score-grade-size: 3rem;
 }
@@ -220,9 +221,9 @@ body {
   height: var(--wp-band-height);
   flex-shrink: 0;
   background: var(--gc-surface-base);
-  border: var(--gc-border-width) solid var(--gc-border-default);
+  border: var(--gc-border-width) solid var(--gc-accent);
   display: flex;
-  align-items: stretch;
+  align-items: center;
   padding: var(--gc-space-4);
   gap: var(--gc-space-4);
   cursor: pointer;
@@ -245,12 +246,13 @@ body {
 
 .portrait-frame {
   width: var(--wp-portrait-width);
-  height: var(--wp-band-height);
-  border: var(--gc-border-width) solid var(--gc-border-strong);
-  border-radius: var(--gc-radius-small);
+  height: var(--wp-portrait-width);
+  border: 4px solid var(--gc-accent);
+  border-radius: 50%;
   overflow: hidden;
   position: relative;
   background: var(--gc-surface-sunken);
+  flex-shrink: 0;
 }
 
 .portrait-frame img {
@@ -288,9 +290,22 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
   gap: var(--gc-space-2);
   min-width: 0;
+  min-height: 0;
+}
+
+#dialogue-row {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  position: relative;
+}
+
+#dialogue-row::-webkit-scrollbar { width: var(--gc-space-1); }
+#dialogue-row::-webkit-scrollbar-thumb {
+  background: var(--gc-border-strong);
+  border-radius: var(--gc-radius-pill);
 }
 
 #speaker-name {
@@ -300,19 +315,16 @@ body {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--gc-status-warning);
-  min-height: 1.2em;
 }
 
 #speaker-name:empty { display: none; }
 
 #dialogue-text {
-  font-family: var(--gc-font-body);
+  font-family: var(--gc-font-code);
   font-size: var(--wp-type-dialogue);
   line-height: 1.3;
   color: var(--gc-text-primary);
-  flex: 1;
   position: relative;
-  min-height: 0;
 }
 
 /* Typewriter cursor. */
@@ -334,7 +346,7 @@ body {
 #advance-indicator {
   position: absolute;
   bottom: var(--gc-space-1);
-  right: 0;
+  right: var(--gc-space-2);
   font-size: var(--wp-type-route);
   color: var(--gc-text-muted);
   animation: wp-indicator-pulse 1.5s var(--gc-easing-standard) infinite;
@@ -351,7 +363,7 @@ body {
   display: flex;
   gap: var(--gc-space-3);
   flex-wrap: wrap;
-  margin-top: var(--gc-space-2);
+  margin-top: auto;
 }
 
 /* Choices are framework .gc-button controls; WP stretches them to share the row. */
@@ -408,8 +420,8 @@ body {
 }
 
 .title-main {
-  font-family: var(--gc-font-body);
-  font-size: var(--gc-type-display-size);
+  font-family: var(--gc-font-code);
+  font-size: var(--wp-title-display);
   font-weight: 700;
   color: var(--gc-text-primary);
   letter-spacing: 0.15em;
@@ -419,7 +431,7 @@ body {
 
 .title-sub {
   font-family: var(--gc-font-code);
-  font-size: var(--wp-type-build-id);
+  font-size: 28px;
   color: var(--gc-text-muted);
   letter-spacing: 0.3em;
   text-transform: uppercase;

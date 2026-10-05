@@ -215,6 +215,7 @@ async function boot(): Promise<void> {
       seedAutosave: () => void;
       setClock: (current: number) => void;
       setKnowledge: (knowledge: number) => void;
+      setModules: (modules: number) => void;
       stageFixture: () => void;
       dossierExtreme: () => void;
       showDocument: (id?: string) => void;
@@ -350,6 +351,11 @@ async function boot(): Promise<void> {
         const s = runner?.getState();
         if (!s) return;
         refreshHud({ ...s, stats: { ...s.stats, knowledge } });
+      },
+      setModules: (modules: number) => {
+        const s = runner?.getState();
+        if (!s) return;
+        refreshHud({ ...s, stats: { ...s.stats, consumables: modules } });
       },
       // Gate 5.4 isolated-host fixture: swaps the app root for the bare
       // stage host with representative (game-concept-free) controls, so the

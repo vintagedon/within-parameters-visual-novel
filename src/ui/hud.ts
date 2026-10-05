@@ -26,6 +26,13 @@ let clockBar: HTMLElement;
 
 let knowledgeBar: HTMLElement;
 let knowledgeValue: HTMLElement;
+let knowledgeMarker: HTMLElement | null = null;
+
+/** Fixed visual scale for the knowledge meter: twice the default threshold,
+ *  documented in the composition contract. The threshold marker positions
+ *  against this scale (never against the trait-adjusted threshold), so a
+ *  threshold-modifying trait visibly moves the marker. */
+let knowledgeScale = 22;
 
 let rapportBar: HTMLElement;
 let rapportValue: HTMLElement;
@@ -42,40 +49,50 @@ let totalStops = 6;
 export function initHUD(sidebar: HTMLElement, config: GameConfig, onSave?: () => void): void {
   totalStops = config.journeyStops;
 
+  // Status rail per the composition contract: the intrusion clock is a
+  // vertical segmented meter at the rail's left edge spanning the stat rows
+  // (--gc-meter-count = the clock maximum), then the stat rows, then the
+  // route tracker and SAVE. Knowledge carries a threshold marker positioned
+  // by the effective threshold against a fixed visual scale (2x the default
+  // threshold), so a threshold-modifying trait moves the marker.
+  const KNOWLEDGE_SCALE = config.knowledgeThreshold * 2;
   sidebar.innerHTML = `
     <section class="gc-panel wp-clock-panel" id="clock-panel" data-wp-accent="cyan">
-      <div class="wp-panel__header">
-        <div class="wp-panel__title">Intrusion Clock</div>
-        <div class="wp-clock-reading" id="clock-reading">0 / ${config.clockMax}</div>
-      </div>
-      <div class="gc-meter" data-shape="segmented" id="clock-bar" style="--gc-meter-count: ${config.clockMax}; --gc-meter-value: 0%;">
-        <div class="gc-meter__fill" id="clock-segments"></div>
-      </div>
-    </section>
-
-    <section class="gc-panel" id="stat-panel">
-      <div class="wp-meter-head">
-        <span class="wp-meter-label">Knowledge</span>
-        <span class="wp-meter-value" id="knowledge-value">0 / ${config.knowledgeThreshold}</span>
-      </div>
-      <div class="gc-meter" data-shape="continuous" id="knowledge-bar" style="--gc-meter-value: 0%;">
-        <div class="gc-meter__fill"></div>
-      </div>
-
-      <div class="wp-meter-head">
-        <span class="wp-meter-label">Rapport</span>
-        <span class="wp-meter-value" id="rapport-value">0</span>
-      </div>
-      <div class="gc-meter" data-shape="continuous" id="rapport-bar" style="--gc-meter-value: 0%;">
-        <div class="gc-meter__fill"></div>
-      </div>
-
-      <div class="wp-meter-head">
-        <span class="wp-meter-label">Resources</span>
-        <span class="wp-meter-value" id="resources-value">0</span>
-      </div>
-      <div class="gc-meter" data-shape="pips" id="resources-bar" style="--gc-meter-count: ${RESOURCE_SEGMENTS}; --gc-meter-value: 0%;">
-        <div class="gc-meter__fill"></div>
+      <div class="wp-rail-row">
+        <div class="gc-meter" data-shape="segmented" data-orientation="vertical" id="clock-bar"
+             style="--gc-meter-count: ${config.clockMax}; --gc-meter-value: 0%;" aria-label="Intrusion clock">
+          <div class="gc-meter__fill" id="clock-segments"></div>
+        </div>
+        <div class="wp-rail-stats">
+          <div class="wp-meter-head">
+            <span class="wp-meter-label">Intrusion</span>
+            <span class="wp-meter-value wp-clock-reading" id="clock-reading" data-level="safe">0 / ${config.clockMax}</span>
+          </div>
+          <div class="wp-meter-head">
+            <span class="wp-meter-label">Knowledge</span>
+            <span class="wp-meter-value" id="knowledge-value">0 / ${config.knowledgeThreshold}</span>
+          </div>
+          <div class="gc-meter wp-knowledge-meter" data-shape="continuous" id="knowledge-bar" style="--gc-meter-value: 0%;">
+            <div class="gc-meter__fill"></div>
+            <div class="wp-meter-marker" id="knowledge-marker" style="left: ${(config.knowledgeThreshold / KNOWLEDGE_SCALE) * 100}%;"></div>
+          </div>
+          <div class="wp-meter-head">
+            <span class="wp-meter-label">Rapport</span>
+            <span class="wp-meter-value" id="rapport-value">0</span>
+          </div>
+          <div class="gc-meter" data-shape="continuous" id="rapport-bar" data-wp-accent="amber" style="--gc-meter-value: 0%;">
+            <div class="gc-meter__fill"></div>
+          </div>
+          <div class="wp-meter-head">
+            <span class="wp-meter-label">Resources</span>
+            <span class="wp-meter-value" id="resources-value">0</span>
+          </div>
+          <div class="gc-meter" data-shape="pips" id="resources-bar" data-wp-accent="amber"
+               style="--gc-meter-count: ${RESOURCE_SEGMENTS}; --gc-meter-value: 0%;"
+               title="Bypass modules: one pip per module, display capped at ${RESOURCE_SEGMENTS}; the readout carries the exact count">
+            <div class="gc-meter__fill"></div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -94,6 +111,8 @@ export function initHUD(sidebar: HTMLElement, config: GameConfig, onSave?: () =>
 
   knowledgeBar = document.getElementById('knowledge-bar')!;
   knowledgeValue = document.getElementById('knowledge-value')!;
+  knowledgeMarker = document.getElementById('knowledge-marker');
+  knowledgeScale = config.knowledgeThreshold * 2;
 
   rapportBar = document.getElementById('rapport-bar')!;
   rapportValue = document.getElementById('rapport-value')!;
@@ -132,18 +151,23 @@ export function updateStats(state: GameState, knowledgeThreshold: number): void 
   const { stats, clock } = state;
 
   // ─── Intrusion Clock ── segmented meter + urgency accent ─────────────────
+  // Fill segments render red (danger role) at every urgency; the panel
+  // border and the readout carry the cyan/amber/red urgency ramp.
   const clockPct = clock.max > 0 ? (clock.current / clock.max) * 100 : 0;
   clockReading.textContent = `${clock.current} / ${clock.max}`;
   clockBar.style.setProperty('--gc-meter-value', `${Math.min(100, clockPct)}%`);
 
-  setUrgency(clockBar, clockPct);
   setUrgency(clockPanel, clockPct);
   clockReading.dataset.level = urgencyLevel(clockPct);
 
-  // ─── Knowledge ── continuous meter, scaled to the threshold ──────────────
-  const knowledgeFraction = Math.min(1, stats.knowledge / knowledgeThreshold);
+  // ─── Knowledge ── continuous meter against the fixed visual scale, with
+  // the threshold marker at the effective (trait-adjusted) threshold ──────
+  const knowledgeFraction = Math.min(1, stats.knowledge / knowledgeScale);
   knowledgeBar.style.setProperty('--gc-meter-value', `${knowledgeFraction * 100}%`);
   knowledgeValue.textContent = `${stats.knowledge} / ${knowledgeThreshold}`;
+  if (knowledgeMarker) {
+    knowledgeMarker.style.left = `${(knowledgeThreshold / knowledgeScale) * 100}%`;
+  }
 
   // ─── Rapport ── continuous meter, amber (>=0) or red (<0), fill = magnitude ─
   const clamped = Math.max(-6, Math.min(6, stats.rapport));
