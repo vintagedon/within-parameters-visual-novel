@@ -60,6 +60,7 @@ export function initHUD(sidebar: HTMLElement, config: GameConfig, onSave?: () =>
     <section class="gc-panel wp-clock-panel" id="clock-panel" data-wp-accent="cyan">
       <div class="wp-rail-row">
         <div class="gc-meter" data-shape="segmented" data-orientation="vertical" id="clock-bar"
+             data-wp-accent="red"
              style="--gc-meter-count: ${config.clockMax}; --gc-meter-value: 0%;" aria-label="Intrusion clock">
           <div class="gc-meter__fill" id="clock-segments"></div>
         </div>
@@ -72,7 +73,8 @@ export function initHUD(sidebar: HTMLElement, config: GameConfig, onSave?: () =>
             <span class="wp-meter-label">Knowledge</span>
             <span class="wp-meter-value" id="knowledge-value">0 / ${config.knowledgeThreshold}</span>
           </div>
-          <div class="gc-meter wp-knowledge-meter" data-shape="continuous" id="knowledge-bar" style="--gc-meter-value: 0%;">
+          <div class="gc-meter wp-knowledge-meter" data-shape="continuous" id="knowledge-bar"
+               data-wp-accent="cyan" style="--gc-meter-value: 0%;">
             <div class="gc-meter__fill"></div>
             <div class="wp-meter-marker" id="knowledge-marker" style="left: ${(config.knowledgeThreshold / KNOWLEDGE_SCALE) * 100}%;"></div>
           </div>

@@ -64,6 +64,38 @@ THEME_CONTRACT_JS = """
 }
 """
 
+METER_COLORS_JS = """
+() => {
+  const stage = document.getElementById('stage');
+  const resolveToken = (token) => {
+    const probe = document.createElement('span');
+    probe.style.color = `var(${token})`;
+    stage.appendChild(probe);
+    const value = getComputedStyle(probe).color;
+    probe.remove();
+    return value;
+  };
+  const fill = (id) => {
+    const meter = document.getElementById(id);
+    const probe = document.createElement('span');
+    probe.style.color = 'var(--gc-meter-fill)';
+    meter.appendChild(probe);
+    const value = getComputedStyle(probe).color;
+    probe.remove();
+    return value;
+  };
+  return {
+    clock: fill('clock-bar'),
+    knowledge: fill('knowledge-bar'),
+    rapport: fill('rapport-bar'),
+    resources: fill('resources-bar'),
+    cyan: resolveToken('--gc-palette-scifi-accent'),
+    amber: resolveToken('--gc-status-warning'),
+    red: resolveToken('--gc-status-danger'),
+  };
+}
+"""
+
 OKLCH_TO_SRGB_JS = """
 function oklchToSrgb(L, C, H) {
   const angle = H * Math.PI / 180;
@@ -395,6 +427,30 @@ def main() -> int:
                     }"""
                 )
                 record(failures, f"PA-003 fill width at clock {clk}", abs(w["fill"] - w["inner"]) <= 1.0, f"fill={w['fill']:.2f} inner={w['inner']:.2f}")
+                colors = page.evaluate(METER_COLORS_JS)
+                roles_ok = (
+                    colors["clock"] == colors["red"]
+                    and colors["knowledge"] == colors["cyan"]
+                    and colors["rapport"] == colors["amber"]
+                    and colors["resources"] == colors["amber"]
+                )
+                record(
+                    failures,
+                    f"meter fill roles remain scoped at clock {clk}",
+                    roles_ok,
+                    str(colors),
+                )
+
+            page.evaluate("() => window.__wp.triggerReward('negativeReduction')")
+            page.wait_for_selector("#reward-overlay:not(.hidden)")
+            colors = page.evaluate(METER_COLORS_JS)
+            record(
+                failures,
+                "negative rapport fill uses the danger role",
+                colors["rapport"] == colors["red"],
+                str(colors),
+            )
+            page.evaluate("() => window.__wp.hideOverlays()")
 
             # ── Palette check: journey during the live run (rail and band
             # visible in the game-UI layout) ──

@@ -156,23 +156,24 @@
     border-color: color-mix(in oklch, var(--gc-status-danger) 60%, var(--gc-border-default));
   }
 
-  /* Meter fill color follows the owning panel's accent (clock urgency). */
-  .gc-panel[data-wp-accent='amber'] .gc-meter__fill {
-    background-color: var(--gc-status-warning);
+  /* Each meter owns its fill role. This prevents the clock panel's urgency
+     accent from recoloring the unrelated stat meters nested inside it. */
+  .gc-meter[data-wp-accent='cyan'] {
+    --gc-meter-fill: var(--gc-palette-scifi-accent);
   }
 
-  .gc-panel[data-wp-accent='red'] .gc-meter__fill {
-    background-color: var(--gc-status-danger);
+  .gc-meter[data-wp-accent='amber'] {
+    --gc-meter-fill: var(--gc-status-warning);
+  }
+
+  .gc-meter[data-wp-accent='red'] {
+    --gc-meter-fill: var(--gc-status-danger);
   }
 
   /* ─── Journey rail (composition contract section 2) ─── */
 
   /* The intrusion clock's filled segments read red (danger role) at every
      urgency; the panel border and the readout carry the urgency ramp. */
-  #clock-bar .gc-meter__fill {
-    background-color: var(--gc-status-danger);
-  }
-
   .wp-rail-row {
     display: flex;
     gap: var(--gc-space-3);
