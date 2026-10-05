@@ -3,9 +3,9 @@
 title: "Framework Migration and Stage Composition Worklog"
 description: "Per-gate checkpoint worklog for WP milestone 05 (framework migration, stage fit, and industrial composition); mirrored to the central worklog at closeout"
 author: "executor agent"
-date: "2026-10-04"
-version: "1.0"
-status: "in-progress"
+date: "2026-10-05"
+version: "1.1"
+status: "completed"
 tags:
   - type: worklog
   - domain: [ui, engine, verification]
@@ -26,7 +26,7 @@ token_usage_source: "unavailable"
 
 # Worklog: WP Milestone 05, Framework Migration and Stage Composition
 
-Branch: `agent/2026-09-28-wp-01-framework-migration-and-stage-composition`, opened off `main` at `ff9f442` (the PR 6 merge; startup confirmed `main` equals that commit and the tree clean). Staging discipline: explicit paths only. Operator interactions: none so far (the spec declares `Attended: No`; no question has been put to the operator).
+Branch: `agent/2026-09-28-wp-01-framework-migration-and-stage-composition`, opened off `main` at `ff9f442` (the PR 6 merge; startup confirmed `main` equals that commit and the tree clean). Staging discipline: explicit paths only. The original unattended run put no question to the operator. The review-fix round below was authorized by Don through Action Registry record `rec4acLZWCuN1tJk9` and the 2026-10-05 09:13 and 09:15 EDT utterances "Approved to execute."
 
 Startup prerequisites, all four verified before the first change: (1) WP `main` at `ff9f442`, clean tree; (2) framework `main` at `952ae06e071a326e02f4ecb008256644fe2a5290` (PR #4 merge), coordination decisions verified across charter v1.8, GC-006/CAP-015 metadata in `ui-pack-inventory.json`, and the capability map's section 7 module ladder; charter version fields agree at 1.8; catalog digest `2ecb0ebd...` recomputed and matched; `node --test harness/tests/reference-corpus.test.js` 9/9; (3) pin contains `a678a2b` with an empty `src/` diff (`git diff --stat a678a2b main -- src/` empty); (4) Playwright Chromium 145.0.7632.6 (floor 125).
 
@@ -41,6 +41,28 @@ Startup prerequisites, all four verified before the first change: (1) WP `main` 
 **Validation.** Record names commit, diff, hash, and all 37 runs with outcome, grade, raw, final, decisions, character totals. The extremes script runs from `node scripts/content-extremes.mjs`; the mutation check (scratch `data/` copy, `scene-lore-01#0` lengthened to 439) moves the reported extreme from 317/`evt-ce04-arrive#0` to 439/`scene-lore-01#0`. No tracked file under `data/` changed.
 
 **Commit:** this commit (SHA recorded at the next checkpoint)
+
+---
+
+## PR 7 review-fix round: W1 through W10
+
+**Authority and review basis.** Don authorized this fix round on 2026-10-05 against PR 7 head `77a1491`, using Claude's review at `spec/reviews/2026-10-05-wp-pr7-m05-claude-review.md` plus the Kilo and Codex reviews. Codex/GPT-6 executed the fixes on the existing PR branch. The branch remains unmerged. No amend, rebase, force-push, vendor edit, or operator-answer edit occurred.
+
+**One commit per requested ID.** W1 `4c48dcc` activates `data-gc-theme="sci-fi"` and guards the exact root accent `oklch(78% 0.18 195)` plus light primary text on title and journey; removing the attribute causes 6 named failures. W2 `a22ba43` repairs the OKLCH conversion order (cubed LMS, LMS-to-linear-sRGB matrix, transfer function) and proves `oklch(68% 0.16 150)` classifies green while contract cyan does not. W3 `4d08247` adds Enter and Space activation to selectable cards and a keyboard-only reward walk. W4 `5804f66` adds modal focus entry, Tab and Shift+Tab trapping, Escape close, focus restore, and duplicate-Enter prevention. W5 `0b8576f` scopes meter fills to their role: knowledge cyan, resources amber, positive rapport amber, negative rapport red, clock danger fill with urgency confined to the clock; computed checks pass at clock 0, 4, and 10. W6 `78967c3` places save/load at z 101 over comms at z 100. W7 `4a5898a` renders the SATO evidence as `SATO: ` with the contract separator. W8 `f29f99f` corrects the letterbox/pillarbox branches and requires direct `elementFromPoint` ownership. W9 `d248d36` makes `--production-only` run only the production exposure assertion. W10 `45508ff` closes all 11 Kilo suggestions: current fixture-meter API; negative, uppercase, and range viewport syntax; quoted dirty paths; clean vendor-extra reporting; unused archive removal; 3 stale comments; dead rail token; inert gap; journey/title qualification of the 20 px floor; and the W8 ancestor correction.
+
+**Interaction repair found during recapture.** The first post-fix capture showed that save/load z 101 could intercept its own confirmation because the layered modal rule resolved at z 100. The failing walk measured modal 100, save 101, and `modalOwnsCenter=false`. Commit `64728aa` moves the modal z-index to the unlayered rule; the passing walk measures modal 1000, save 101, comms 100, and direct center ownership for both modal-over-save and save-over-comms.
+
+**Capture discrimination repair.** Fresh Chromium processes exposed low-order compositor variance: dossier reroll changed 7 pixels (maximum channel delta 7, aggregate RGB delta 38); the document rail changed 41 pixels (maximum 4, aggregate 96); comms changed 7 pixels (maximum 1, aggregate 8); reward changed 2 pixels (maximum 1, aggregate 2). Commit `d36d11a` keeps exact SHA-1 as the first check, then accepts only at most 64 changed pixels, maximum channel delta 8, and aggregate delta 128. Five unit tests accept exact and measured-noise cases and reject each exceeded boundary. Five consecutive full checks pass; no text, geometry, role color, or game state varies.
+
+**Corrected captures.** All 12 screens were recaptured at 1920x1080, DPR 1, under the active sci-fi theme. The two candidates remain `pending-approval`; the other 10 remain `interim`; none is approved. SHA-1 sidecars: title `c9a3286b56a60848fd8e775039dd8476c1588396`; lore `fa201dc2a0f1ef44e437c26fcbdb32d6f0ed8cff`; HUD `a9e8638589321cbd4157c698fef4bf50e334baa1`; settings `be70706d081f1e2b24ea07202b03da753924356d`; save/load confirm `c124ccfd1f6b8e3ca0956f1ae5c3664df82f02ef`; reward `5c1510b98927d802125b9558746435450ca35314`; comms `e85c21f4b1d07e39611b0396b19e96e31ddbf5bc`; ending `e59ffdba392dc4bbd2a0dceb5a1985a87aebc81e`; dossier `85cd4cba006884ef2c6940de0dab5ed07d766a8a`; dossier reroll `331d66b607b205b5417e9468030d551be9f426f4`; document `37f7b7af8d56c331057ab0ff9503925a2dcd6e27`; journey `4653500e3ab21f391e93874cb3b88679478bda8b`. The 25-file baseline set has SHA-256 `241c8c962a272903fbc8dece91e00aad6b26e69e352e1b1ec7e99bef19508a7b`; `manifest.json` has SHA-256 `296f705f6f801dc81b23fef7a121bf2bd2b31e65574129c7023b0a999fdc06c6`.
+
+**Gameplay parity and frozen scope.** The fresh 37-run output at `/tmp/kilo/complete-run-results.json` is byte-for-byte identical to `docs/presentation/ff9f442-parity-reference.json`: both SHA-256 `422cf708115ae2df6e4e314f927a7d7ed96ab4e72203cc5f8f91c132e5e119e5`, 37 records, 13 of 13 run-level checks, zero console errors, zero failed required requests. The frozen tree IDs match `ff9f442` exactly: `data/` `101cb3211bff180b4c2edf370921fd529fe6685f`, `src/types/` `06e3fe04ba5265d5cbe524f02f027f62e75a4c00`, and `simulation/` `437f76d51c7f8020eb37f34d26eafbd41625f148`. The only engine diff remains the authorized `buildDossierView` fallback token from `--gui-surface-strong` to `--gc-surface-raised`. The vendored source check reports 16 of 16 files byte-identical to framework pin `952ae06e071a326e02f4ecb008256644fe2a5290`.
+
+**Full verification.** Live path 46/46; resolver mutations 9/9 rejected; counter control passed and all 3 counter mutations were rejected; audio mutation rejected; event audit 36/36; replay 320,000 runs with all 6 validation criteria and correction-rate CSV parity 64/64 within 5 percentage points; resume 12/12; reward boundaries 5/5; packaged assets 36 required, 0 absent (2 unused source-absent SFX remain enumerated); preview 29 successful same-origin asset/data responses, 0 failures, 0 console errors; composition passed with 6 theme-removal failures; stage fit passed at 3 charter targets, 4 host-fit sizes, and 12 direct hit checks; screen walk passed its 32 assertions including both keyboard reward activations and modal behavior; Python review units 13/13; Node review guards 3/3; viewport scan 29 files clean; screenshot checks 5 consecutive passes.
+
+**Review surface and defect attribution.** Sections 3.1, 3.2, and 6 of `docs/verification/2026-10-04-presentation-review.md` were rewritten from the corrected themed captures and current computed evidence. All 6 operator-answer cells remain blank. Review found 0 new spec defects: W1 through W10, the modal cascade, and the compositor-noise issue are executor or harness defects rather than defects in the spec, so step 7 requires no new `spec/spec-defect-register.md` row.
+
+**Evidence commit.** The corrected 12-capture set, manifest, review surface, and this record land together after `d36d11a`; the final commit SHA and clean hosted build identifier are recorded in the central worklog and PR 7 review comment after the commit exists.
 
 ---
 
