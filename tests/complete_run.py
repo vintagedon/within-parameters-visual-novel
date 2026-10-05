@@ -206,18 +206,18 @@ def play_run(
             )
             page.reload(wait_until="networkidle")
             page.wait_for_selector("#title-screen:not(.hidden)", timeout=15000)
-            page.locator("#title-menu .gui-btn", has_text="LOAD GAME").first.click()
+            page.locator("#title-menu .gc-button", has_text="LOAD GAME").first.click()
             page.wait_for_selector("#save-load-screen:not(.hidden)", timeout=5000)
-            page.locator(".wp-slot-panel", has_text="SLOT 1").locator(".gui-btn").first.click()
+            page.locator(".wp-slot-panel", has_text="SLOT 1").locator(".gc-button").first.click()
             # The load confirm is a danger modal and always appears.
-            page.wait_for_selector(".gui-modal.is-open", timeout=5000)
-            page.locator(".gui-modal__footer .gui-btn", has_text="CONFIRM").first.click()
+            page.wait_for_selector(".wp-modal.is-open", timeout=5000)
+            page.locator(".wp-modal__footer .gc-button", has_text="CONFIRM").first.click()
             page.wait_for_selector("#dialogue-text", timeout=15000)
             result.resumed = True
         else:
             page.goto(base, wait_until="networkidle")
             page.wait_for_selector("#title-screen:not(.hidden)", timeout=15000)
-            page.locator("#title-menu .gui-btn", has_text="NEW GAME").first.click()
+            page.locator("#title-menu .gc-button", has_text="NEW GAME").first.click()
             page.wait_for_selector("#dossier-screen:not(.hidden)", timeout=15000)
             # The red-tier hunt rerolls until the dossier shows Exhausted
             # (jitter 0.6): the red beat B needs an unusually fast clock, and
@@ -265,7 +265,7 @@ def play_run(
                 result.decisions += 1
                 resources = int((page.locator("#resources-value").text_content() or "0").strip() or "0")
                 pick = 0 if resources <= 2 else 1
-                page.locator(".wp-reward-cards .gui-card").nth(pick).click()
+                page.locator(".wp-reward-cards .wp-card").nth(pick).click()
                 time.sleep(ACTION_MS / 1000)
                 continue
 
@@ -273,7 +273,7 @@ def play_run(
                 result.instant_chars += len(page.locator("#document-body").text_content() or "")
                 result.instant_breakdown["document"] = result.instant_breakdown.get("document", 0) + len(page.locator("#document-body").text_content() or "")
                 result.docs_read += 1
-                page.click("#document-footer .gui-btn")
+                page.click("#document-footer .gc-button")
                 time.sleep(ACTION_MS / 1000)
                 continue
 
@@ -291,18 +291,18 @@ def play_run(
                 tier = classify_tier(text)
                 if tier and tier not in result.comms_tiers:
                     result.comms_tiers.append(tier)
-                page.click("#comms-panel-body .gui-btn")
+                page.click("#comms-panel-body .gc-button")
                 time.sleep(ACTION_MS / 1000)
                 continue
 
             if page.locator("#reward-overlay:not(.hidden)").count() > 0:
                 result.decisions += 1
-                cards = page.locator(".wp-reward-cards .gui-card")
+                cards = page.locator(".wp-reward-cards .wp-card")
                 cards.nth(reward_pick).click()
                 time.sleep(ACTION_MS / 1000)
                 continue
 
-            choices = page.query_selector_all("#choices-area .gui-btn:not([disabled])")
+            choices = page.query_selector_all("#choices-area .gc-button:not([disabled])")
             if choices:
                 result.decisions += 1
                 btn = choices[-1] if choice_pick_last else choices[0]
@@ -345,7 +345,7 @@ def save_mid_run_slot(browser, base: str, origin: str, seed: int) -> dict:
     page.add_init_script(f"window.__wpSeed = {seed};")
     page.goto(base, wait_until="networkidle")
     page.wait_for_selector("#title-screen:not(.hidden)", timeout=15000)
-    page.locator("#title-menu .gui-btn", has_text="NEW GAME").first.click()
+    page.locator("#title-menu .gc-button", has_text="NEW GAME").first.click()
     page.wait_for_selector("#dossier-screen:not(.hidden)", timeout=15000)
     page.click("#dossier-deploy")
     page.wait_for_selector("#dialogue-text", timeout=15000)
@@ -357,7 +357,7 @@ def save_mid_run_slot(browser, base: str, origin: str, seed: int) -> dict:
             # context, so the slot save proceeds without a confirm dialog.
             page.click("#hud-save")
             page.wait_for_selector("#save-load-screen:not(.hidden)", timeout=5000)
-            page.locator(".wp-slot-panel", has_text="SLOT 1").locator(".gui-btn").first.click()
+            page.locator(".wp-slot-panel", has_text="SLOT 1").locator(".gc-button").first.click()
             page.wait_for_timeout(400)
             slot_raw = page.evaluate("localStorage.getItem('wp_save_0')")
             if not slot_raw:
@@ -367,19 +367,19 @@ def save_mid_run_slot(browser, base: str, origin: str, seed: int) -> dict:
             return {"key": "wp_save_0", "value": json.loads(slot_raw)}
 
         if page.locator("#document-overlay:not(.hidden)").count() > 0:
-            page.click("#document-footer .gui-btn")
+            page.click("#document-footer .gc-button")
             time.sleep(ACTION_MS / 1000)
             continue
         if page.locator("#comms-overlay:not(.hidden)").count() > 0:
-            page.click("#comms-panel-body .gui-btn")
+            page.click("#comms-panel-body .gc-button")
             time.sleep(ACTION_MS / 1000)
             continue
         if page.locator("#reward-overlay:not(.hidden)").count() > 0:
             rewards_seen += 1
-            page.locator(".wp-reward-cards .gui-card").nth(1).click()
+            page.locator(".wp-reward-cards .wp-card").nth(1).click()
             time.sleep(ACTION_MS / 1000)
             continue
-        choices = page.query_selector_all("#choices-area .gui-btn:not([disabled])")
+        choices = page.query_selector_all("#choices-area .gc-button:not([disabled])")
         if choices:
             choices[0].click()
             time.sleep(ACTION_MS / 1000)

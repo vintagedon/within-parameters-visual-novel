@@ -64,4 +64,240 @@
     transform-origin: center;
     background: var(--wp-stage-bg);
   }
+
+  /* Pin every framework token that carries a viewport unit to a fixed value
+     for the whole stage subtree: raw viewport units must not drive
+     stage-internal typography (charter 4.1.1). The vendored
+     --gc-font-size-xl clamp is the one typography-bearing token. */
+  .wp-stage {
+    --gc-font-size-xl: 3rem;
+  }
+
+  /* ─── WP accent roles (composition contract section 6) ───
+     Cyan is the framework default --gc-accent; amber and red scope it. */
+
+  [data-wp-accent='amber'] {
+    --gc-accent: var(--gc-status-warning);
+    --gc-focus-ring: var(--gc-status-warning);
+  }
+
+  [data-wp-accent='red'] {
+    --gc-accent: var(--gc-status-danger);
+    --gc-focus-ring: var(--gc-status-danger);
+  }
+
+  /* ─── Buttons: WP variants over the framework's single .gc-button ─── */
+
+  .gc-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--gc-space-2);
+    font-family: var(--gc-font-code);
+    min-block-size: auto;
+  }
+
+  .gc-button[data-variant='solid'] {
+    background-color: var(--gc-accent);
+    border-color: var(--gc-accent);
+    color: var(--gc-on-accent);
+  }
+
+  .gc-button[data-variant='outline'] {
+    background-color: transparent;
+    border-color: var(--gc-accent);
+    color: var(--gc-accent);
+  }
+
+  .gc-button[data-variant='ghost'] {
+    background-color: transparent;
+    border-color: transparent;
+    color: var(--gc-accent);
+  }
+
+  .gc-button[data-variant='solid']:hover:not(:disabled) {
+    background-color: color-mix(in oklch, var(--gc-accent) 84%, var(--gc-surface-base));
+  }
+
+  .gc-button[data-variant='outline']:hover:not(:disabled),
+  .gc-button[data-variant='ghost']:hover:not(:disabled) {
+    background-color: color-mix(in oklch, var(--gc-accent) 14%, transparent);
+  }
+
+  /* ─── Panel headers/footers (WP composition over .gc-panel) ─── */
+
+  .wp-panel__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--gc-space-2);
+  }
+
+  .wp-panel__title {
+    font-family: var(--gc-font-code);
+    font-size: var(--wp-type-rail-label);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--gc-text-secondary);
+  }
+
+  .wp-panel__footer {
+    display: flex;
+    align-items: center;
+    gap: var(--gc-space-3);
+  }
+
+  /* Accent tinting for panels (clock urgency, comms, info surfaces). */
+  .gc-panel[data-wp-accent='amber'] {
+    border-color: color-mix(in oklch, var(--gc-status-warning) 55%, var(--gc-border-default));
+  }
+
+  .gc-panel[data-wp-accent='red'] {
+    border-color: color-mix(in oklch, var(--gc-status-danger) 60%, var(--gc-border-default));
+  }
+
+  /* Meter fill color follows the owning panel's accent (clock urgency). */
+  .gc-panel[data-wp-accent='amber'] .gc-meter__fill {
+    background-color: var(--gc-status-warning);
+  }
+
+  .gc-panel[data-wp-accent='red'] .gc-meter__fill {
+    background-color: var(--gc-status-danger);
+  }
+
+  /* ─── Meters: WP label rows over the framework's value channel ─── */
+
+  .wp-meter-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--gc-space-2);
+  }
+
+  .wp-meter-label {
+    font-family: var(--gc-font-code);
+    font-size: var(--wp-type-rail-label);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--gc-text-secondary);
+  }
+
+  .wp-meter-value {
+    font-family: var(--gc-font-code);
+    font-size: var(--wp-type-readout);
+    font-weight: 700;
+    color: var(--gc-text-primary);
+  }
+
+  /* ─── Modal composition (wp-modal on a gc-panel) ─── */
+
+  .wp-modal {
+    z-index: var(--gc-z-modal);
+  }
+
+  .wp-modal:not(.is-open) {
+    display: none;
+  }
+
+  .wp-modal__panel {
+    width: 100%;
+    max-width: 560px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gc-space-3);
+  }
+
+  .wp-modal__title {
+    font-family: var(--gc-font-code);
+    font-size: var(--gc-type-title-size);
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gc-text-primary);
+  }
+
+  .wp-modal--danger .wp-modal__title {
+    color: var(--gc-status-danger);
+  }
+
+  .wp-modal--danger .wp-modal__panel {
+    border-color: color-mix(in oklch, var(--gc-status-danger) 60%, var(--gc-border-default));
+  }
+
+  .wp-modal__body {
+    font-family: var(--gc-font-body);
+    font-size: var(--gc-type-body-size);
+    line-height: 1.6;
+    color: var(--gc-text-secondary);
+  }
+
+  .wp-modal__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--gc-space-2);
+  }
+
+  /* ─── Card composition (wp-card on a gc-panel) ─── */
+
+  .wp-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gc-space-2);
+  }
+
+  .wp-card.is-selectable {
+    cursor: pointer;
+  }
+
+  .wp-card.is-selectable:hover {
+    border-color: var(--gc-accent);
+  }
+
+  .wp-card__tag {
+    align-self: flex-start;
+    font-family: var(--gc-font-code);
+    font-size: var(--gc-type-label-size);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gc-accent);
+    border: var(--gc-border-width) solid var(--gc-accent);
+    border-radius: var(--gc-radius-pill);
+    padding: var(--gc-space-1) var(--gc-space-3);
+  }
+
+  .wp-card__title {
+    font-family: var(--gc-font-body);
+    font-size: var(--gc-type-title-size);
+    font-weight: 700;
+    color: var(--gc-text-primary);
+  }
+
+  .wp-card__body {
+    font-family: var(--gc-font-body);
+    font-size: var(--gc-type-body-size);
+    line-height: 1.5;
+    color: var(--gc-text-secondary);
+  }
+
+  /* ─── Switch/toggle compositions (button-based, role-driven) ─── */
+
+  .wp-switch,
+  .wp-toggle {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .wp-activatable-label {
+    font-family: var(--gc-font-code);
+    font-size: var(--gc-type-label-size);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .wp-activatable-state {
+    font-family: var(--gc-font-code);
+    font-size: var(--gc-type-label-size);
+    font-weight: 700;
+    color: var(--gc-accent);
+  }
 }

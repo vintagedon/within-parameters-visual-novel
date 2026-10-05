@@ -20,4 +20,4 @@ Vendored source trees, consumed verbatim. WP never edits a vendored tree; it ove
 | Directory | Contents | Provenance |
 |---|---|---|
 | `gc/` | `html5-game-ui-framework` consumable `src/` at the reviewed pin, plus WP's provenance README | see `gc/README.md`; verified by `npm run check:vendor` |
-| `gameui/` | `gameui-browser-gaming-framework` predecessor copy (2026-06-22); retired by gate 5.5 and moved to the ignored `recycle-bin/` | historical; see the phase worklog |
+| `gameui/` | `gameui-browser-gaming-framework` predecessor copy (2026-06-22); retired at gate 5.5: tracked removal staged through git, the working copy moved to the ignored `recycle-bin/vendor-gameui-retired-2026-10-04/` | historical; see the phase worklog |

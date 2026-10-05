@@ -82,11 +82,15 @@ import {
   showRewardOverlay,
   showCommsOverlay,
   showDocumentOverlay,
+  hideDocumentOverlay,
+  hideCommsOverlay,
+  hideRewardOverlay,
   showDossierScreen,
   hideDossierScreen,
   type CommsLineView,
 } from './ui/screens';
 import { createStageHost } from './ui/stage';
+import { ensureFrameworkDefs } from './ui/gc-defs';
 
 // Audio
 import * as Audio from './audio/audio-manager';
@@ -114,9 +118,11 @@ async function boot(): Promise<void> {
   const root = document.getElementById('root');
   if (!root) throw new Error('No #root element found');
 
-  // Build DOM skeleton
+  // Build DOM skeleton: the stage host wraps the whole game; screens mount
+  // inside the stage so every surface scales with it.
   const layout = initLayout(root);
-  initScreens(document.body);
+  ensureFrameworkDefs(document);
+  initScreens(layout.stage);
 
   // Load all data files in parallel
   [config, manifest, scenesData, eventsData, { communities: communitiesData }, pool, documentsData, commsBeatsData] =
@@ -210,6 +216,10 @@ async function boot(): Promise<void> {
       setClock: (current: number) => void;
       setKnowledge: (knowledge: number) => void;
       stageFixture: () => void;
+      dossierExtreme: () => void;
+      showDocument: (id?: string) => void;
+      hideOverlays: () => void;
+      gotoScene: (sceneId: string) => void;
     };
     }).__wp = {
       triggerComms: () => {
@@ -255,6 +265,46 @@ async function boot(): Promise<void> {
       },
       seedAutosave: () => {
         autosave(initNewGame(config, 1), 'scene-discovery-01', 'discovery');
+      },
+      // Gate 5.5 walk fixtures: render a real surface with its longest real
+      // content, or navigate the live runner to a scene the walk cannot
+      // reach in short runs (the facility grid). DEV-gated like the other
+      // harness hooks; they drive presentation and the real runner only.
+      dossierExtreme: () => {
+        const r = createRng(1337);
+        const protagonist = generateProtagonist(pool, r);
+        const longestBackstory = pool.backstories.reduce((a, b) => (b.flavor.length > a.flavor.length ? b : a));
+        const longestName = [
+          ...pool.names.poolA,
+          ...pool.names.poolB,
+        ].reduce((a, b) => (b.length > a.length ? b : a));
+        const longestSurname = pool.names.surnames.reduce((a, b) => (b.length > a.length ? b : a));
+        const withExtreme: typeof protagonist = {
+          ...protagonist,
+          name: `${longestName} ${longestSurname}`,
+          backstoryId: longestBackstory.id,
+          positiveTrait: 'P1',
+          negativeTrait: 'N7',
+        };
+        const view = buildDossierView(withExtreme, pool, config, portraitColors, 8);
+        showDossierScreen(view, { onDeploy: () => {}, onReroll: () => {} });
+      },
+      showDocument: (id?: string) => {
+        const doc = (id ? documentsData.find((d) => d.id === id) : undefined) ?? documentsData.reduce((a, b) => ((b.body.length > (a?.body.length ?? 0)) ? b : a));
+        if (!doc) return;
+        showDocumentOverlay(doc, () => {});
+      },
+      // Presentation reset for the walk: hides the hook-mounted surfaces so
+      // the natural run flow continues underneath.
+      hideOverlays: () => {
+        hideDossierScreen();
+        hideEndingScreen();
+        hideDocumentOverlay();
+        hideCommsOverlay();
+        hideRewardOverlay();
+      },
+      gotoScene: (sceneId: string) => {
+        runner?.loadScene(sceneId);
       },
       triggerReward: (caseName: string) => {
         // Boundary fixture (A2.3): renders the REAL reward overlay from the
@@ -644,7 +694,7 @@ function runDialogueSequence(
 boot().catch((err) => {
   console.error('[main] Boot failed:', err);
   document.body.innerHTML = `
-    <div style="color:var(--gui-accent-danger,#ff3b30);font-family:var(--gui-font-mono,monospace);padding:40px">
+    <div style="color:var(--gc-status-danger,#ff3b30);font-family:var(--gc-font-code,monospace);padding:40px">
       <h2>BOOT FAILURE</h2>
       <pre>${String(err)}</pre>
     </div>

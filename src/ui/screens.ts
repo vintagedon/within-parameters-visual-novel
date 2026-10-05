@@ -26,6 +26,7 @@ import {
 import type { DossierView, ProtagonistPool } from "../engine/chargen";
 import { backstoryEpilogue, traitEpilogueLine } from "../engine/chargen";
 import { buildScoreBreakdown } from "../engine/scoring";
+import { getStage } from "./layout";
 
 // ─── Screen container refs ─────────────────────────────────────────────────────
 
@@ -43,81 +44,82 @@ let documentOverlay: HTMLElement;
 export function initScreens(root: HTMLElement): void {
   const screensHtml = `
     <!-- Title Screen -->
-    <div id="title-screen" class="screen-overlay hidden">
+    <div id="title-screen" class="wp-overlay hidden">
       <div class="title-logo">
         <div class="title-main">WITHIN PARAMETERS</div>
         <div class="title-sub">a relay technician's log</div>
       </div>
       <div class="title-menu" id="title-menu"></div>
+      <div class="wp-build-id" id="build-id"></div>
     </div>
 
     <!-- Save / Load Screen -->
-    <div id="save-load-screen" class="screen-overlay hidden">
-      <div class="gui-panel gui-panel--primary wp-save-load-panel">
-        <div class="gui-panel__header">
-          <div class="gui-panel__title" id="save-load-title">LOAD GAME</div>
+    <div id="save-load-screen" class="wp-overlay hidden">
+      <div class="gc-panel wp-save-load-panel">
+        <div class="wp-panel__header">
+          <div class="wp-panel__title" id="save-load-title">LOAD GAME</div>
         </div>
         <div class="slot-list" id="slot-list"></div>
-        <div class="gui-panel__footer" id="save-load-footer"></div>
+        <div class="wp-panel__footer" id="save-load-footer"></div>
       </div>
     </div>
 
     <!-- Ending Screen -->
-    <div id="ending-screen" class="screen-overlay hidden">
-      <div class="gui-panel gui-panel--primary wp-ending-panel">
+    <div id="ending-screen" class="wp-overlay hidden">
+      <div class="gc-panel wp-ending-panel">
         <div class="ending-type" id="ending-type-label"></div>
         <div class="ending-title" id="ending-title"></div>
         <div class="ending-epilogue" id="ending-epilogue"></div>
         <div class="wp-ending-score" id="ending-score"></div>
-        <div class="gui-panel__footer wp-ending-actions" id="ending-actions"></div>
+        <div class="wp-panel__footer wp-ending-actions" id="ending-actions"></div>
       </div>
     </div>
 
     <!-- Dossier Screen (chargen — spec 03) -->
-    <div id="dossier-screen" class="screen-overlay hidden">
-      <div class="gui-panel gui-panel--primary wp-dossier-panel">
-        <div class="gui-panel__header">
-          <div class="gui-panel__title">DOSSIER</div>
+    <div id="dossier-screen" class="wp-overlay hidden">
+      <div class="gc-panel wp-dossier-panel">
+        <div class="wp-panel__header">
+          <div class="wp-panel__title">DOSSIER</div>
         </div>
         <div class="wp-dossier-body" id="dossier-body"></div>
-        <div class="gui-panel__footer wp-dossier-footer" id="dossier-footer"></div>
+        <div class="wp-panel__footer wp-dossier-footer" id="dossier-footer"></div>
       </div>
     </div>
 
     <!-- Settings Screen -->
-    <div id="settings-screen" class="screen-overlay hidden">
-      <div class="gui-panel gui-panel--info wp-settings-panel">
-        <div class="gui-panel__header">
-          <div class="gui-panel__title">Settings</div>
+    <div id="settings-screen" class="wp-overlay hidden">
+      <div class="gc-panel wp-settings-panel">
+        <div class="wp-panel__header">
+          <div class="wp-panel__title">Settings</div>
         </div>
         <div class="wp-settings-rows" id="settings-rows"></div>
-        <div class="gui-panel__footer" id="settings-footer"></div>
+        <div class="wp-panel__footer" id="settings-footer"></div>
       </div>
     </div>
 
     <!-- Reward Overlay -->
-    <div id="reward-overlay" class="hidden">
-      <div class="gui-panel gui-panel--primary wp-reward-panel">
-        <div class="gui-panel__header">
-          <div class="gui-panel__title">Select Your Reward</div>
+    <div id="reward-overlay" class="wp-overlay hidden">
+      <div class="gc-panel wp-reward-panel">
+        <div class="wp-panel__header">
+          <div class="wp-panel__title">Select Your Reward</div>
         </div>
         <div class="wp-reward-cards" id="reward-cards"></div>
       </div>
     </div>
 
     <!-- Comms Overlay -->
-    <div id="comms-overlay" class="hidden">
-      <div class="gui-panel gui-panel--warning wp-comms-panel" id="comms-panel-body"></div>
+    <div id="comms-overlay" class="wp-overlay hidden">
+      <div class="gc-panel wp-comms-panel" id="comms-panel-body" data-wp-accent="amber"></div>
     </div>
 
     <!-- Found Document Overlay -->
-    <div id="document-overlay" class="hidden">
-      <div class="gui-panel gui-panel--info wp-document-panel">
-        <div class="gui-panel__header">
-          <div class="gui-panel__title" id="document-title"></div>
+    <div id="document-overlay" class="wp-overlay hidden">
+      <div class="gc-panel wp-document-panel">
+        <div class="wp-panel__header">
+          <div class="wp-panel__title" id="document-title"></div>
         </div>
         <div class="wp-document-body" id="document-body"></div>
-        <div class="gui-panel__footer" id="document-footer"></div>
+        <div class="wp-panel__footer" id="document-footer"></div>
       </div>
     </div>
   `;
@@ -385,7 +387,7 @@ export function showSaveLoadScreen(
   saveLoadScreen.classList.remove('hidden');
 }
 
-/** Renders a single save slot as a GameUI panel with a gui-btn action. Empty
+/** Renders a single save slot as a gc panel with a framework button action. Empty
  *  slots in load mode render their action disabled. A disabledReason renders
  *  the action disabled with an explanation instead of hiding it. */
 function appendSlotItem(
@@ -397,13 +399,13 @@ function appendSlotItem(
   disabledReason?: string
 ): void {
   const panel = document.createElement('div');
-  const accent = slot ? 'success' : '';
-  panel.className = 'gui-panel wp-slot-panel' + (accent ? ` gui-panel--${accent}` : ' gui-panel--info');
+  panel.className = 'gc-panel wp-slot-panel';
+  if (slot) panel.dataset.wpAccent = 'amber';
 
   const header = document.createElement('div');
-  header.className = 'gui-panel__header wp-slot-header';
+  header.className = 'wp-panel__header wp-slot-header';
   const title = document.createElement('div');
-  title.className = 'gui-panel__title wp-slot-label';
+  title.className = 'wp-panel__title wp-slot-label';
   title.textContent = label;
   header.appendChild(title);
 
@@ -412,7 +414,7 @@ function appendSlotItem(
   body.textContent = disabledReason ?? (slot ? slot.sceneLabel : '— empty —');
 
   const footer = document.createElement('div');
-  footer.className = 'gui-panel__footer wp-slot-footer';
+  footer.className = 'wp-panel__footer wp-slot-footer';
 
   const time = document.createElement('span');
   time.className = 'wp-slot-time';
@@ -472,7 +474,7 @@ function openDangerConfirm(
   const accent = opts?.accent ?? 'danger';
   const buttons: Array<{
     label: string;
-    variant?: 'solid' | 'outline' | 'ghost' | 'pill';
+    variant?: 'solid' | 'outline' | 'ghost';
     accent?: string;
     closes: boolean;
     onClick?: () => void;
@@ -496,7 +498,9 @@ function openDangerConfirm(
     accent,
     buttons,
   });
-  document.body.appendChild(modal.el);
+  // Mount inside the stage: the transformed stage is the containing block for
+  // fixed-position descendants, so the modal scales with the stage.
+  getStage().appendChild(modal.el);
   modal.onClose(() => {
     // Tear down the one-shot dialog after it finishes.
     modal.el.remove();
@@ -839,9 +843,9 @@ export function showCommsOverlay(lines: CommsLineView[], onDismiss: () => void):
   panel.innerHTML = '';
 
   const header = document.createElement('div');
-  header.className = 'gui-panel__header';
+  header.className = 'wp-panel__header';
   const title = document.createElement('div');
-  title.className = 'gui-panel__title wp-comms-title';
+  title.className = 'wp-panel__title wp-comms-title';
   title.textContent = '⚡ Incoming Comms';
   header.appendChild(title);
   panel.appendChild(header);
@@ -858,7 +862,7 @@ export function showCommsOverlay(lines: CommsLineView[], onDismiss: () => void):
   }
 
   const footer = document.createElement('div');
-  footer.className = 'gui-panel__footer';
+  footer.className = 'wp-panel__footer';
   const dismiss = createButton({
     label: 'ACKNOWLEDGE',
     accent: 'warning',

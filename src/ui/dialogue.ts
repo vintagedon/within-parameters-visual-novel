@@ -128,7 +128,7 @@ function updatePortrait(
 
   const expressionKey = line.expression ?? character.defaultExpression;
   const assetKey = character.expressions[expressionKey] ?? character.expressions[character.defaultExpression] ?? '';
-  const placeholderColor = portraitColors.get(assetKey) ?? 'var(--gui-surface-strong)';
+  const placeholderColor = portraitColors.get(assetKey) ?? 'var(--gc-surface-raised)';
   const initials = character.name
     .split(' ')
     .map((w) => w[0] ?? '')

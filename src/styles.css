@@ -1,36 +1,35 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    Within Parameters — WP composition stylesheet
    ─────────────────────────────────────────────────────────────────────────────
-   This file contains ONLY what the GameUI framework does not provide:
-   - the three-pane session layout (viewport / sidebar / bottom bar)
+   This file contains ONLY what the gc framework does not provide:
+   - the journey layout inside the 1920x1080 stage (scene / rail / dialogue band)
    - the VN presentation layer (background crossfade, portraits, dialogue box,
      typewriter, speaker name)
-   - the journey timeline, screen-overlay positioning, and narrative typography
+   - the journey timeline, full-stage overlay positioning, and narrative typography
    - per-component layout composition (slot rows, reward grid, settings stack)
 
-   Every color, font, radius, spacing, and motion value flows through a GameUI
-   token (var(--gui-*)), except the small set of owned --wp-* values declared
-   in the token block below for sizes and geometry the framework does not
-   define. There are no raw hex/px literals: a preset swap reaches WP too.
-   Buttons, panels, stat bars, modals, settings controls, and cards are
-   framework components and are NOT re-styled here.
+   Every color, font, radius, spacing, and motion value flows through a gc
+   token (var(--gc-*)) or an owned --wp-* value declared here or in wp.css.
+   All geometry is in stage-logical pixels: no viewport units, no
+   width/height/orientation breakpoints inside the stage (charter 4.1.1).
+   Buttons, panels, meters, modals, settings controls, and cards are framework
+   primitives plus WP `wp-*` compositions styled in wp.css, never edits to the
+   vendored tree.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* ─── WP-specific layout tokens (no framework equivalent) ─────────────────── */
 
 :root {
-  /* Three-pane geometry. These are WP's session layout, not component skin. */
-  --wp-viewport-width: 65%;
-  --wp-sidebar-width: 35%;
-  --wp-bottom-bar-height: 33vh;
-  --wp-bottom-bar-min-height: 280px;
-  --wp-portrait-width: 120px;
-  --wp-portrait-frame-width: 100px;
-  --wp-portrait-frame-height: 130px;
-  /* Owned display scale for the ending grade glyph. The framework defines
-     font sizes only through --gui-font-size-{sm,md,lg,xl}; the grade needs a
-     larger owned value rather than a reference to a token no shipped
-     stylesheet defines. */
+  /* Journey geometry. These are WP's session layout inside the stage
+     (composition contract, gate 5.2), not component skin. */
+  --wp-scene-width: 1423px;
+  --wp-rail-width: 401px;
+  --wp-rail-gutter: 24px;
+  --wp-upper-height: 688px;
+  --wp-band-gutter: 24px;
+  --wp-band-height: 272px;
+  --wp-portrait-width: 160px;
+  /* Owned display scale for the ending grade glyph. */
   --wp-score-grade-size: 3rem;
 }
 
@@ -49,10 +48,10 @@ body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: var(--gui-bg);
-  color: var(--gui-text);
-  font-family: var(--gui-font-body);
-  font-size: var(--gui-font-size-md);
+  background: var(--wp-stage-bg);
+  color: var(--gc-text-primary);
+  font-family: var(--gc-font-body);
+  font-size: var(--gc-type-body-size);
   line-height: 1.5;
 }
 
@@ -62,29 +61,33 @@ body {
   position: relative;
 }
 
-/* ─── Game Container & three-pane layout ─────────────────────────────────── */
+/* ─── Game container: journey layout inside the stage ────────────────────── */
 
 #game-container {
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
+  gap: var(--wp-band-gutter);
+  padding: var(--wp-margin);
   position: relative;
 }
 
 #main-area {
   display: flex;
-  flex: 1;
+  height: var(--wp-upper-height);
   overflow: hidden;
   min-height: 0;
+  gap: 0;
 }
 
 #viewport {
   position: relative;
-  width: var(--wp-viewport-width);
+  width: var(--wp-scene-width);
   flex-shrink: 0;
   overflow: hidden;
-  background: var(--gui-bg);
+  background: var(--gc-surface-canvas);
+  border: var(--gc-border-width) solid var(--gc-border-default);
 }
 
 #game-container.fullscreen #viewport {
@@ -102,65 +105,53 @@ body {
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  transition: opacity var(--gui-duration-slow) var(--gui-ease-out);
+  transition: opacity var(--gc-motion-slow) var(--gc-easing-standard);
 }
 
 .bg-layer.active { opacity: 1; }
 .bg-layer.inactive { opacity: 0; }
 
-#viewport::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse at center, transparent 50%, rgba(var(--gui-accent-primary-rgb), 0.04) 100%);
-  pointer-events: none;
-  z-index: 1;
-}
-
-/* ─── Sidebar ────────────────────────────────────────────────────────────── */
+/* ─── Sidebar (status rail) ──────────────────────────────────────────────── */
 
 #sidebar {
-  width: var(--wp-sidebar-width);
+  width: var(--wp-rail-width);
+  padding-left: var(--wp-rail-gutter);
   flex-shrink: 0;
-  background: var(--gui-bg);
-  border-left: var(--gui-border-width) solid var(--gui-border);
   display: flex;
   flex-direction: column;
+  gap: var(--gc-space-3);
   overflow-y: auto;
   overflow-x: hidden;
-  padding: var(--gui-space-md);
-  gap: var(--gui-space-md);
+  min-height: 0;
 }
 
-#sidebar::-webkit-scrollbar { width: var(--gui-space-xs); }
+#sidebar::-webkit-scrollbar { width: var(--gc-space-1); }
 #sidebar::-webkit-scrollbar-track { background: transparent; }
 #sidebar::-webkit-scrollbar-thumb {
-  background: var(--gui-border-strong);
-  border-radius: var(--gui-radius-pill);
+  background: var(--gc-border-strong);
+  border-radius: var(--gc-radius-pill);
 }
 
-/* Sidebar panels sit on the app background; tighten their padding so three
-   stacked panels read as a compact HUD rather than loose cards. */
-#sidebar .gui-panel {
-  padding: var(--gui-space-md);
-  border-radius: var(--gui-radius-md);
-  gap: var(--gui-space-sm);
+/* Rail panels: tighten padding so the stacked HUD reads compact. */
+#sidebar .gc-panel {
+  padding: var(--gc-space-3);
+  gap: var(--gc-space-2);
 }
 
 /* Clock reading — terminal-style mono readout; color follows urgency. */
 .wp-clock-reading {
-  font-family: var(--gui-font-mono);
-  font-size: var(--gui-font-size-xl);
+  font-family: var(--gc-font-code);
+  font-size: var(--wp-type-readout);
   font-weight: 700;
   letter-spacing: 0.05em;
-  color: var(--gui-accent-success);
-  transition: color var(--gui-duration-md) var(--gui-ease-out);
+  color: var(--gc-accent);
+  transition: color var(--gc-motion-base) var(--gc-easing-standard);
 }
 
-.wp-clock-reading[data-level="warn"] { color: var(--gui-accent-warning); }
+.wp-clock-reading[data-level="warn"] { color: var(--gc-status-warning); }
 .wp-clock-reading[data-level="danger"] {
-  color: var(--gui-accent-danger);
-  animation: wp-clock-pulse 1.5s var(--gui-ease-in-out) infinite;
+  color: var(--gc-status-danger);
+  animation: wp-clock-pulse 1.5s var(--gc-easing-standard) infinite;
 }
 
 @keyframes wp-clock-pulse {
@@ -173,15 +164,15 @@ body {
 .wp-timeline {
   display: flex;
   flex-direction: column;
-  gap: var(--gui-space-sm);
+  gap: var(--gc-space-2);
 }
 
 .wp-timeline__stop {
   display: flex;
   align-items: center;
-  gap: var(--gui-space-sm);
+  gap: var(--gc-space-2);
   opacity: 0.4;
-  transition: opacity var(--gui-duration-md) var(--gui-ease-out);
+  transition: opacity var(--gc-motion-base) var(--gc-easing-standard);
 }
 
 .wp-timeline__stop.is-visited { opacity: 0.7; }
@@ -189,65 +180,54 @@ body {
 .wp-timeline__stop.is-upcoming { opacity: 0.3; }
 
 .wp-timeline__dot {
-  width: var(--gui-space-sm);
-  height: var(--gui-space-sm);
+  width: var(--gc-space-2);
+  height: var(--gc-space-2);
   border-radius: 50%;
-  border: var(--gui-border-width) solid var(--gui-border-strong);
+  border: var(--gc-border-width) solid var(--gc-border-strong);
   background: transparent;
   flex-shrink: 0;
-  transition: background var(--gui-duration-md) var(--gui-ease-out),
-              border-color var(--gui-duration-md) var(--gui-ease-out);
+  transition: background var(--gc-motion-base) var(--gc-easing-standard),
+              border-color var(--gc-motion-base) var(--gc-easing-standard);
 }
 
 .wp-timeline__stop.is-visited .wp-timeline__dot {
-  background: var(--gui-text-muted);
-  border-color: var(--gui-text-muted);
+  background: var(--gc-text-muted);
+  border-color: var(--gc-text-muted);
 }
 
 .wp-timeline__stop.is-current .wp-timeline__dot {
-  background: var(--gui-accent-primary);
-  border-color: var(--gui-accent-primary);
-  box-shadow: 0 0 var(--gui-glow-blur) rgba(var(--gui-accent-primary-rgb), var(--gui-glow-alpha));
+  background: var(--gc-accent);
+  border-color: var(--gc-accent);
+  box-shadow: 0 0 var(--gc-space-2) color-mix(in oklch, var(--gc-accent) 45%, transparent);
 }
 
 .wp-timeline__label {
-  font-family: var(--gui-font-display);
-  font-size: var(--gui-font-size-sm);
-  color: var(--gui-text-muted);
+  font-family: var(--gc-font-code);
+  font-size: var(--wp-type-route);
+  color: var(--gc-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .wp-timeline__stop.is-current .wp-timeline__label {
-  color: var(--gui-text);
+  color: var(--gc-text-primary);
 }
 
-/* ─── Bottom Bar ─────────────────────────────────────────────────────────── */
+/* ─── Bottom Bar (dialogue band) ─────────────────────────────────────────── */
 
 #bottom-bar {
-  height: var(--wp-bottom-bar-height);
-  min-height: var(--wp-bottom-bar-min-height);
-  background: var(--gui-surface);
-  border-top: var(--gui-border-width) solid var(--gui-border);
+  height: var(--wp-band-height);
+  flex-shrink: 0;
+  background: var(--gc-surface-base);
+  border: var(--gc-border-width) solid var(--gc-border-default);
   display: flex;
   align-items: stretch;
-  padding: var(--gui-space-md);
-  gap: var(--gui-space-md);
+  padding: var(--gc-space-4);
+  gap: var(--gc-space-4);
   cursor: pointer;
   user-select: none;
   position: relative;
-}
-
-#bottom-bar::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: var(--gui-border-width);
-  background: linear-gradient(90deg, transparent, var(--gui-accent-primary), transparent);
-  opacity: 0.3;
 }
 
 /* ─── Portrait Area (VN presentation) ────────────────────────────────────── */
@@ -264,13 +244,13 @@ body {
 #portrait-area.hidden { display: none; }
 
 .portrait-frame {
-  width: var(--wp-portrait-frame-width);
-  height: var(--wp-portrait-frame-height);
-  border: var(--gui-border-width) solid var(--gui-border-strong);
-  border-radius: var(--gui-radius-sm);
+  width: var(--wp-portrait-width);
+  height: var(--wp-band-height);
+  border: var(--gc-border-width) solid var(--gc-border-strong);
+  border-radius: var(--gc-radius-small);
   overflow: hidden;
   position: relative;
-  background: var(--gui-bg);
+  background: var(--gc-surface-sunken);
 }
 
 .portrait-frame img {
@@ -287,16 +267,16 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--gui-font-display);
-  font-size: var(--gui-font-size-xl);
+  font-family: var(--gc-font-body);
+  font-size: var(--gc-type-title-size);
   font-weight: 700;
-  color: var(--gui-text-muted);
+  color: var(--gc-text-muted);
 }
 
 .portrait-layer {
   position: absolute;
   inset: 0;
-  transition: opacity var(--gui-duration-md) var(--gui-ease-out);
+  transition: opacity var(--gc-motion-base) var(--gc-easing-standard);
 }
 
 .portrait-layer.active { opacity: 1; }
@@ -309,29 +289,30 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  gap: var(--gui-space-sm);
+  gap: var(--gc-space-2);
   min-width: 0;
 }
 
 #speaker-name {
-  font-family: var(--gui-font-display);
-  font-size: var(--gui-font-size-sm);
+  font-family: var(--gc-font-code);
+  font-size: var(--wp-type-speaker);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--gui-accent-primary);
+  color: var(--gc-status-warning);
   min-height: 1.2em;
 }
 
 #speaker-name:empty { display: none; }
 
 #dialogue-text {
-  font-family: var(--gui-font-body);
-  font-size: var(--gui-font-size-md);
-  line-height: 1.65;
-  color: var(--gui-text);
+  font-family: var(--gc-font-body);
+  font-size: var(--wp-type-dialogue);
+  line-height: 1.3;
+  color: var(--gc-text-primary);
   flex: 1;
   position: relative;
+  min-height: 0;
 }
 
 /* Typewriter cursor. */
@@ -339,7 +320,7 @@ body {
   content: '▌';
   display: inline;
   animation: wp-cursor-blink 0.8s step-end infinite;
-  color: var(--gui-accent-primary);
+  color: var(--gc-accent);
   opacity: 0;
 }
 
@@ -352,11 +333,11 @@ body {
 
 #advance-indicator {
   position: absolute;
-  bottom: var(--gui-space-xs);
+  bottom: var(--gc-space-1);
   right: 0;
-  font-size: var(--gui-font-size-sm);
-  color: var(--gui-text-muted);
-  animation: wp-indicator-pulse 1.5s var(--gui-ease-in-out) infinite;
+  font-size: var(--wp-type-route);
+  color: var(--gc-text-muted);
+  animation: wp-indicator-pulse 1.5s var(--gc-easing-standard) infinite;
 }
 
 @keyframes wp-indicator-pulse {
@@ -368,133 +349,147 @@ body {
 
 #choices-area {
   display: flex;
-  gap: var(--gui-space-sm);
+  gap: var(--gc-space-3);
   flex-wrap: wrap;
-  margin-top: var(--gui-space-sm);
+  margin-top: var(--gc-space-2);
 }
 
-/* Choices are framework .gui-btn controls; WP only stretches them full-width. */
+/* Choices are framework .gc-button controls; WP stretches them to share the row. */
 .wp-choice-btn {
   flex: 1;
-  min-width: 180px;
+  min-width: 360px;
+  max-width: 760px;
+  min-height: 64px;
   text-align: left;
   justify-content: flex-start;
+  white-space: normal;
+  height: auto;
 }
 
-/* ─── Full-screen overlay screens (positioning only) ─────────────────────── */
+/* ─── Full-stage overlays (positioning only) ─────────────────────────────── */
 
-/* Every full-screen overlay shares this rule, so overflow safety is a
-   property of the overlay class, not of any one panel. `safe center` keeps
+/* Every full-stage overlay carries .wp-overlay, so overflow safety is a
+   property of the overlay class, not of any one panel: `safe center` keeps
    content vertically centered while it fits and falls back to start
-   alignment once it exceeds the stage, so the top stays visible; the
-   overlay itself is the scroll container (html/body clip overflow).
-   Children keep their natural height: a too-tall panel scrolls instead of
-   being squashed. Keyed to content height, never to a viewport breakpoint. */
-.screen-overlay {
+   alignment once it exceeds the stage, so the top stays visible; the overlay
+   itself is the scroll container. Children keep their natural height: a
+   too-tall panel scrolls instead of being squashed. Keyed to content height,
+   never to a viewport breakpoint. Overlays mount inside the stage, whose
+   transform makes it their containing block. */
+.wp-overlay {
   position: fixed;
   inset: 0;
-  background: var(--gui-bg);
+  background: color-mix(in oklch, var(--wp-stage-bg) 92%, transparent);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: safe center;
-  z-index: var(--gui-z-overlay);
-  gap: var(--gui-space-lg);
-  padding: var(--gui-space-lg);
+  z-index: var(--gc-z-overlay);
+  gap: var(--gc-space-5);
+  padding: var(--wp-margin);
   overflow-y: auto;
 }
 
-.screen-overlay > * {
+.wp-overlay > * {
   flex-shrink: 0;
 }
 
-.screen-overlay.hidden { display: none; }
+.wp-overlay.hidden { display: none; }
 
 /* ─── Title Screen ───────────────────────────────────────────────────────── */
 
 #title-screen {
-  background: radial-gradient(ellipse at center, var(--gui-surface) 0%, var(--gui-bg) 70%);
+  background: radial-gradient(ellipse at center, var(--gc-surface-base) 0%, var(--wp-stage-bg) 70%);
 }
 
 .title-logo {
   text-align: center;
-  margin-bottom: var(--gui-space-lg);
+  margin-bottom: var(--gc-space-5);
 }
 
 .title-main {
-  font-family: var(--gui-font-display);
-  font-size: var(--gui-font-size-xl);
+  font-family: var(--gc-font-body);
+  font-size: var(--gc-type-display-size);
   font-weight: 700;
-  color: var(--gui-text);
+  color: var(--gc-text-primary);
   letter-spacing: 0.15em;
   text-transform: uppercase;
   line-height: 1;
 }
 
 .title-sub {
-  font-family: var(--gui-font-mono);
-  font-size: var(--gui-font-size-sm);
-  color: var(--gui-text-muted);
+  font-family: var(--gc-font-code);
+  font-size: var(--wp-type-build-id);
+  color: var(--gc-text-muted);
   letter-spacing: 0.3em;
   text-transform: uppercase;
-  margin-top: var(--gui-space-md);
+  margin-top: var(--gc-space-4);
 }
 
 /* The title menu is a stacked column of framework buttons. */
 .title-menu {
   display: flex;
   flex-direction: column;
-  gap: var(--gui-space-sm);
-  width: 280px;
+  gap: var(--gc-space-3);
+  width: 560px;
 }
 
-.title-menu .gui-btn {
+.title-menu .gc-button {
   justify-content: center;
+  min-height: 72px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
+}
+
+/* Build identifier (gate 5.7 renders content into it). */
+.wp-build-id {
+  font-family: var(--gc-font-code);
+  font-size: var(--wp-type-build-id);
+  color: var(--gc-text-muted);
+  letter-spacing: 0.08em;
 }
 
 /* ─── Save/Load composition ──────────────────────────────────────────────── */
 
 .wp-save-load-panel {
   width: 100%;
-  max-width: 640px;
+  max-width: 900px;
 }
 
 .slot-list {
   display: flex;
   flex-direction: column;
-  gap: var(--gui-space-sm);
+  gap: var(--gc-space-2);
   width: 100%;
 }
 
 .wp-slot-panel {
-  padding: var(--gui-space-sm) var(--gui-space-md) !important;
-  border-radius: var(--gui-radius-md) !important;
-  gap: var(--gui-space-xs) !important;
+  padding: var(--gc-space-2) var(--gc-space-3);
+  border-radius: var(--gc-radius-small);
+  gap: var(--gc-space-1);
 }
 
 .wp-slot-header { min-height: auto; }
 
 .wp-slot-label {
-  font-size: var(--gui-font-size-sm);
-  color: var(--gui-text-muted);
+  font-size: var(--gc-type-label-size);
+  color: var(--gc-text-muted);
 }
 
 .wp-slot-meta {
-  font-size: var(--gui-font-size-md);
-  color: var(--gui-text);
+  font-size: var(--gc-type-body-size);
+  color: var(--gc-text-primary);
 }
 
 .wp-slot-footer {
   justify-content: space-between;
-  padding-top: var(--gui-space-xs);
+  padding-top: var(--gc-space-1);
 }
 
 .wp-slot-time {
-  font-family: var(--gui-font-mono);
-  font-size: var(--gui-font-size-sm);
-  color: var(--gui-text-muted);
+  font-family: var(--gc-font-code);
+  font-size: var(--gc-type-label-size);
+  color: var(--gc-text-muted);
 }
 
 #save-load-footer { justify-content: center; }
@@ -503,13 +498,13 @@ body {
 
 .wp-settings-panel {
   width: 100%;
-  max-width: 480px;
+  max-width: 560px;
 }
 
 .wp-settings-rows {
   display: flex;
   flex-direction: column;
-  gap: var(--gui-space-sm);
+  gap: var(--gc-space-2);
 }
 
 #settings-footer { justify-content: center; }
@@ -518,58 +513,58 @@ body {
 
 .wp-ending-panel {
   width: 100%;
-  max-width: 720px;
+  max-width: 860px;
   text-align: center;
 }
 
 .ending-type {
-  font-family: var(--gui-font-display);
-  font-size: var(--gui-font-size-sm);
+  font-family: var(--gc-font-code);
+  font-size: var(--gc-type-label-size);
   font-weight: 700;
   letter-spacing: 0.25em;
-  color: var(--gui-text-muted);
+  color: var(--gc-text-muted);
   text-transform: uppercase;
 }
 
 .ending-title {
-  font-family: var(--gui-font-display);
-  font-size: var(--gui-font-size-xl);
+  font-family: var(--gc-font-body);
+  font-size: var(--gc-type-display-size);
   font-weight: 700;
-  color: var(--gui-text);
+  color: var(--gc-text-primary);
   letter-spacing: 0.1em;
-  margin: var(--gui-space-md) 0;
+  margin: var(--gc-space-3) 0;
 }
 
 .ending-epilogue {
-  font-family: var(--gui-font-body);
-  font-size: var(--gui-font-size-md);
+  font-family: var(--gc-font-body);
+  font-size: var(--gc-type-body-size);
   line-height: 1.8;
-  color: var(--gui-text-muted);
+  color: var(--gc-text-secondary);
   text-align: left;
-  max-width: 560px;
-  margin: 0 auto var(--gui-space-lg);
+  max-width: 680px;
+  margin: 0 auto var(--gc-space-5);
 }
 
 .ending-community {
-  color: var(--gui-accent-warning);
+  color: var(--gc-status-warning);
   font-weight: 600;
 }
 
 .wp-ending-actions {
   justify-content: center;
-  gap: var(--gui-space-md);
+  gap: var(--gc-space-4);
 }
 
 /* ─── Ending Score Breakdown (additive, below the narrative epilogue) ────── */
 
 .wp-ending-score {
   width: 100%;
-  max-width: 560px;
-  margin: 0 auto var(--gui-space-lg);
-  padding: var(--gui-space-md);
-  border: var(--gui-border-width) solid var(--gui-border);
-  border-radius: var(--gui-radius-md);
-  background: var(--gui-surface);
+  max-width: 680px;
+  margin: 0 auto var(--gc-space-5);
+  padding: var(--gc-space-3);
+  border: var(--gc-border-width) solid var(--gc-border-default);
+  border-radius: var(--gc-radius-small);
+  background: var(--gc-surface-base);
   text-align: left;
 }
 
@@ -577,142 +572,142 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--gui-space-md);
-  padding-bottom: var(--gui-space-sm);
-  border-bottom: var(--gui-border-width) solid var(--gui-border);
-  margin-bottom: var(--gui-space-sm);
+  gap: var(--gc-space-3);
+  padding-bottom: var(--gc-space-2);
+  border-bottom: var(--gc-border-width) solid var(--gc-border-default);
+  margin-bottom: var(--gc-space-2);
 }
 
 .wp-score-grade {
-  font-family: var(--gui-font-display);
+  font-family: var(--gc-font-body);
   font-size: var(--wp-score-grade-size);
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0.05em;
-  color: var(--gui-accent-success);
+  color: var(--gc-accent);
 }
 
-.wp-score-grade--S, .wp-score-grade--A { color: var(--gui-accent-success); }
-.wp-score-grade--B, .wp-score-grade--C { color: var(--gui-accent-primary); }
-.wp-score-grade--D { color: var(--gui-accent-warning); }
-.wp-score-grade--F { color: var(--gui-accent-danger); }
+.wp-score-grade--S, .wp-score-grade--A { color: var(--gc-accent); }
+.wp-score-grade--B, .wp-score-grade--C { color: var(--gc-accent); }
+.wp-score-grade--D { color: var(--gc-status-warning); }
+.wp-score-grade--F { color: var(--gc-status-danger); }
 
 .wp-score-final {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: var(--gui-space-xs);
+  gap: var(--gc-space-1);
 }
 
 .wp-score-final-num {
-  font-family: var(--gui-font-mono);
-  font-size: var(--gui-font-size-xl);
+  font-family: var(--gc-font-code);
+  font-size: var(--gc-type-title-size);
   font-weight: 700;
-  color: var(--gui-text);
+  color: var(--gc-text-primary);
 }
 
 .wp-score-final-lbl {
-  font-family: var(--gui-font-display);
-  font-size: var(--gui-font-size-sm);
+  font-family: var(--gc-font-code);
+  font-size: var(--gc-type-label-size);
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--gui-text-muted);
+  color: var(--gc-text-muted);
 }
 
 .wp-score-components {
   display: flex;
   flex-direction: column;
-  gap: var(--gui-space-xs);
+  gap: var(--gc-space-1);
 }
 
 .wp-score-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-family: var(--gui-font-body);
-  font-size: var(--gui-font-size-sm);
-  color: var(--gui-text-muted);
+  font-family: var(--gc-font-body);
+  font-size: var(--gc-type-label-size);
+  color: var(--gc-text-secondary);
 }
 
 .wp-score-row-value {
-  font-family: var(--gui-font-mono);
-  color: var(--gui-text);
+  font-family: var(--gc-font-code);
+  color: var(--gc-text-primary);
 }
 
 .wp-score-row--total {
-  margin-top: var(--gui-space-xs);
-  padding-top: var(--gui-space-xs);
-  border-top: var(--gui-border-width) solid var(--gui-border);
+  margin-top: var(--gc-space-1);
+  padding-top: var(--gc-space-1);
+  border-top: var(--gc-border-width) solid var(--gc-border-default);
   font-weight: 700;
-  color: var(--gui-text);
+  color: var(--gc-text-primary);
 }
 
 .wp-score-cap,
 .wp-score-penalty {
-  font-family: var(--gui-font-mono);
-  font-size: var(--gui-font-size-sm);
-  color: var(--gui-text-muted);
-  margin-top: var(--gui-space-xs);
+  font-family: var(--gc-font-code);
+  font-size: var(--gc-type-label-size);
+  color: var(--gc-text-muted);
+  margin-top: var(--gc-space-1);
 }
 
-.wp-score-penalty { color: var(--gui-accent-warning); }
+.wp-score-penalty { color: var(--gc-status-warning); }
 
 .wp-score-epilogue {
-  margin-top: var(--gui-space-sm);
-  padding-top: var(--gui-space-sm);
-  border-top: var(--gui-border-width) solid var(--gui-border);
+  margin-top: var(--gc-space-2);
+  padding-top: var(--gc-space-2);
+  border-top: var(--gc-border-width) solid var(--gc-border-default);
   display: flex;
   flex-direction: column;
-  gap: var(--gui-space-xs);
+  gap: var(--gc-space-1);
 }
 
 .wp-score-backstory,
 .wp-score-traitline {
-  font-family: var(--gui-font-body);
-  font-size: var(--gui-font-size-sm);
+  font-family: var(--gc-font-body);
+  font-size: var(--gc-type-label-size);
   line-height: 1.6;
-  color: var(--gui-text-muted);
+  color: var(--gc-text-secondary);
   font-style: italic;
 }
 
 /* ─── Dossier Screen (chargen — spec 03) ─────────────────────────────────── */
 
 #dossier-screen {
-  background: radial-gradient(ellipse at center, var(--gui-surface) 0%, var(--gui-bg) 70%);
+  background: radial-gradient(ellipse at center, var(--gc-surface-base) 0%, var(--wp-stage-bg) 70%);
 }
 
 .wp-dossier-panel {
   width: 100%;
-  max-width: 720px;
-  max-height: calc(100vh - var(--gui-space-xl) * 2);
+  max-width: 860px;
+  max-height: calc(var(--wp-stage-height) - var(--wp-margin) * 2);
   overflow-y: auto;
 }
 
 .wp-dossier-body {
   display: flex;
   flex-direction: column;
-  gap: var(--gui-space-md);
+  gap: var(--gc-space-3);
 }
 
 .wp-dossier-identity {
   display: flex;
   align-items: center;
-  gap: var(--gui-space-md);
+  gap: var(--gc-space-3);
 }
 
 .wp-dossier-portrait {
   width: 96px;
   height: 124px;
   flex-shrink: 0;
-  border-radius: var(--gui-radius-sm);
-  border: var(--gui-border-width) solid var(--gui-border-strong);
+  border-radius: var(--gc-radius-small);
+  border: var(--gc-border-width) solid var(--gc-border-strong);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--gui-font-display);
-  font-size: var(--gui-font-size-xl);
+  font-family: var(--gc-font-body);
+  font-size: var(--gc-type-title-size);
   font-weight: 700;
-  color: var(--gui-text-muted);
+  color: var(--gc-text-muted);
   letter-spacing: 0.05em;
   overflow: hidden;
 }
@@ -727,207 +722,144 @@ body {
 .wp-dossier-namehead {
   display: flex;
   flex-direction: column;
-  gap: var(--gui-space-xs);
+  gap: var(--gc-space-1);
   min-width: 0;
 }
 
 .wp-dossier-name {
-  font-family: var(--gui-font-display);
-  font-size: var(--gui-font-size-xl);
+  font-family: var(--gc-font-body);
+  font-size: var(--gc-type-title-size);
   font-weight: 700;
-  color: var(--gui-text);
+  color: var(--gc-text-primary);
   letter-spacing: 0.05em;
 }
 
 .wp-dossier-callsign {
-  font-family: var(--gui-font-mono);
-  font-size: var(--gui-font-size-sm);
+  font-family: var(--gc-font-code);
+  font-size: var(--gc-type-label-size);
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--gui-accent-primary);
+  color: var(--gc-accent);
 }
 
 .wp-dossier-label {
   display: block;
-  font-family: var(--gui-font-display);
-  font-size: var(--gui-font-size-sm);
+  font-family: var(--gc-font-code);
+  font-size: var(--gc-type-label-size);
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--gui-text-muted);
-  margin-bottom: var(--gui-space-xs);
+  color: var(--gc-text-muted);
+  margin-bottom: var(--gc-space-1);
 }
 
 .wp-dossier-value {
-  font-family: var(--gui-font-body);
-  font-size: var(--gui-font-size-md);
-  color: var(--gui-text);
+  font-family: var(--gc-font-body);
+  font-size: var(--gc-type-body-size);
+  color: var(--gc-text-primary);
 }
 
 .wp-dossier-backstory p {
-  font-family: var(--gui-font-body);
-  font-size: var(--gui-font-size-md);
+  font-family: var(--gc-font-body);
+  font-size: var(--gc-type-body-size);
   line-height: 1.7;
-  color: var(--gui-text-muted);
+  color: var(--gc-text-secondary);
 }
 
 .wp-dossier-traits {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--gui-space-sm);
-}
-
-@media (max-width: 540px) {
-  .wp-dossier-traits { grid-template-columns: 1fr; }
+  gap: var(--gc-space-2);
 }
 
 .wp-dossier-reroll-status {
   display: flex;
   justify-content: space-between;
-  gap: var(--gui-space-md);
-  padding: var(--gui-space-sm) var(--gui-space-md);
-  border: var(--gui-border-width) solid var(--gui-border);
-  border-radius: var(--gui-radius-sm);
-  background: var(--gui-bg);
-  font-family: var(--gui-font-mono);
-  font-size: var(--gui-font-size-sm);
+  gap: var(--gc-space-3);
+  padding: var(--gc-space-2) var(--gc-space-3);
+  border: var(--gc-border-width) solid var(--gc-border-default);
+  border-radius: var(--gc-radius-small);
+  background: var(--gc-surface-canvas);
+  font-family: var(--gc-font-code);
+  font-size: var(--gc-type-label-size);
   letter-spacing: 0.08em;
-  color: var(--gui-text-muted);
+  color: var(--gc-text-muted);
 }
 
 .wp-dossier-reroll-status strong {
-  color: var(--gui-accent-primary);
+  color: var(--gc-accent);
   font-weight: 700;
 }
 
 .wp-dossier-footer {
   justify-content: center;
-  gap: var(--gui-space-md);
+  gap: var(--gc-space-4);
 }
 
-/* ─── Lore Card ──────────────────────────────────────────────────────────── */
-
-#lore-screen {
-  text-align: center;
-  background: linear-gradient(180deg, var(--gui-bg) 0%, var(--gui-surface) 100%);
-}
-
-.lore-text {
-  font-family: var(--gui-font-body);
-  font-size: var(--gui-font-size-md);
-  line-height: 1.9;
-  color: var(--gui-text-muted);
-  max-width: 640px;
-  text-align: left;
-}
-
-.lore-skip {
-  font-family: var(--gui-font-display);
-  font-size: var(--gui-font-size-sm);
-  color: var(--gui-text-muted);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  cursor: pointer;
-  opacity: 0.6;
-  transition: opacity var(--gui-duration-fast) var(--gui-ease-out);
-}
-
-.lore-skip:hover { opacity: 1; }
-
-/* ─── Reward Overlay (positioning + grid; cards are framework) ───────────── */
-
-#reward-overlay {
-  position: fixed;
-  inset: 0;
-  background: color-mix(in srgb, var(--gui-bg) 92%, transparent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: var(--gui-z-overlay);
-  padding: var(--gui-space-lg);
-}
-
-#reward-overlay.hidden { display: none; }
+/* ─── Reward Overlay (positioning + grid; cards are WP compositions) ─────── */
 
 .wp-reward-panel {
   width: 100%;
-  max-width: 860px;
+  max-width: 1180px;
 }
 
 .wp-reward-cards {
   display: flex;
-  gap: var(--gui-space-md);
+  gap: var(--gc-space-4);
 }
 
-.wp-reward-cards .gui-card {
+.wp-reward-cards .wp-card {
   flex: 1;
   cursor: pointer;
 }
 
-/* ─── Comms Overlay (positioning; panel is framework) ────────────────────── */
+/* ─── Comms Overlay (full-stage; panel scrolls internally) ───────────────── */
 
-#comms-overlay {
-  position: fixed;
-  bottom: calc(var(--wp-bottom-bar-height) + var(--gui-space-md));
-  right: var(--gui-space-md);
-  width: 320px;
-  z-index: var(--gui-z-sticky);
+.wp-comms-panel {
+  width: 100%;
+  max-width: 760px;
+  max-height: calc(var(--wp-stage-height) - var(--wp-margin) * 2);
+  overflow-y: auto;
+  padding: var(--gc-space-4);
 }
 
-#comms-overlay.hidden { display: none; }
-
-.wp-comms-panel { padding: var(--gui-space-md); }
-
 .wp-comms-title {
-  font-size: var(--gui-font-size-sm);
+  font-size: var(--gc-type-label-size);
   letter-spacing: 0.1em;
 }
 
 .wp-comms-text {
-  font-family: var(--gui-font-body);
-  font-size: var(--gui-font-size-sm);
+  font-family: var(--gc-font-body);
+  font-size: var(--gc-type-body-size);
   line-height: 1.5;
-  color: var(--gui-text);
+  color: var(--gc-text-primary);
 }
 
 .wp-comms-speaker {
-  font-family: var(--gui-font-mono);
-  color: var(--gui-accent-info, #38bdf8);
+  font-family: var(--gc-font-code);
+  color: var(--gc-accent);
 }
 
-/* ─── Found Document Overlay (positioning; panel is framework) ───────────── */
-
-#hud-actions .gui-btn {
-  width: 100%;
-}
+/* ─── Found Document Overlay (full-stage; body scrolls) ──────────────────── */
 
 #document-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: var(--gui-z-modal, 50);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   background: rgba(0, 0, 0, 0.6);
-  padding: var(--gui-space-lg);
 }
 
-#document-overlay.hidden { display: none; }
-
 .wp-document-panel {
-  width: min(680px, 100%);
-  max-height: 80vh;
+  width: min(820px, 100%);
+  max-height: calc(var(--wp-stage-height) - var(--wp-margin) * 2);
   display: flex;
   flex-direction: column;
 }
 
 .wp-document-body {
   overflow-y: auto;
-  padding: var(--gui-space-md);
-  font-family: var(--gui-font-mono);
-  font-size: var(--gui-font-size-sm);
+  padding: var(--gc-space-3);
+  font-family: var(--gc-font-code);
+  font-size: var(--gc-type-body-size);
   line-height: 1.55;
   white-space: pre-wrap;
-  color: var(--gui-text);
+  color: var(--gc-text-primary);
 }
 
 /* ─── Utility ────────────────────────────────────────────────────────────── */
@@ -937,8 +869,8 @@ body {
 }
 
 .divider {
-  height: var(--gui-border-width);
-  background: var(--gui-border);
+  height: var(--gc-border-width);
+  background: var(--gc-border-default);
   width: 100%;
   opacity: 0.5;
 }

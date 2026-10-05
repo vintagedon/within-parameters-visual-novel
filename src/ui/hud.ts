@@ -1,15 +1,12 @@
 /**
- * HUD (sidebar) — stat bars, intrusion clock, and journey timeline.
+ * HUD (status rail) — stat meters, intrusion clock, journey timeline.
  * All elements are built once in initHUD and updated in place thereafter.
  *
- * Rendered through the GameUI framework: each section is a .gui-panel and the
- * stats are .gui-bar components (linear bars for knowledge/rapport, segmented
- * bars for the intrusion clock and resources). Only the WP stat semantics and
- * the engine bindings are preserved; the rendering is the framework's.
- *
- * Clock urgency is expressed through framework accent roles: success (safe),
- * warning (≥40%), danger (≥70%), applied to both the clock panel and the
- * segmented bar.
+ * Rendered through the gc framework's meter family: the intrusion clock is a
+ * segmented meter, knowledge and rapport are continuous meters, resources are
+ * pips. Values ride the framework's --gc-meter-value channel; the count rides
+ * --gc-meter-count. WP provides only the label rows and the urgency role
+ * mapping (data-wp-accent: cyan safe, amber warn, red danger).
  *
  * @module ui/hud
  */
@@ -19,7 +16,6 @@ import { createButton } from './gameui';
 
 // ─── Display constants ────────────────────────────────────────────────────────
 
-const RAPPORT_DISPLAY_MAX = 6;
 const RESOURCE_SEGMENTS = 8;
 
 // ─── DOM References ───────────────────────────────────────────────────────────
@@ -27,7 +23,6 @@ const RESOURCE_SEGMENTS = 8;
 let clockPanel: HTMLElement;
 let clockReading: HTMLElement;
 let clockBar: HTMLElement;
-let clockSegments: HTMLElement;
 
 let knowledgeBar: HTMLElement;
 let knowledgeValue: HTMLElement;
@@ -35,8 +30,8 @@ let knowledgeValue: HTMLElement;
 let rapportBar: HTMLElement;
 let rapportValue: HTMLElement;
 
+let resourcesBar: HTMLElement;
 let resourcesValue: HTMLElement;
-let resourceSegments: HTMLElement;
 
 let timelineBody: HTMLElement;
 
@@ -48,55 +43,54 @@ export function initHUD(sidebar: HTMLElement, config: GameConfig, onSave?: () =>
   totalStops = config.journeyStops;
 
   sidebar.innerHTML = `
-    <section class="gui-panel gui-panel--success wp-clock-panel" id="clock-panel">
-      <div class="gui-panel__header">
-        <div class="gui-panel__title">Intrusion Clock</div>
+    <section class="gc-panel wp-clock-panel" id="clock-panel" data-wp-accent="cyan">
+      <div class="wp-panel__header">
+        <div class="wp-panel__title">Intrusion Clock</div>
         <div class="wp-clock-reading" id="clock-reading">0 / ${config.clockMax}</div>
       </div>
-      <div class="gui-bar gui-bar--success gui-bar--segmented" id="clock-bar">
-        <div class="gui-bar__segments" id="clock-segments"></div>
+      <div class="gc-meter" data-shape="segmented" id="clock-bar" style="--gc-meter-count: ${config.clockMax}; --gc-meter-value: 0%;">
+        <div class="gc-meter__fill" id="clock-segments"></div>
       </div>
     </section>
 
-    <section class="gui-panel gui-panel--info" id="stat-panel">
-      <div class="gui-bar gui-bar--info" id="knowledge-bar" style="--amount: 0;">
-        <div class="gui-bar__header">
-          <span class="gui-bar__label">Knowledge</span>
-          <span class="gui-bar__value" id="knowledge-value">0 / ${config.knowledgeThreshold}</span>
-        </div>
-        <div class="gui-bar__track"><div class="gui-bar__fill"></div></div>
+    <section class="gc-panel" id="stat-panel">
+      <div class="wp-meter-head">
+        <span class="wp-meter-label">Knowledge</span>
+        <span class="wp-meter-value" id="knowledge-value">0 / ${config.knowledgeThreshold}</span>
+      </div>
+      <div class="gc-meter" data-shape="continuous" id="knowledge-bar" style="--gc-meter-value: 0%;">
+        <div class="gc-meter__fill"></div>
       </div>
 
-      <div class="gui-bar gui-bar--success" id="rapport-bar" style="--amount: 0;">
-        <div class="gui-bar__header">
-          <span class="gui-bar__label">Rapport</span>
-          <span class="gui-bar__value" id="rapport-value">0</span>
-        </div>
-        <div class="gui-bar__track"><div class="gui-bar__fill"></div></div>
+      <div class="wp-meter-head">
+        <span class="wp-meter-label">Rapport</span>
+        <span class="wp-meter-value" id="rapport-value">0</span>
+      </div>
+      <div class="gc-meter" data-shape="continuous" id="rapport-bar" style="--gc-meter-value: 0%;">
+        <div class="gc-meter__fill"></div>
       </div>
 
-      <div class="gui-bar gui-bar--success gui-bar--segmented" id="resources-bar">
-        <div class="gui-bar__header">
-          <span class="gui-bar__label">Resources</span>
-          <span class="gui-bar__value" id="resources-value">0</span>
-        </div>
-        <div class="gui-bar__segments" id="resources-segments"></div>
+      <div class="wp-meter-head">
+        <span class="wp-meter-label">Resources</span>
+        <span class="wp-meter-value" id="resources-value">0</span>
+      </div>
+      <div class="gc-meter" data-shape="pips" id="resources-bar" style="--gc-meter-count: ${RESOURCE_SEGMENTS}; --gc-meter-value: 0%;">
+        <div class="gc-meter__fill"></div>
       </div>
     </section>
 
-    <section class="gui-panel" id="timeline-panel">
-      <div class="gui-panel__header">
-        <div class="gui-panel__title">Route</div>
+    <section class="gc-panel" id="timeline-panel">
+      <div class="wp-panel__header">
+        <div class="wp-panel__title">Route</div>
       </div>
       <div class="wp-timeline" id="timeline-body"></div>
-      <div class="gui-panel__footer wp-hud-actions" id="hud-actions"></div>
+      <div class="wp-panel__footer wp-hud-actions" id="hud-actions"></div>
     </section>
   `;
 
   clockPanel = document.getElementById('clock-panel')!;
   clockReading = document.getElementById('clock-reading')!;
   clockBar = document.getElementById('clock-bar')!;
-  clockSegments = document.getElementById('clock-segments')!;
 
   knowledgeBar = document.getElementById('knowledge-bar')!;
   knowledgeValue = document.getElementById('knowledge-value')!;
@@ -104,8 +98,8 @@ export function initHUD(sidebar: HTMLElement, config: GameConfig, onSave?: () =>
   rapportBar = document.getElementById('rapport-bar')!;
   rapportValue = document.getElementById('rapport-value')!;
 
+  resourcesBar = document.getElementById('resources-bar')!;
   resourcesValue = document.getElementById('resources-value')!;
-  resourceSegments = document.getElementById('resources-segments')!;
 
   timelineBody = document.getElementById('timeline-body')!;
 
@@ -121,50 +115,46 @@ export function initHUD(sidebar: HTMLElement, config: GameConfig, onSave?: () =>
     save.el.id = 'hud-save';
     actions.appendChild(save.el);
   }
-
-  // Seed segmented bars and timeline at their initial state.
-  renderSegmented(clockSegments, 0, config.clockMax);
-  renderSegmented(resourceSegments, 0, RESOURCE_SEGMENTS);
-  updateTimeline(0, totalStops, []);
 }
 
 // ─── Update Functions ─────────────────────────────────────────────────────────
 
-/** Updates all HUD values from current state. The clock and resources use
- *  segmented bars (pip fill counts); knowledge and rapport use linear bars
- *  (--amount scaleX fill). Accent roles convey urgency and direction.
+/** Updates all HUD values from current state. All meters ride the framework's
+ *  --gc-meter-value channel; the segmented clock quantizes in CSS. Urgency
+ *  and direction are expressed through the WP accent roles on the owning
+ *  elements (data-wp-accent: cyan/amber/red).
  *
- *  The knowledge bar scales against the run's effective correction threshold
- *  (trait-adjusted, passed in by the caller): the bar fills exactly when the
- *  threshold is met, and the readout carries the threshold so the target is
- *  visible on the bar. */
+ *  The knowledge meter scales against the run's effective correction
+ *  threshold (trait-adjusted, passed in by the caller): the meter fills
+ *  exactly when the threshold is met, and the readout carries the threshold
+ *  so the target is visible on the meter. */
 export function updateStats(state: GameState, knowledgeThreshold: number): void {
   const { stats, clock } = state;
 
-  // ─── Intrusion Clock ── segmented bar + urgency accent ───────────────────
+  // ─── Intrusion Clock ── segmented meter + urgency accent ─────────────────
   const clockPct = clock.max > 0 ? (clock.current / clock.max) * 100 : 0;
   clockReading.textContent = `${clock.current} / ${clock.max}`;
-  renderSegmented(clockSegments, clock.current, clock.max);
+  clockBar.style.setProperty('--gc-meter-value', `${Math.min(100, clockPct)}%`);
 
-  setBarUrgency(clockBar, clockPct);
-  setPanelUrgency(clockPanel, clockPct);
+  setUrgency(clockBar, clockPct);
+  setUrgency(clockPanel, clockPct);
   clockReading.dataset.level = urgencyLevel(clockPct);
 
-  // ─── Knowledge ── linear bar (info/cyan), scaled to the threshold ────────
+  // ─── Knowledge ── continuous meter, scaled to the threshold ──────────────
   const knowledgeFraction = Math.min(1, stats.knowledge / knowledgeThreshold);
-  knowledgeBar.style.setProperty('--amount', String(knowledgeFraction));
+  knowledgeBar.style.setProperty('--gc-meter-value', `${knowledgeFraction * 100}%`);
   knowledgeValue.textContent = `${stats.knowledge} / ${knowledgeThreshold}`;
 
-  // ─── Rapport ── linear bar, success (≥0) or danger (<0), fill = magnitude ─
-  const clamped = Math.max(-RAPPORT_DISPLAY_MAX, Math.min(RAPPORT_DISPLAY_MAX, stats.rapport));
+  // ─── Rapport ── continuous meter, amber (>=0) or red (<0), fill = magnitude ─
+  const clamped = Math.max(-6, Math.min(6, stats.rapport));
   rapportValue.textContent = clamped >= 0 ? `+${clamped}` : String(clamped);
-  const rapportFraction = Math.abs(clamped) / RAPPORT_DISPLAY_MAX;
-  rapportBar.style.setProperty('--amount', String(rapportFraction));
-  setRapportAccent(rapportBar, stats.rapport);
+  const rapportFraction = Math.abs(clamped) / 6;
+  rapportBar.style.setProperty('--gc-meter-value', `${rapportFraction * 100}%`);
+  rapportBar.dataset.wpAccent = stats.rapport >= 0 ? 'amber' : 'red';
 
-  // ─── Resources ── segmented bar (success/green) ──────────────────────────
+  // ─── Resources ── pips (amber, the human-economy role) ───────────────────
   const shown = Math.min(RESOURCE_SEGMENTS, Math.max(0, stats.consumables));
-  renderSegmented(resourceSegments, shown, RESOURCE_SEGMENTS);
+  resourcesBar.style.setProperty('--gc-meter-value', `${(shown / RESOURCE_SEGMENTS) * 100}%`);
   resourcesValue.textContent = String(stats.consumables);
 }
 
@@ -211,20 +201,7 @@ export function updateTimeline(
   }
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/** Emits `total` pip elements into the container and marks the first `filled`
- *  with .is-filled, matching the framework's segmented-bar contract. */
-function renderSegmented(container: HTMLElement, filled: number, total: number): void {
-  container.innerHTML = '';
-  const count = Math.max(0, total);
-  for (let i = 0; i < count; i++) {
-    const pip = document.createElement('span');
-    pip.className = 'gui-bar__pip';
-    if (i < filled) pip.classList.add('is-filled');
-    container.appendChild(pip);
-  }
-}
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function urgencyLevel(pct: number): 'safe' | 'warn' | 'danger' {
   if (pct >= 70) return 'danger';
@@ -232,33 +209,10 @@ function urgencyLevel(pct: number): 'safe' | 'warn' | 'danger' {
   return 'safe';
 }
 
-/** Framework accent for each local urgency level. The framework defines
- *  success/warning/danger; the local safe/warn vocabulary feeds the readout's
- *  data-level attribute only. Accents are mapped explicitly — an interpolated
- *  --safe/--warn matches no framework class, so sub-70% states would silently
- *  lose their intended color and the dead class names would accumulate. */
-const URGENCY_ACCENT: Record<'safe' | 'warn' | 'danger', 'success' | 'warning' | 'danger'> = {
-  safe: 'success',
-  warn: 'warning',
-  danger: 'danger',
-};
-
-/** Swaps the bar's color modifier to convey clock urgency (success→warning→danger). */
-function setBarUrgency(bar: HTMLElement, pct: number): void {
-  const accent = URGENCY_ACCENT[urgencyLevel(pct)];
-  bar.classList.remove('gui-bar--success', 'gui-bar--warning', 'gui-bar--danger');
-  bar.classList.add(`gui-bar--${accent}`);
-}
-
-/** Swaps the clock panel's accent modifier to convey urgency. */
-function setPanelUrgency(panel: HTMLElement, pct: number): void {
-  const accent = URGENCY_ACCENT[urgencyLevel(pct)];
-  panel.classList.remove('gui-panel--success', 'gui-panel--warning', 'gui-panel--danger');
-  panel.classList.add(`gui-panel--${accent}`);
-}
-
-/** Sets the rapport bar accent: success for net-positive, danger for net-negative. */
-function setRapportAccent(bar: HTMLElement, rapport: number): void {
-  bar.classList.remove('gui-bar--success', 'gui-bar--danger');
-  bar.classList.add(rapport >= 0 ? 'gui-bar--success' : 'gui-bar--danger');
+/** Applies the WP accent role for a clock urgency level on any element
+ *  (cyan safe, amber warn, red danger). The framework's meter fill and the
+ *  panel border consume the scoped accent. */
+function setUrgency(el: HTMLElement, pct: number): void {
+  const level = urgencyLevel(pct);
+  el.dataset.wpAccent = level === 'danger' ? 'red' : level === 'warn' ? 'amber' : 'cyan';
 }

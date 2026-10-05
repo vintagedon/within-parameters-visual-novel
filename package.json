@@ -16,7 +16,10 @@
     "test:screens": "/opt/agents/venv/bin/python tests/capture.py",
     "test:screens:check": "/opt/agents/venv/bin/python tests/capture.py --check",
     "extremes": "node scripts/content-extremes.mjs",
-    "check:vendor": "node scripts/check-vendor-pin.mjs"
+    "check:vendor": "node scripts/check-vendor-pin.mjs",
+    "test:stage-fit": "/opt/agents/venv/bin/python tests/stage_fit_check.py",
+    "test:screens:walk": "/opt/agents/venv/bin/python tests/screen_walk_check.py",
+    "scan:viewport": "node scripts/scan-viewport-units.mjs src index.html"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",

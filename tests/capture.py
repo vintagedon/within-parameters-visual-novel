@@ -136,7 +136,7 @@ def click_first(page: Page, selector: str) -> bool:
 
 def click_text(page: Page, container: str, text: str) -> bool:
     """Click the first framework button under container whose label matches text."""
-    loc = page.locator(f"{container} .gui-btn", has_text=text)
+    loc = page.locator(f"{container} .gc-button", has_text=text)
     if loc.count() == 0:
         return False
     loc.first.click()
@@ -147,19 +147,19 @@ def click_text(page: Page, container: str, text: str) -> bool:
 # harness asserts the migration (not just that something rendered). Spec 03
 # extends this map when it adds the dossier and score screens.
 VERIFY: dict[str, str] = {
-    "title": "#title-menu .gui-btn",
-    "settings": "#settings-rows .gui-switch, #settings-rows .gui-toggle",
-    "save-load-confirm": ".gui-modal.is-open.gui-modal--danger",
+    "title": "#title-menu .gc-button",
+    "settings": "#settings-rows .wp-switch, #settings-rows .wp-toggle",
+    "save-load-confirm": ".wp-modal.is-open.wp-modal--danger",
     "lore-card": "#dialogue-text",
-    "hud-midrun": "#sidebar .gui-panel .gui-bar--segmented",
-    "comms-interrupt": "#comms-panel-body.gui-panel--warning",
+    "hud-midrun": "#sidebar .gc-panel .gc-meter[data-shape="segmented"]",
+    "comms-interrupt": "#comms-panel-body.gc-panel[data-wp-accent="amber"]",
     "document-overlay": "#document-overlay:not(.hidden) .wp-document-panel",
-    "reward-overlay": ".wp-reward-cards .gui-card",
-    "ending": "#ending-actions .gui-btn",
+    "reward-overlay": ".wp-reward-cards .wp-card",
+    "ending": "#ending-actions .gc-button",
     # Spec 03: the dossier (chargen) and its post-reroll state. Both render
-    # the two framework trait cards plus DEPLOY/REROLL gui-btn controls.
-    "dossier": "#dossier-screen:not(.hidden) .wp-dossier-traits .gui-card",
-    "dossier-reroll": "#dossier-screen:not(.hidden) .wp-dossier-traits .gui-card",
+    # the two framework trait cards plus DEPLOY/REROLL framework button controls.
+    "dossier": "#dossier-screen:not(.hidden) .wp-dossier-traits .wp-card",
+    "dossier-reroll": "#dossier-screen:not(.hidden) .wp-dossier-traits .wp-card",
 }
 
 
@@ -225,7 +225,7 @@ def capture_settings(page: Page, captured: set[str], errors: list[str]):
         assert_framework(page, "settings", errors)
         capture(page, SCREEN_MAP["settings"], errors)
         captured.add("settings")
-    click_first(page, "#settings-footer .gui-btn")  # CLOSE
+    click_first(page, "#settings-footer .gc-button")  # CLOSE
     page.locator("#settings-screen").wait_for(state="hidden", timeout=5000)
 
 
@@ -287,7 +287,7 @@ def walk_run(page: Page, captured: set[str], errors: list[str]):
                 capture(page, SCREEN_MAP["document-overlay"], errors)
                 captured.add("document-overlay")
                 doc_done = True
-            click_first(page, "#document-footer .gui-btn")
+            click_first(page, "#document-footer .gc-button")
             page.wait_for_timeout(ACTION_INTERVAL_MS)
             continue
 
@@ -299,7 +299,7 @@ def walk_run(page: Page, captured: set[str], errors: list[str]):
                 capture(page, SCREEN_MAP["reward-overlay"], errors)
                 captured.add("reward-overlay")
                 reward_done = True
-            click_first(page, ".wp-reward-cards .gui-card")
+            click_first(page, ".wp-reward-cards .wp-card")
             page.wait_for_timeout(ACTION_INTERVAL_MS)
             continue
 
@@ -311,14 +311,14 @@ def walk_run(page: Page, captured: set[str], errors: list[str]):
                 capture(page, SCREEN_MAP["comms-interrupt"], errors)
                 captured.add("comms-interrupt")
                 comms_done = True
-            click_first(page, "#comms-panel-body .gui-btn")
+            click_first(page, "#comms-panel-body .gc-button")
             page.wait_for_timeout(ACTION_INTERVAL_MS)
             continue
 
         # HUD becomes visible at the discovery scene → capture once. Right after,
         # trigger the (balance-gated) comms overlay via the dev hook so it can be
         # captured over the live game rather than behind the title overlay.
-        if not hud_done and visible(page, "#game-container:not(.fullscreen)") and visible(page, "#clock-segments .gui-bar__pip"):
+        if not hud_done and visible(page, "#game-container:not(.fullscreen)") and visible(page, "#clock-bar .gc-meter__fill"):
             page.wait_for_timeout(500)
             assert_framework(page, "hud-midrun", errors)
             capture(page, SCREEN_MAP["hud-midrun"], errors)
@@ -330,7 +330,7 @@ def walk_run(page: Page, captured: set[str], errors: list[str]):
             continue
 
         # Choices → pick the first enabled choice.
-        if click_first(page, "#choices-area .gui-btn:not([disabled])"):
+        if click_first(page, "#choices-area .gc-button:not([disabled])"):
             page.wait_for_timeout(ACTION_INTERVAL_MS)
             continue
 
@@ -371,7 +371,7 @@ def capture_ending(page: Page, captured: set[str], errors: list[str]):
     for _ in range(10):
         if not visible(page, "#reward-overlay:not(.hidden)"):
             break
-        click_first(page, ".wp-reward-cards .gui-card")
+        click_first(page, ".wp-reward-cards .wp-card")
         page.wait_for_timeout(ACTION_INTERVAL_MS)
     page.evaluate("window.__wp && window.__wp.triggerEnding()")
     page.wait_for_selector("#ending-screen:not(.hidden)", timeout=5000)
@@ -408,8 +408,8 @@ def capture_save_load_confirm(page: Page, captured: set[str], errors: list[str])
     page.wait_for_timeout(300)
 
     # Click the first occupied slot's action to open the danger confirm.
-    click_first(page, ".wp-slot-panel .gui-btn:not([disabled])")
-    page.wait_for_selector(".gui-modal.is-open", timeout=5000)
+    click_first(page, ".wp-slot-panel .gc-button:not([disabled])")
+    page.wait_for_selector(".wp-modal.is-open", timeout=5000)
     page.wait_for_timeout(500)
     if "save-load-confirm" not in captured:
         assert_framework(page, "save-load-confirm", errors)
@@ -417,9 +417,9 @@ def capture_save_load_confirm(page: Page, captured: set[str], errors: list[str])
         captured.add("save-load-confirm")
 
     # Cancel the confirm, then close the save/load screen.
-    page.locator(".gui-modal__footer .gui-btn", has_text="CANCEL").first.click()
+    page.locator(".wp-modal__footer .gc-button", has_text="CANCEL").first.click()
     page.wait_for_timeout(300)
-    click_first(page, "#save-load-footer .gui-btn")  # CANCEL
+    click_first(page, "#save-load-footer .gc-button")  # CANCEL
     page.locator("#save-load-screen").wait_for(state="hidden", timeout=5000)
 
 
