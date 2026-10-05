@@ -111,6 +111,7 @@ class RunResult:
         self.strategy = strategy
         self.ending: str | None = None
         self.score: int | None = None
+        self.raw_score: int | None = None
         self.grade: str | None = None
         self.actions = 0
         self.docs_read = 0
@@ -249,6 +250,15 @@ def play_run(
                 result.ending = ENDING_BY_LABEL.get(label, label)
                 result.score = int(page.locator("#ending-score .wp-score-final-num").text_content().strip())
                 result.grade = page.locator("#ending-score .wp-score-grade").first.text_content().strip()
+                # Gate 5.9 reference parity: extract the existing rendered
+                # Raw score row (read-only presentation extraction; no
+                # application source change).
+                raw_row = page.locator(
+                    "#ending-score .wp-score-row--total .wp-score-row-value"
+                )
+                result.raw_score = (
+                    int(raw_row.text_content().strip()) if raw_row.count() > 0 else None
+                )
                 epilogue = page.locator("#ending-epilogue").text_content() or ""
                 breakdown = page.locator("#ending-score").text_content() or ""
                 result.instant_chars += len(epilogue) + len(breakdown)
@@ -600,6 +610,7 @@ def main() -> int:
                     "strategy": r.strategy,
                     "ending": r.ending,
                     "score": r.score,
+                    "raw_score": r.raw_score,
                     "grade": r.grade,
                     "docs_read": r.docs_read,
                     "comms_tiers": r.comms_tiers,

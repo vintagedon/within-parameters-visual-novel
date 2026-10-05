@@ -117,3 +117,17 @@ Startup prerequisites, all four verified before the first change: (1) WP `main` 
 
 **Commit:** `372ecdc` (worklog checkpoint committed separately after the gate commit omitted it; the repair changes the worklog only)
 
+
+---
+
+## Gate 5.9: Parity: presentation changed nothing that plays
+
+**Changes.** `tests/complete_run.py`: the existing rendered Raw score row is extracted per run (read-only presentation extraction, authorized for reference parity); nothing else in the run path changed.
+
+**Parity result.** Fresh production build at the branch head; the full 37-run inventory on the gate 5.1 seeds and policies. Compared against `docs/presentation/ff9f442-parity-reference.json` by identity (seed + policy + reroll + resumed/uninterrupted): **37 of 37 runs match exactly** on outcome, grade, raw score, final score, decision count, and typed and instant character totals; zero mismatches. The run's own checks: 13 of 13 PASS, zero console errors and zero failed same-origin requests across the complete-run set; the save/resume twin pair matches (55/C both).
+
+**Suite at the branch head.** `test:live` 46/46; `test:mutation` 9/9 named-failure; counter mutations reject all three named mutations and accept the unmutated control; deleting the journey audio restore fails the focused audio assertion (run-audio-mutation); event audit 36/36; replay all validation criteria (6/6) with CSV parity 64/64 within 5 pp; resume check 12/12; reward boundaries 5/5; all source-present manifest assets packaged in `dist/` (the two already-absent and unused SFX sources remain enumerated as F-03); `preview_check` green.
+
+**Frozen-tree verification.** `git diff ff9f442 -- data/ src/types/ simulation/` is empty; the only diff under `src/engine/` is the single authorized `buildDossierView` presentation-token literal.
+
+**Commit:** this commit (SHA recorded at the next checkpoint)
