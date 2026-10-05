@@ -1,0 +1,216 @@
+=== test:live ===
+npm notice run within-parameters@0.1.0 test:live
+npm notice run node scripts/run-live-checks.mjs
+Within Parameters — live-path checks (drive the real SceneRunner)
+========================================================================
+  [PASS] 4.1 rough-touch: community cost +1, label == affordability == deduction
+         choice "Restore the relay to full capacity [3 modules]" from 8 -> 5
+  [PASS] 4.1 rough-touch: affordability disables below effective cost
+         held 2, effective cost 3, disabled
+  [PASS] 4.1 practiced: first spend of stop discounted, second not
+         raw 2: first 1, second 2
+  [PASS] 4.1 practiced: availability resets on stop advance
+         stop 1 raw 2, stop 2 raw 1, both discounted on first spend
+  [PASS] 4.1 light-foot: transit +1 clock suppressed
+         raw +1 suppressed; clock stayed 2
+  [PASS] 4.1 tunnel-nerves: approach raw clock 0 becomes +1
+         raw 0 became +1; clock 1
+  [PASS] 4.1 control: no clock traits leaves deltas raw
+         control: raw clock delta applied
+  [PASS] 4.2 threshold boundary: below / at / above under Clear-Headed
+         k9 -> destruction (view gate showed [Knowledge 10]); k10 -> correction (view gate showed [Knowledge 10]); k11 -> correction (view gate showed [Knowledge 10])
+  [PASS] 4.2 knowledge-8 probe: narrative == scored == persisted, outcome non-null
+         narrative destruction, scored destruction, outcome persisted
+  [PASS] 4.2 repair cost: charged exactly once, no second deduction
+         before 5 -> after 2 (fixCost 3); rawScore 60 == pre-charge cascade
+  [PASS] 4.2 clock-failure: persisted outcome consumed identically
+         clock-failure: narrative == scored == persisted
+  [PASS] 4.2 HUD threshold: display authority == ending authority
+         display 10; gate flips exactly there
+  [PASS] 4.3 event pool: 12 events, seeded draws fill every stop with no repeats
+         12 events (5/4/3, M3 ids); 20 seeded draws, zone-correct, no repeats, all stops filled
+  [PASS] 4.4 found document: read grants +1 knowledge through applyFoundDocument
+         CE-01 surfaced FD-01; knowledge +1 via the run surface
+  [PASS] 4.4 found document: Distracted gains nothing
+         Distracted: document surfaces, knowledge unchanged
+  [PASS] 4.4 found document: availability tracks the event draw
+         5 documented events, 7 clean; draw decides
+  [PASS] 4.5 comms beats: after stop 1, tier matches the live clock band
+         clock 0 -> 1 = green; clock 3 -> 4 = amber; clock 6 -> 7 = red
+  [PASS] 4.5 comms beats: after stop 3, tier read live at the trigger
+         beat B fired after stop 3 across starts 0/2/5, tiers seen: amber, red
+  [PASS] 4.5 comms beats: timing and bands are data-driven
+         green 0-2, amber 3-5, red 6-9 (amendment A1.4 bands); both beats per tier; full M3 dialogue
+  [PASS] 4.6 epilogue: helped-heavy vs harmed-heavy differ line for line
+         5/5 community lines differ between helped-heavy and harmed-heavy correction runs
+  [PASS] 4.6 epilogue: clock-failure shows no community modifiers
+         no community names in the clock-failure epilogue
+  [PASS] 4.6 epilogue: consumes the persisted outcome
+         persisted destruction wins over the passed narrative type
+  [PASS] 4.6 scenes and NPCs: full coverage, no six-stop text
+         scenes cover lore/authorization/journey/facility/endings; six NPCs present with M3 expressions and colors
+  [PASS] A1.1 save/resume: every SAVE-enabled phase restores field-by-field from a SaveManager slot and completes at twin parity
+         phases [event-choice, event-consequence, reward-pick, document, comms, facility-entry, facility-choice]: 7 resumed runs at twin parity — event-choice: stop 1, destruction @ 59, grants 0+5 | event-consequence: stop 1, destruction @ 59, grants 0+5 | reward-pick: stop 1, destruction @ 59, grants 0+5 | document: stop 1, destruction @ 69, grants 0+5 | comms: stop 2, destruction @ 58, grants 1+4 | facility-entry: stop 6, destruction @ 58, grants 5+0 | facility-choice: stop 6, destruction @ 58, grants 5+0
+  [PASS] A1.1 save/resume: advanced-RNG fixture restores the exact stream position
+         saved at stop 3 with rngState 2903474069; resumed to destruction @ 57
+  [PASS] A1.1 save/resume: Practiced fixture restores the consumed-discount state
+         saved after the discount was consumed; resumed run restored practicedAvailable=false and matched the twin
+  [PASS] A1.3 facility: the action grid resolves from the effective config
+         grid k<T.., m<F.. under T 10 / F 3: correction, shutdown, and two withdrawal states
+  [PASS] A1.3 withdrawal: the informed state (R3) reads truthfully to a coherent destruction
+         k13/m1: informed gate, coherent destruction ending
+  [PASS] A2.1 withdrawal: the zero-help reproduction renders no community-help claim
+         P2/N6 seed 34: k13/m2/r0, 5 communities ignored — informed gate, no community-help claim
+  [PASS] A1.3 withdrawal: the uninformed state carries the documentation claim, ends coherently
+         k6/m0: uninformed gate, coherent destruction ending
+  [PASS] A1.3 content: no keeps-processing claim survives in any scene
+         no scene text claims the archive keeps processing
+  [PASS] A1.4 content: no dialogue line opens with an in-text speaker prefix
+         175 dialogue lines across three files scanned; 0 in-text speaker prefixes
+  [PASS] A1.4 content: nameplates and in-text identities agree; crew leader is a named character
+         crew-leader is a manifest character; ENGINEER no longer speaks the crew-leader line
+  [PASS] A1.4 content: documents use no pool surnames and no contradicting NPC surnames
+         no pool surnames in 8 documents; FD-08 administrator renamed
+  [PASS] A1.4 comms bands: callback clocks 2/3/5/6 tier green/amber/amber/red at both trigger points
+         clocks 2/3/5/6 at both afterStop 1 and afterStop 3: green/amber/amber/red under the frozen bands
+  [PASS] A1.2 save/resume: a nonexistent pooled event id degrades without crashing
+         pool minus TE-04 resumed and completed as destruction
+  [PASS] A1.2 save/resume: a nonexistent active event id is refused, not crashed
+         refused: the saved event CE-99 is not part of this build
+  [PASS] A1.2 save/resume: a legacy pre-amendment comms slot resumes without duplicated effects
+         legacy slot (evt-ce04-reward) resumed through the transition to destruction @ 55
+  [PASS] A1.2 save/resume: slot validation accepts every resumable shape and refuses the rest
+         comms (snapshot + legacy), mid-event, and base-scene saves accepted; unresolvable refused
+  [PASS] 4.7 save/resume: resumed completion matches the uninterrupted score
+         destruction @ 68 == destruction @ 68 from seed 31337
+  [PASS] 4.8 evidence: 64 combos x 36 choices resolve identically to the resolver
+         4608 resolutions across 64 combos, 36 choices, both Practiced states: identical
+  [PASS] 4.8 evidence: all 64 combos complete runs without deadlock
+         128/128 runs (64 combos x 2 seeds) completed with an enabled choice always available
+  [PASS] A1.5 reachability: corrected bounds exclude self-credit; every reachable gate carries a legal path
+         5 gated choices: 5 reachable with legal paths (1 require rewards/documents), 0 proved unreachable; CE-02[0] gate 3: REACHABLE — seed 7, stop 2, route scene-discovery-01>evt-ce04-arrive>evt-ce04-a>evt-ce04-reward>evt-ce02-arrive, pre-choice knowledge 4 (of which choices 3; the rest from rewards/documents), knowledge rewards taken | CE-05[2] gate 4: REACHABLE — seed 13, stop 2, route scene-discovery-01>evt-ce04-arrive>evt-ce04-a>evt-ce04-reward>evt-ce05-arrive, pre-choice knowledge 4 (of which choices 3; the rest from rewards/documents), knowledge rewards taken | TE-03[1] gate 3: REACHABLE — seed 1, stop 3, route scene-discovery-01>evt-ce05-arrive>evt-ce05-b>evt-ce05-reward>evt-ce03-arrive>evt-ce03-a>evt-ce03-reward, pre-choice knowledge 3 (of which choices 3; the rest from rewards/documents), knowledge rewards taken | AE-02[0] gate 5: REACHABLE — seed 1, stop 5, route scene-discovery-01>evt-ce05-arrive>evt-ce05-b>evt-ce05-reward>evt-ce03-arrive>evt-ce03-a>evt-ce03-reward>evt-te03-c>evt-te03-reward>evt-te02-a>evt-te02-reward, pre-choice knowledge 7 (of which choices 6; the rest from rewards/documents), knowledge rewards taken | AE-03[0] gate 4: REACHABLE — seed 7, stop 5, route scene-discovery-01>evt-ce04-arrive>evt-ce04-a>evt-ce04-reward>evt-ce02-arrive>evt-ce02-c>evt-ce02-reward>evt-te04-a>evt-te04-reward>evt-te01-a>evt-te01-reward, pre-choice knowledge 9 (of which choices 7; the rest from rewards/documents), knowledge rewards taken
+  [PASS] A1.5 reachability: the self-credit fixture passes the old calculation and is rejected by the corrected bound
+         old attainable 16 >= 10 (passes); shared corrected evaluator bound 6 < 10 (rejected)
+  [PASS] A2.3 clock parity: calculateClockReduction equals the executed simulator at every rapport
+         expectations generated by executing simulator.calc_clock_reduction — r-1 named cell r-6:-2 r-5:-1 r-4:-1 r-3:0 r-2:0 r-1:1 r0:1 r1:1 r2:2 r3:2 r4:2 r5:2 r6:2 r-6/N:0 r-5/N:0 r-4/N:0 r-3/N:0 r-2/N:0 r-1/N:0 r0/N:0 r1/N:0 r2/N:1 r3/N:1 r4/N:1 r5/N:1 r6/N:1
+  [PASS] A2.3 reward text: the displayed clock amount equals the immediate applied delta
+         52 boundary states (rapport -6..+6 x clock 0..3): text and application agree with the floored delta
+========================================================================
+46/46 passed
+EXIT:0
+=== test:mutation ===
+npm notice run within-parameters@0.1.0 test:mutation
+npm notice run node scripts/run-mutation-checks.mjs
+  [GOOD] 4.1 revert selectChoice to raw authored deltas (pre-change behavior): checks failed (7 failing check(s)) as required
+  [GOOD] 4.2 authored ending routing overrides the computed outcome (pre-change behavior): checks failed (5 failing check(s)) as required
+  [GOOD] A1.1 restoreEngine drops the run RNG stream restoration: checks failed (5 failing check(s)) as required
+  [GOOD] A1.1 restoreEngine drops the Practiced availability restoration: checks failed (1 failing check(s)) as required
+  [GOOD] A1.4 reinserts an in-text speaker prefix into a scenes.json line: checks failed (1 failing check(s)) as required
+  [GOOD] A1.4 reinserts the Vasquez surname into FD-01: checks failed (1 failing check(s)) as required
+  [GOOD] A2.1 reinserts the community-help claim into the informed withdrawal text: checks failed (2 failing check(s)) as required
+  [GOOD] A2.3 reverts clock reduction to Math.floor (pre-parity rounding): checks failed (1 failing check(s)) as required
+  [GOOD] A2.4 reintroduces self-credit into the shared reachability evaluator: checks failed (1 failing check(s)) as required
+EXIT:0
+=== counter mutations ===
+  [GOOD] unmutated control: both counter checks pass; unrelated failures are not mutation evidence
+  [GOOD] A1.5 drops ordinary dialogue counting (observer never arms): named equality check FAILED as required
+  [GOOD] A1.5 drops epilogue counting at the ending: named equality check FAILED as required
+  [GOOD] A2.4 drops the epilogue from the instant aggregate (duration input): named equality check FAILED as required
+EXIT:0
+=== audit:events ===
+npm notice run within-parameters@0.1.0 audit:events
+npm notice run /opt/agents/venv/bin/python scripts/audit-events.py
+Event audit: data/events.json vs simulation/game_data.py
+  CE-01[A]: k=1 m=-2 c=0 comm=helped gk=0 gr=0
+  CE-01[B]: k=1 m=-1 c=0 comm=helped gk=0 gr=0
+  CE-01[C]: k=2 m=0 c=0 comm=ignored gk=0 gr=0
+  CE-02[A]: k=0 m=-1 c=0 comm=helped gk=3 gr=0
+  CE-02[B]: k=0 m=-2 c=0 comm=helped gk=0 gr=0
+  CE-02[C]: k=1 m=0 c=0 comm=ignored gk=0 gr=0
+  CE-03[A]: k=2 m=-1 c=0 comm=helped gk=0 gr=0
+  CE-03[B]: k=2 m=0 c=0 comm=ignored gk=0 gr=0
+  CE-03[C]: k=0 m=0 c=0 comm=ignored gk=0 gr=0
+  CE-04[A]: k=3 m=-1 c=0 comm=helped gk=0 gr=0
+  CE-04[B]: k=2 m=0 c=0 comm=ignored gk=0 gr=0
+  CE-04[C]: k=0 m=0 c=0 comm=ignored gk=0 gr=0
+  CE-05[A]: k=0 m=-1 c=0 comm=helped gk=0 gr=0
+  CE-05[B]: k=1 m=0 c=0 comm=harmed gk=0 gr=0
+  CE-05[C]: k=0 m=-1 c=-1 comm=helped gk=4 gr=0
+  TE-01[A]: k=0 m=1 c=0 comm=harmed gk=0 gr=0
+  TE-01[B]: k=0 m=-1 c=0 comm=none gk=0 gr=0
+  TE-01[C]: k=0 m=0 c=1 comm=none gk=0 gr=0
+  TE-02[A]: k=1 m=1 c=0 comm=none gk=0 gr=0
+  TE-02[B]: k=0 m=-1 c=0 comm=none gk=0 gr=0
+  TE-02[C]: k=1 m=0 c=1 comm=none gk=0 gr=0
+  TE-03[A]: k=0 m=2 c=0 comm=harmed gk=0 gr=0
+  TE-03[B]: k=1 m=1 c=0 comm=none gk=3 gr=0
+  TE-03[C]: k=2 m=0 c=0 comm=none gk=0 gr=0
+  TE-04[A]: k=3 m=-1 c=0 comm=none gk=0 gr=0
+  TE-04[B]: k=2 m=0 c=1 comm=none gk=0 gr=0
+  TE-04[C]: k=1 m=0 c=0 comm=none gk=0 gr=0
+  AE-01[A]: k=2 m=1 c=0 comm=none gk=0 gr=2
+  AE-01[B]: k=2 m=0 c=0 comm=none gk=0 gr=0
+  AE-01[C]: k=0 m=0 c=1 comm=none gk=0 gr=0
+  AE-02[A]: k=1 m=0 c=0 comm=none gk=5 gr=0
+  AE-02[B]: k=0 m=-2 c=0 comm=none gk=0 gr=0
+  AE-02[C]: k=0 m=0 c=2 comm=none gk=0 gr=0
+  AE-03[A]: k=3 m=0 c=0 comm=none gk=4 gr=0
+  AE-03[B]: k=0 m=-1 c=-1 comm=none gk=0 gr=0
+  AE-03[C]: k=1 m=0 c=0 comm=none gk=0 gr=0
+
+all 36 choices match game_data.py exactly; attachments and text present
+EXIT:0
+=== replay ===
+npm notice run within-parameters@0.1.0 replay
+npm notice run node scripts/run-replay.mjs 5000
+Within Parameters — TypeScript Replay Harness (spec A1 parity proof)
+============================================================
+Running 5000 iterations per trait combination (64 combos, 320000 total runs)
+Config: /tmp/kilo/wp-ref-ff9f442/data/config.json
+
+Locked params: kt=11, kr=-2, ct=1, modules=6, jitter=0.35
+
+  [1/64] P1+N1 complete     [2/64] P1+N2 complete     [3/64] P1+N3 complete     [4/64] P1+N4 complete     [5/64] P1+N5 complete     [6/64] P1+N6 complete     [7/64] P1+N7 complete     [8/64] P1+N8 complete     [9/64] P2+N1 complete     [10/64] P2+N2 complete     [11/64] P2+N3 complete     [12/64] P2+N4 complete     [13/64] P2+N5 complete     [14/64] P2+N6 complete     [15/64] P2+N7 complete     [16/64] P2+N8 complete     [17/64] P3+N1 complete     [18/64] P3+N2 complete     [19/64] P3+N3 complete     [20/64] P3+N4 complete     [21/64] P3+N5 complete     [22/64] P3+N6 complete     [23/64] P3+N7 complete     [24/64] P3+N8 complete     [25/64] P4+N1 complete     [26/64] P4+N2 complete     [27/64] P4+N3 complete     [28/64] P4+N4 complete     [29/64] P4+N5 complete     [30/64] P4+N6 complete     [31/64] P4+N7 complete     [32/64] P4+N8 complete     [33/64] P5+N1 complete     [34/64] P5+N2 complete     [35/64] P5+N3 complete     [36/64] P5+N4 complete     [37/64] P5+N5 complete     [38/64] P5+N6 complete     [39/64] P5+N7 complete     [40/64] P5+N8 complete     [41/64] P6+N1 complete     [42/64] P6+N2 complete     [43/64] P6+N3 complete     [44/64] P6+N4 complete     [45/64] P6+N5 complete     [46/64] P6+N6 complete     [47/64] P6+N7 complete     [48/64] P6+N8 complete     [49/64] P7+N1 complete     [50/64] P7+N2 complete     [51/64] P7+N3 complete     [52/64] P7+N4 complete     [53/64] P7+N5 complete     [54/64] P7+N6 complete     [55/64] P7+N7 complete     [56/64] P7+N8 complete     [57/64] P8+N1 complete     [58/64] P8+N2 complete     [59/64] P8+N3 complete     [60/64] P8+N4 complete     [61/64] P8+N5 complete     [62/64] P8+N6 complete     [63/64] P8+N7 complete     [64/64] P8+N8 complete   
+
+=== TOP 5 EASIEST COMBINATIONS (highest correction rate) ===
+  P2+N8 (Quick Study + Stubborn): 87.0% correction, avg score 82.1
+  P2+N5 (Quick Study + Lone Wolf): 86.9% correction, avg score 82.0
+  P2+N6 (Quick Study + Fragile Kit): 86.2% correction, avg score 81.0
+  P2+N3 (Quick Study + Narrow Focus): 85.8% correction, avg score 81.0
+  P2+N1 (Quick Study + Tunnel Nerves): 84.6% correction, avg score 80.3
+
+=== TOP 5 HARDEST COMBINATIONS (lowest correction rate) ===
+  P4+N4 (Steady Hand + Distracted): 1.1% correction, avg score 61.3
+  P1+N4 (Well-Supplied + Distracted): 1.1% correction, avg score 61.6
+  P5+N4 (Field Expedient + Distracted): 1.2% correction, avg score 59.7
+  P3+N4 (Networked + Distracted): 1.2% correction, avg score 65.5
+  P7+N4 (Light Foot + Distracted): 1.3% correction, avg score 60.6
+
+=== OVERALL STATISTICS ===
+  Mean correction rate: 30.5%
+  Std dev:              21.5%
+  Min:                  1.1%
+  Max:                  87.0%
+
+=== VALIDATION SUMMARY ===
+  [PASS] No 0% correction combos: min 1.1%
+  [PASS] No combo above 90% correction: max 87.0%
+  [PASS] Mean correction 30-55%: 30.5%
+  [PASS] N7 clock failure < 60%: max 5.0%
+  [PASS] Std dev 10-25%: 21.5%
+  S-tier (per-run): 19177/97510 correction runs
+  [PASS] S-tier in 10-20% of correction runs: 19.7%
+
+  ALL VALIDATION CRITERIA PASSED
+============================================================
+
+=== PARITY vs PYTHON SIMULATOR ===
+  CSV parity (correction rate vs committed combo_results.csv):
+    Combos within 5pp:  64/64
+    Combos within 10pp: 64/64
+    Max |delta|:        1.39pp
+    Mean |delta|:       0.44pp
+  CSV parity (avg raw score vs committed combo_results.csv):
+    Combos within 5 pts: 51/64
+    Mean |delta|:        3.84 pts
+EXIT:0

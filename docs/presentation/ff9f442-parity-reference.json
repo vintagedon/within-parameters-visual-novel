@@ -1,0 +1,961 @@
+[
+  {
+    "seed": 555555,
+    "strategy": "knowledge",
+    "ending": "destruction",
+    "score": 55,
+    "raw_score": 55,
+    "grade": "C",
+    "docs_read": 0,
+    "comms_tiers": [
+      "green",
+      "amber"
+    ],
+    "typed_chars": 6762,
+    "typed_lines": 62,
+    "instant_chars": 2418,
+    "instant_breakdown": {
+      "comms": 427,
+      "epilogue": 1618,
+      "score_breakdown": 373
+    },
+    "decisions": 11,
+    "resumed": false,
+    "rerolled": false,
+    "completed": true
+  },
+  {
+    "seed": 555555,
+    "strategy": "knowledge",
+    "ending": "destruction",
+    "score": 55,
+    "raw_score": 55,
+    "grade": "C",
+    "docs_read": 0,
+    "comms_tiers": [
+      "amber"
+    ],
+    "typed_chars": 3064,
+    "typed_lines": 26,
+    "instant_chars": 2233,
+    "instant_breakdown": {
+      "comms": 242,
+      "epilogue": 1618,
+      "score_breakdown": 373
+    },
+    "decisions": 7,
+    "resumed": true,
+    "rerolled": false,
+    "completed": true
+  },
+  {
+    "seed": 20260916,
+    "strategy": "knowledge",
+    "ending": "clock-failure",
+    "score": 35,
+    "raw_score": 35,
+    "grade": "D",
+    "docs_read": 2,
+    "comms_tiers": [
+      "green",
+      "red"
+    ],
+    "typed_chars": 5576,
+    "typed_lines": 49,
+    "instant_chars": 3081,
+    "instant_breakdown": {
+      "comms": 440,
+      "document": 1976,
+      "epilogue": 313,
+      "score_breakdown": 352
+    },
+    "decisions": 10,
+    "resumed": false,
+    "rerolled": false,
+    "completed": true
+  },
+  {
+    "seed": 20260916,
+    "strategy": "consumable",
+    "ending": "clock-failure",
+    "score": 45,
+    "raw_score": 45,
+    "grade": "C",
+    "docs_read": 2,
+    "comms_tiers": [
+      "green",
+      "red"
+    ],
+    "typed_chars": 5576,
+    "typed_lines": 49,
+    "instant_chars": 3082,
+    "instant_breakdown": {
+      "comms": 440,
+      "document": 1976,
+      "epilogue": 313,
+      "score_breakdown": 353
+    },
+    "decisions": 10,
+    "resumed": false,
+    "rerolled": false,
+    "completed": true
+  },
+  {
+    "seed": 7,
+    "strategy": "clockburn",
+    "ending": "clock-failure",
+    "score": 11,
+    "raw_score": 11,
+    "grade": "F",
+    "docs_read": 3,
+    "comms_tiers": [
+      "green",
+      "red"
+    ],
+    "typed_chars": 5169,
+    "typed_lines": 47,
+    "instant_chars": 4225,
+    "instant_breakdown": {
+      "comms": 440,
+      "document": 3132,
+      "epilogue": 313,
+      "score_breakdown": 340
+    },
+    "decisions": 10,
+    "resumed": false,
+    "rerolled": false,
+    "completed": true
+  },
+  {
+    "seed": 11,
+    "strategy": "knowledge",
+    "ending": "destruction",
+    "score": 50,
+    "raw_score": 55,
+    "grade": "C",
+    "docs_read": 1,
+    "comms_tiers": [
+      "green",
+      "amber"
+    ],
+    "typed_chars": 6583,
+    "typed_lines": 61,
+    "instant_chars": 3685,
+    "instant_breakdown": {
+      "comms": 427,
+      "document": 1194,
+      "epilogue": 1650,
+      "score_breakdown": 414
+    },
+    "decisions": 11,
+    "resumed": false,
+    "rerolled": true,
+    "completed": true
+  },
+  {
+    "seed": 42,
+    "strategy": "consumable",
+    "ending": "destruction",
+    "score": 64,
+    "raw_score": 64,
+    "grade": "B",
+    "docs_read": 3,
+    "comms_tiers": [
+      "green",
+      "red"
+    ],
+    "typed_chars": 6841,
+    "typed_lines": 60,
+    "instant_chars": 5813,
+    "instant_breakdown": {
+      "comms": 440,
+      "document": 3369,
+      "epilogue": 1594,
+      "score_breakdown": 410
+    },
+    "decisions": 11,
+    "resumed": false,
+    "rerolled": false,
+    "completed": true
+  },
+  {
+    "seed": 99,
+    "strategy": "clockburn",
+    "ending": "destruction",
+    "score": 36,
+    "raw_score": 36,
+    "grade": "D",
+    "docs_read": 2,
+    "comms_tiers": [
+      "green",
+      "amber"
+    ],
+    "typed_chars": 6399,
+    "typed_lines": 56,
+    "instant_chars": 4320,
+    "instant_breakdown": {
+      "document": 1855,
+      "comms": 427,
+      "epilogue": 1563,
+      "score_breakdown": 475
+    },
+    "decisions": 11,
+    "resumed": false,
+    "rerolled": false,
+    "completed": true
+  },
+  {
+    "seed": 31337,
+    "strategy": "knowledge",
+    "ending": "destruction",
+    "score": 61,
+    "raw_score": 61,
+    "grade": "B",
+    "docs_read": 2,
+    "comms_tiers": [
+      "green",
+      "amber"
+    ],
+    "typed_chars": 6885,
+    "typed_lines": 62,
+    "instant_chars": 4699,
+    "instant_breakdown": {
+      "comms": 427,
+      "document": 2306,
+      "epilogue": 1560,
+      "score_breakdown": 406
+    },
+    "decisions": 11,
+    "resumed": false,
+    "rerolled": false,
+    "completed": true
+  },
+  {
+    "seed": 2027,
+    "strategy": "consumable",
+    "ending": "destruction",
+    "score": 72,
+    "raw_score": 72,
+    "grade": "B",
+    "docs_read": 2,
+    "comms_tiers": [
+      "green",
+      "amber"
+    ],
+    "typed_chars": 7092,
+    "typed_lines": 62,
+    "instant_chars": 4006,
+    "instant_breakdown": {
+      "document": 1649,
+      "comms": 427,
+      "epilogue": 1547,
+      "score_breakdown": 383
+    },
+    "decisions": 11,
+    "resumed": false,
+    "rerolled": false,
+    "completed": true
+  },
+  {
+    "seed": 12345,
+    "strategy": "clockburn",
+    "ending": "clock-failure",
+    "score": 11,
+    "raw_score": 11,
+    "grade": "F",
+    "docs_read": 3,
+    "comms_tiers": [
+      "green",
+      "amber"
+    ],
+    "typed_chars": 5162,
+    "typed_lines": 52,
+    "instant_chars": 4532,
+    "instant_breakdown": {
+      "comms": 427,
+      "document": 3462,
+      "epilogue": 313,
+      "score_breakdown": 330
+    },
+    "decisions": 10,
+    "resumed": false,
+    "rerolled": false,
+    "completed": true
+  },
+  {
+    "seed": 777,
+    "strategy": "knowledge",
+    "ending": "destruction",
+    "score": 61,
+    "raw_score": 61,
+    "grade": "B",
+    "docs_read": 2,
+    "comms_tiers": [
+      "green",
+      "amber"
+    ],
+    "typed_chars": 6723,
+    "typed_lines": 63,
+    "instant_chars": 4359,
+    "instant_breakdown": {
+      "document": 1915,
+      "comms": 427,
+      "epilogue": 1594,
+      "score_breakdown": 423
+    },
+    "decisions": 11,
+    "resumed": false,
+    "rerolled": false,
+    "completed": true
+  },
+  {
+    "seed": 8888,
+    "strategy": "consumable",
+    "ending": "destruction",
+    "score": 62,
+    "raw_score": 62,
+    "grade": "B",
+    "docs_read": 2,
+    "comms_tiers": [
+      "green",
+      "amber"
+    ],
+    "typed_chars": 6909,
+    "typed_lines": 62,
+    "instant_chars": 4525,
+    "instant_breakdown": {
+      "comms": 427,
+      "document": 2058,
+      "epilogue": 1570,
+      "score_breakdown": 470
+    },
+    "decisions": 11,
+    "resumed": false,
+    "rerolled": false,
+    "completed": true
+  },
+  {
+    "seed": 90210,
+    "strategy": "clockburn",
+    "ending": "destruction",
+    "score": 34,
+    "raw_score": 34,
+    "grade": "D",
+    "docs_read": 1,
+    "comms_tiers": [
+      "green",
+      "amber"
+    ],
+    "typed_chars": 6672,
+    "typed_lines": 64,
+    "instant_chars": 3496,
+    "instant_breakdown": {
+      "comms": 427,
+      "document": 1112,
+      "epilogue": 1571,
+      "score_breakdown": 386
+    },
+    "decisions": 11,
+    "resumed": false,
+    "rerolled": false,
+    "completed": true
+  },
+  {
+    "seed": 60606,
+    "strategy": "knowledge",
+    "ending": "destruction",
+    "score": 69,
+    "raw_score": 69,
+    "grade": "B",
+    "docs_read": 3,
+    "comms_tiers": [
+      "green",
+      "amber"
+    ],
+    "typed_chars": 6975,
+    "typed_lines": 60,
+    "instant_chars": 5494,
+    "instant_breakdown": {
+      "comms": 427,
+      "document": 3132,
+      "epilogue": 1535,
+      "score_breakdown": 400
+    },
+    "decisions": 11,
+    "resumed": false,
+    "rerolled": false,
+    "completed": true
+  },
+  {
+    "seed": 40404,
+    "strategy": "consumable",
+    "ending": "destruction",
+    "score": 63,
+    "raw_score": 63,
+    "grade": "B",
+    "docs_read": 1,
+    "comms_tiers": [
+      "green",
+      "red"
+    ],
+    "typed_chars": 6633,
+    "typed_lines": 61,
+    "instant_chars": 3515,
+    "instant_breakdown": {
+      "comms": 440,
+      "document": 1112,
+      "epilogue": 1571,
+      "score_breakdown": 392
+    },
+    "decisions": 11,
+    "resumed": false,
+    "rerolled": false,
+    "completed": true
+  },
+  {
+    "seed": 501,
+    "strategy": "correction",
+    "ending": "destruction",
+    "score": 61,
+    "raw_score": 61,
+    "grade": "B",
+    "docs_read": 1,
+    "comms_tiers": [
+      "green",
+      "amber"
+    ],
+    "typed_chars": 6628,
+    "typed_lines": 62,
+    "instant_chars": 3531,
+    "instant_breakdown": {
+      "comms": 427,
+      "document": 1112,
+      "epilogue": 1582,
+      "score_breakdown": 410
+    },
+    "decisions": 11,
+    "resumed": false,
+    "rerolled": false,
+    "completed": true
+  },
+  {
+    "seed": 502,
+    "strategy": "correction",
+    "ending": "destruction",
+    "score": 59,
+    "raw_score": 59,
+    "grade": "C",
+    "docs_read": 2,
+    "comms_tiers": [
+      "green",
+      "amber"
+    ],
+    "typed_chars": 6944,
+    "typed_lines": 59,
+    "instant_chars": 4470,
+    "instant_breakdown": {
+      "comms": 427,
+      "document": 2058,
+      "epilogue": 1582,
+      "score_breakdown": 403
+    },
+    "decisions": 11,
+    "resumed": false,
+    "rerolled": false,
+    "completed": true
+  },
+  {
+    "seed": 503,
+    "strategy": "correction",
+    "ending": "destruction",
+    "score": 67,
+    "raw_score": 67,
+    "grade": "B",
+    "docs_read": 3,
+    "comms_tiers": [
+      "green",
+      "amber"
+    ],
+    "typed_chars": 6806,
+    "typed_lines": 63,
+    "instant_chars": 5882,
+    "instant_breakdown": {
+      "comms": 427,
+      "document": 3462,
+      "epilogue": 1600,
+      "score_breakdown": 393
+    },
+    "decisions": 11,
+    "resumed": false,
+    "rerolled": false,
+    "completed": true
+  },
+  {
+    "seed": 504,
+    "strategy": "correction",
+    "ending": "destruction",
+    "score": 63,
+    "raw_score": 63,
+    "grade": "B",
+    "docs_read": 2,
+    "comms_tiers": [
+      "green",
+      "amber"
+    ],
+    "typed_chars": 7002,
+    "typed_lines": 59,
+    "instant_chars": 4357,
+    "instant_breakdown": {
+      "document": 2010,
+      "comms": 427,
+      "epilogue": 1542,
+      "score_breakdown": 378
+    },
+    "decisions": 11,
+    "resumed": false,
+    "rerolled": false,
+    "completed": true
+  },
+  {
+    "seed": 505,
+    "strategy": "correction",
+    "ending": "destruction",
+    "score": 63,
+    "raw_score": 63,
+    "grade": "B",
+    "docs_read": 3,
+    "comms_tiers": [
+      "green",
+      "amber"
+    ],
+    "typed_chars": 7026,
+    "typed_lines": 61,
+    "instant_chars": 5688,
+    "instant_breakdown": {
+      "document": 3259,
+      "comms": 427,
+      "epilogue": 1594,
+      "score_breakdown": 408
+    },
+    "decisions": 11,
+    "resumed": false,
+    "rerolled": false,
+    "completed": true
+  },
+  {
+    "seed": 506,
+    "strategy": "correction",
+    "ending": "correction",
+    "score": 83,
+    "raw_score": 83,
+    "grade": "A",
+    "docs_read": 1,
+    "comms_tiers": [
+      "green",
+      "amber"
+    ],
+    "typed_chars": 7095,
+    "typed_lines": 60,
+    "instant_chars": 4175,
+    "instant_breakdown": {
+      "comms": 427,
+      "document": 1194,
+      "epilogue": 2167,
+      "score_breakdown": 387
+    },
+    "decisions": 11,
+    "resumed": false,
+    "rerolled": false,
+    "completed": true
+  },
+  {
+    "seed": 601,
+    "strategy": "redhunt",
+    "ending": "clock-failure",
+    "score": 11,
+    "raw_score": 13,
+    "grade": "F",
+    "docs_read": 1,
+    "comms_tiers": [
+      "green",
+      "red"
+    ],
+    "typed_chars": 5002,
+    "typed_lines": 45,
+    "instant_chars": 2308,
+    "instant_breakdown": {
+      "comms": 440,
+      "document": 1112,
+      "epilogue": 313,
+      "score_breakdown": 443
+    },
+    "decisions": 10,
+    "resumed": false,
+    "rerolled": true,
+    "completed": true
+  },
+  {
+    "seed": 602,
+    "strategy": "redhunt",
+    "ending": "clock-failure",
+    "score": 11,
+    "raw_score": 13,
+    "grade": "F",
+    "docs_read": 2,
+    "comms_tiers": [
+      "green",
+      "red"
+    ],
+    "typed_chars": 5043,
+    "typed_lines": 44,
+    "instant_chars": 3033,
+    "instant_breakdown": {
+      "document": 1837,
+      "comms": 440,
+      "epilogue": 313,
+      "score_breakdown": 443
+    },
+    "decisions": 10,
+    "resumed": false,
+    "rerolled": true,
+    "completed": true
+  },
+  {
+    "seed": 603,
+    "strategy": "redhunt",
+    "ending": "destruction",
+    "score": 33,
+    "raw_score": 40,
+    "grade": "D",
+    "docs_read": 3,
+    "comms_tiers": [
+      "green",
+      "amber"
+    ],
+    "typed_chars": 6447,
+    "typed_lines": 63,
+    "instant_chars": 5300,
+    "instant_breakdown": {
+      "document": 2861,
+      "comms": 427,
+      "epilogue": 1510,
+      "score_breakdown": 502
+    },
+    "decisions": 11,
+    "resumed": false,
+    "rerolled": true,
+    "completed": true
+  },
+  {
+    "seed": 604,
+    "strategy": "redhunt",
+    "ending": "destruction",
+    "score": 28,
+    "raw_score": 34,
+    "grade": "F",
+    "docs_read": 1,
+    "comms_tiers": [
+      "green",
+      "amber"
+    ],
+    "typed_chars": 6438,
+    "typed_lines": 62,
+    "instant_chars": 3434,
+    "instant_breakdown": {
+      "comms": 427,
+      "document": 1019,
+      "epilogue": 1489,
+      "score_breakdown": 499
+    },
+    "decisions": 11,
+    "resumed": false,
+    "rerolled": true,
+    "completed": true
+  },
+  {
+    "seed": 605,
+    "strategy": "redhunt",
+    "ending": "correction",
+    "score": 29,
+    "raw_score": 57,
+    "grade": "F",
+    "docs_read": 2,
+    "comms_tiers": [
+      "green",
+      "red"
+    ],
+    "typed_chars": 6945,
+    "typed_lines": 63,
+    "instant_chars": 5139,
+    "instant_breakdown": {
+      "comms": 440,
+      "document": 2175,
+      "epilogue": 2028,
+      "score_breakdown": 496
+    },
+    "decisions": 11,
+    "resumed": false,
+    "rerolled": true,
+    "completed": true
+  },
+  {
+    "seed": 606,
+    "strategy": "redhunt",
+    "ending": "destruction",
+    "score": 23,
+    "raw_score": 46,
+    "grade": "F",
+    "docs_read": 3,
+    "comms_tiers": [
+      "green",
+      "amber"
+    ],
+    "typed_chars": 6206,
+    "typed_lines": 57,
+    "instant_chars": 5567,
+    "instant_breakdown": {
+      "comms": 427,
+      "document": 3214,
+      "epilogue": 1513,
+      "score_breakdown": 413
+    },
+    "decisions": 11,
+    "resumed": false,
+    "rerolled": true,
+    "completed": true
+  },
+  {
+    "seed": 607,
+    "strategy": "redhunt",
+    "ending": "clock-failure",
+    "score": 6,
+    "raw_score": 13,
+    "grade": "F",
+    "docs_read": 2,
+    "comms_tiers": [
+      "green",
+      "amber"
+    ],
+    "typed_chars": 5183,
+    "typed_lines": 52,
+    "instant_chars": 3302,
+    "instant_breakdown": {
+      "comms": 427,
+      "document": 2175,
+      "epilogue": 313,
+      "score_breakdown": 387
+    },
+    "decisions": 10,
+    "resumed": false,
+    "rerolled": true,
+    "completed": true
+  },
+  {
+    "seed": 608,
+    "strategy": "redhunt",
+    "ending": "clock-failure",
+    "score": 6,
+    "raw_score": 13,
+    "grade": "F",
+    "docs_read": 1,
+    "comms_tiers": [
+      "green",
+      "amber"
+    ],
+    "typed_chars": 4833,
+    "typed_lines": 45,
+    "instant_chars": 1930,
+    "instant_breakdown": {
+      "document": 803,
+      "comms": 427,
+      "epilogue": 313,
+      "score_breakdown": 387
+    },
+    "decisions": 10,
+    "resumed": false,
+    "rerolled": true,
+    "completed": true
+  },
+  {
+    "seed": 609,
+    "strategy": "redhunt",
+    "ending": "clock-failure",
+    "score": 6,
+    "raw_score": 13,
+    "grade": "F",
+    "docs_read": 3,
+    "comms_tiers": [
+      "green",
+      "red"
+    ],
+    "typed_chars": 4998,
+    "typed_lines": 46,
+    "instant_chars": 3953,
+    "instant_breakdown": {
+      "document": 2813,
+      "comms": 440,
+      "epilogue": 313,
+      "score_breakdown": 387
+    },
+    "decisions": 10,
+    "resumed": false,
+    "rerolled": true,
+    "completed": true
+  },
+  {
+    "seed": 610,
+    "strategy": "redhunt",
+    "ending": "clock-failure",
+    "score": 7,
+    "raw_score": 11,
+    "grade": "F",
+    "docs_read": 1,
+    "comms_tiers": [
+      "green",
+      "amber"
+    ],
+    "typed_chars": 4959,
+    "typed_lines": 44,
+    "instant_chars": 2043,
+    "instant_breakdown": {
+      "comms": 427,
+      "document": 864,
+      "epilogue": 313,
+      "score_breakdown": 439
+    },
+    "decisions": 10,
+    "resumed": false,
+    "rerolled": true,
+    "completed": true
+  },
+  {
+    "seed": 611,
+    "strategy": "redhunt",
+    "ending": "destruction",
+    "score": 20,
+    "raw_score": 40,
+    "grade": "F",
+    "docs_read": 3,
+    "comms_tiers": [
+      "green",
+      "amber"
+    ],
+    "typed_chars": 6403,
+    "typed_lines": 57,
+    "instant_chars": 5478,
+    "instant_breakdown": {
+      "comms": 427,
+      "document": 3059,
+      "epilogue": 1579,
+      "score_breakdown": 413
+    },
+    "decisions": 11,
+    "resumed": false,
+    "rerolled": true,
+    "completed": true
+  },
+  {
+    "seed": 612,
+    "strategy": "redhunt",
+    "ending": "destruction",
+    "score": 33,
+    "raw_score": 39,
+    "grade": "D",
+    "docs_read": 2,
+    "comms_tiers": [
+      "green",
+      "amber"
+    ],
+    "typed_chars": 6346,
+    "typed_lines": 61,
+    "instant_chars": 4449,
+    "instant_breakdown": {
+      "comms": 427,
+      "document": 2040,
+      "epilogue": 1497,
+      "score_breakdown": 485
+    },
+    "decisions": 11,
+    "resumed": false,
+    "rerolled": true,
+    "completed": true
+  },
+  {
+    "seed": 613,
+    "strategy": "redhunt",
+    "ending": "destruction",
+    "score": 21,
+    "raw_score": 42,
+    "grade": "F",
+    "docs_read": 3,
+    "comms_tiers": [
+      "green",
+      "amber"
+    ],
+    "typed_chars": 6501,
+    "typed_lines": 62,
+    "instant_chars": 5574,
+    "instant_breakdown": {
+      "comms": 427,
+      "document": 3204,
+      "epilogue": 1515,
+      "score_breakdown": 428
+    },
+    "decisions": 11,
+    "resumed": false,
+    "rerolled": true,
+    "completed": true
+  },
+  {
+    "seed": 614,
+    "strategy": "redhunt",
+    "ending": "destruction",
+    "score": 40,
+    "raw_score": 40,
+    "grade": "D",
+    "docs_read": 2,
+    "comms_tiers": [
+      "green",
+      "amber"
+    ],
+    "typed_chars": 6315,
+    "typed_lines": 59,
+    "instant_chars": 4284,
+    "instant_breakdown": {
+      "document": 1915,
+      "comms": 427,
+      "epilogue": 1510,
+      "score_breakdown": 432
+    },
+    "decisions": 11,
+    "resumed": false,
+    "rerolled": false,
+    "completed": true
+  },
+  {
+    "seed": 615,
+    "strategy": "redhunt",
+    "ending": "clock-failure",
+    "score": 5,
+    "raw_score": 11,
+    "grade": "F",
+    "docs_read": 1,
+    "comms_tiers": [
+      "green",
+      "red"
+    ],
+    "typed_chars": 4833,
+    "typed_lines": 45,
+    "instant_chars": 2300,
+    "instant_breakdown": {
+      "comms": 440,
+      "document": 1156,
+      "epilogue": 313,
+      "score_breakdown": 391
+    },
+    "decisions": 10,
+    "resumed": false,
+    "rerolled": true,
+    "completed": true
+  }
+]

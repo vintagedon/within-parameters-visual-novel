@@ -1,0 +1,70 @@
+Complete-run verification (production build, no dev hooks)
+============================================================================
+  seed 555555   knowledge  -> destruction 55C (docs 0, comms green,amber, typed 6762/62L, instant 2418, decisions 11, errors 0, failed-req 0)
+  seed 555555   knowledge  RESUMED -> destruction 55C (docs 0, comms amber, typed 3064/26L, instant 2233, decisions 7, errors 0, failed-req 0)
+  seed 20260916 knowledge  -> clock-failure 35D (docs 2, comms green,red, typed 5576/49L, instant 3081, decisions 10, errors 0, failed-req 0)
+  seed 20260916 consumable -> clock-failure 45C (docs 2, comms green,red, typed 5576/49L, instant 3082, decisions 10, errors 0, failed-req 0)
+  seed 7        clockburn  -> clock-failure 11F (docs 3, comms green,red, typed 5169/47L, instant 4225, decisions 10, errors 0, failed-req 0)
+  seed 11       knowledge  REROLL -> destruction 50C (docs 1, comms green,amber, typed 6583/61L, instant 3685, decisions 11, errors 0, failed-req 0)
+  seed 42       consumable -> destruction 64B (docs 3, comms green,red, typed 6841/60L, instant 5813, decisions 11, errors 0, failed-req 0)
+  seed 99       clockburn  -> destruction 36D (docs 2, comms green,amber, typed 6399/56L, instant 4320, decisions 11, errors 0, failed-req 0)
+  seed 31337    knowledge  -> destruction 61B (docs 2, comms green,amber, typed 6885/62L, instant 4699, decisions 11, errors 0, failed-req 0)
+  seed 2027     consumable -> destruction 72B (docs 2, comms green,amber, typed 7092/62L, instant 4006, decisions 11, errors 0, failed-req 0)
+  seed 12345    clockburn  -> clock-failure 11F (docs 3, comms green,amber, typed 5162/52L, instant 4532, decisions 10, errors 0, failed-req 0)
+  seed 777      knowledge  -> destruction 61B (docs 2, comms green,amber, typed 6723/63L, instant 4359, decisions 11, errors 0, failed-req 0)
+  seed 8888     consumable -> destruction 62B (docs 2, comms green,amber, typed 6909/62L, instant 4525, decisions 11, errors 0, failed-req 0)
+  seed 90210    clockburn  -> destruction 34D (docs 1, comms green,amber, typed 6672/64L, instant 3496, decisions 11, errors 0, failed-req 0)
+  seed 60606    knowledge  -> destruction 69B (docs 3, comms green,amber, typed 6975/60L, instant 5494, decisions 11, errors 0, failed-req 0)
+  seed 40404    consumable -> destruction 63B (docs 1, comms green,red, typed 6633/61L, instant 3515, decisions 11, errors 0, failed-req 0)
+  seed 501      correction -> destruction 61B (docs 1, comms green,amber, typed 6628/62L, instant 3531, decisions 11, errors 0, failed-req 0)
+  seed 502      correction -> destruction 59C (docs 2, comms green,amber, typed 6944/59L, instant 4470, decisions 11, errors 0, failed-req 0)
+  seed 503      correction -> destruction 67B (docs 3, comms green,amber, typed 6806/63L, instant 5882, decisions 11, errors 0, failed-req 0)
+  seed 504      correction -> destruction 63B (docs 2, comms green,amber, typed 7002/59L, instant 4357, decisions 11, errors 0, failed-req 0)
+  seed 505      correction -> destruction 63B (docs 3, comms green,amber, typed 7026/61L, instant 5688, decisions 11, errors 0, failed-req 0)
+  seed 506      correction -> correction 83A (docs 1, comms green,amber, typed 7095/60L, instant 4175, decisions 11, errors 0, failed-req 0)
+  seed 601      redhunt    REROLL -> clock-failure 11F (docs 1, comms green,red, typed 5002/45L, instant 2308, decisions 10, errors 0, failed-req 0)
+  seed 602      redhunt    REROLL -> clock-failure 11F (docs 2, comms green,red, typed 5043/44L, instant 3033, decisions 10, errors 0, failed-req 0)
+  seed 603      redhunt    REROLL -> destruction 33D (docs 3, comms green,amber, typed 6447/63L, instant 5300, decisions 11, errors 0, failed-req 0)
+  seed 604      redhunt    REROLL -> destruction 28F (docs 1, comms green,amber, typed 6438/62L, instant 3434, decisions 11, errors 0, failed-req 0)
+  seed 605      redhunt    REROLL -> correction 29F (docs 2, comms green,red, typed 6945/63L, instant 5139, decisions 11, errors 0, failed-req 0)
+  seed 606      redhunt    REROLL -> destruction 23F (docs 3, comms green,amber, typed 6206/57L, instant 5567, decisions 11, errors 0, failed-req 0)
+  seed 607      redhunt    REROLL -> clock-failure 6F (docs 2, comms green,amber, typed 5183/52L, instant 3302, decisions 10, errors 0, failed-req 0)
+  seed 608      redhunt    REROLL -> clock-failure 6F (docs 1, comms green,amber, typed 4833/45L, instant 1930, decisions 10, errors 0, failed-req 0)
+  seed 609      redhunt    REROLL -> clock-failure 6F (docs 3, comms green,red, typed 4998/46L, instant 3953, decisions 10, errors 0, failed-req 0)
+  seed 610      redhunt    REROLL -> clock-failure 7F (docs 1, comms green,amber, typed 4959/44L, instant 2043, decisions 10, errors 0, failed-req 0)
+  seed 611      redhunt    REROLL -> destruction 20F (docs 3, comms green,amber, typed 6403/57L, instant 5478, decisions 11, errors 0, failed-req 0)
+  seed 612      redhunt    REROLL -> destruction 33D (docs 2, comms green,amber, typed 6346/61L, instant 4449, decisions 11, errors 0, failed-req 0)
+  seed 613      redhunt    REROLL -> destruction 21F (docs 3, comms green,amber, typed 6501/62L, instant 5574, decisions 11, errors 0, failed-req 0)
+  seed 614      redhunt    -> destruction 40D (docs 2, comms green,amber, typed 6315/59L, instant 4284, decisions 11, errors 0, failed-req 0)
+  seed 615      redhunt    REROLL -> clock-failure 5F (docs 1, comms green,red, typed 4833/45L, instant 2300, decisions 10, errors 0, failed-req 0)
+============================================================================
+Counter cross-check (seed 555555 vs independent trace):
+  trace typed 6879 -> reconciled for A1.4 prefix removal: 6762
+    scene-authorization-01: trace 414 -> now 390 (delta -24, A1.4 prefix removal)
+    evt-ce02-arrive: trace 434 -> now 410 (delta -24, A1.4 prefix removal)
+    evt-ce02-situation: trace 276 -> now 257 (delta -19, A1.4 prefix removal)
+    evt-ce02-b: trace 236 -> now 231 (delta -5, A1.4 prefix removal)
+    evt-ce03-arrive: trace 396 -> now 390 (delta -6, A1.4 prefix removal)
+    evt-ce03-situation: trace 266 -> now 260 (delta -6, A1.4 prefix removal)
+    evt-ce03-a: trace 289 -> now 283 (delta -6, A1.4 prefix removal)
+    scene-facility-02: trace 709 -> now 682 (delta -27, A1.4 prefix removal)
+  harness typed: 6762 chars / 62 lines (delta 0)
+  comms: trace 427, harness 427
+  epilogue: trace 1618, harness 1618
+============================================================================
+  [PASS] at least ten completed natural runs
+  [PASS] all three endings reached, each at least once
+  [PASS] a reroll is in the set
+  [PASS] a found-document read is in the set
+  [PASS] a comms beat at each tier is in the set
+  [PASS] a mid-run save and resume is in the set
+  [PASS] save/resume twin scores match
+  [PASS] zero uncaught console errors
+  [PASS] zero failed required asset requests (HTTP status)
+  [PASS] no run reported No eligible events
+  [PASS] tests/baseline/ untouched
+  [PASS] counter matches the reconciled independent trace (seed 555555)
+  [PASS] instant aggregate equals its category breakdown for every run
+
+raw results: /tmp/kilo/wp-ref/ff9f442-parity-reference.json
+EXIT:0
