@@ -41,6 +41,29 @@ CONTRACT = {
     "bottom-bar": {"x": 48, "y": 760, "w": 1824, "h": 272},
 }
 
+THEME_CONTRACT_JS = """
+(surfaceSelector) => {
+  const root = document.documentElement;
+  const rootStyle = getComputedStyle(root);
+  const surface = document.querySelector(surfaceSelector);
+  const color = surface ? getComputedStyle(surface).color : '';
+  const readLightness = (value) => {
+    const match = value.match(/oklch\\(\\s*([\\d.]+)(%?)/i);
+    if (!match) return null;
+    const amount = Number(match[1]);
+    return match[2] === '%' || amount > 1 ? amount / 100 : amount;
+  };
+  return {
+    theme: root.dataset.gcTheme || '',
+    accent: rootStyle.getPropertyValue('--gc-accent').trim(),
+    primary: rootStyle.getPropertyValue('--gc-text-primary').trim(),
+    surfaceColor: color,
+    primaryLightness: readLightness(rootStyle.getPropertyValue('--gc-text-primary').trim()),
+    surfaceLightness: readLightness(color),
+  };
+}
+"""
+
 GREEN_CHECK_JS = """
 () => {
   // Sample every visible element's color, background-color, border-color,
@@ -153,9 +176,30 @@ def check_region(page, failures: list[str], sel: str, key: str) -> None:
     record(failures, f"region {sel}", ok, f"got x{r['x']:.0f} y{r['y']:.0f} w{r['w']:.0f} h{r['h']:.0f}, want {c}")
 
 
+def check_theme_contract(page, failures: list[str], surface: str, selector: str) -> None:
+    values = page.evaluate(THEME_CONTRACT_JS, selector)
+    record(failures, f"{surface} theme is sci-fi", values["theme"] == "sci-fi", values["theme"] or "missing")
+    record(
+        failures,
+        f"{surface} root accent is contract cyan",
+        values["accent"] == "oklch(78% 0.18 195)",
+        values["accent"],
+    )
+    record(
+        failures,
+        f"{surface} primary text is light on the stage",
+        values["primaryLightness"] is not None
+        and values["primaryLightness"] >= 0.9
+        and values["surfaceLightness"] is not None
+        and values["surfaceLightness"] >= 0.9,
+        f"token={values['primary']} rendered={values['surfaceColor']}",
+    )
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--base", default=None)
+    ap.add_argument("--mutation-remove-theme", action="store_true", help=argparse.SUPPRESS)
     args = ap.parse_args()
 
     failures: list[str] = []
@@ -171,9 +215,12 @@ def main() -> int:
             page.add_init_script("window.__wpSeed = 20260916;")
             page.goto(base, wait_until="networkidle")
             page.wait_for_function("() => window.__wp && typeof window.__wp.stageFixture === 'function'", timeout=30000)
+            if args.mutation_remove_theme:
+                page.evaluate("() => document.documentElement.removeAttribute('data-gc-theme')")
 
             # ── Title regions and type sizes ──
             page.wait_for_selector("#title-screen:not(.hidden)")
+            check_theme_contract(page, failures, "title", ".title-main")
             logo = rect_of(page, ".title-logo")
             record(failures, "title logo block within stage", 0 <= logo["x"] and logo["x"] + logo["w"] <= 1920, str(logo))
             menu = rect_of(page, ".title-menu")
@@ -335,6 +382,7 @@ def main() -> int:
 
             # ── Palette check: journey during the live run (rail and band
             # visible in the game-UI layout) ──
+            check_theme_contract(page, failures, "journey", "#dialogue-text")
             result = page.evaluate(GREEN_CHECK_JS)
             record(failures, "journey palette: no green", not result["violations"], "; ".join(result["violations"][:4]))
             if result["unparsed"]:
