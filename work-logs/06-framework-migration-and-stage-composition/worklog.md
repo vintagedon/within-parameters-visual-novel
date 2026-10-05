@@ -41,3 +41,25 @@ Startup prerequisites, all four verified before the first change: (1) WP `main` 
 **Validation.** Record names commit, diff, hash, and all 37 runs with outcome, grade, raw, final, decisions, character totals. The extremes script runs from `node scripts/content-extremes.mjs`; the mutation check (scratch `data/` copy, `scene-lore-01#0` lengthened to 439) moves the reported extreme from 317/`evt-ce04-arrive#0` to 439/`scene-lore-01#0`. No tracked file under `data/` changed.
 
 **Commit:** this commit (SHA recorded at the next checkpoint)
+
+---
+
+## Gate 5.2: The composition contract
+
+**Changes.** `docs/presentation/composition-contract.md` (written during the 5.1 working session and committed with the 5.1 checkpoint): source dimensions read from the file (1376x768, aspect 1.7917); the aspect difference handled by width-scaling and letterboxing (recorded choice, no crop); journey region bounds tiling 1920x1080 exactly (margins 48; scene 1423 = 78.0% of 1824; rail region 401 = 22.0% with a 24 px internal gutter; upper region 688; gutter 24; full-width band 272; arithmetic recorded); title screen treatment bounds; the type scale with a 20 px floor; control minimums and the 160 px medallion; the palette role map (cyan/amber/red/neutral, green absent, sci-fi theme values, `--gc-status-success` never referenced); and a fit statement for every gate 5.1 extreme with its region. `mockup-normalized-1920x1080.png` and `mockup-normalized-annotated.png` derived from the source image.
+
+**Finding F-P1 (recorded, carried to the review surface).** The band grows from the mockup proportion's 201 px to 272 px: the worst real co-occurrence (`scene-facility-02`: 204-char line + 119-char rendered choice) needs 278 px; the mockup proportion cannot hold it. The upper region shortens 768 to 688 accordingly.
+
+**Validation.** Dimensions stated from the file; bounds tile with recorded arithmetic; every journey/title extreme has a region and a fit statement; the role map covers the journey and title element classes with no green; every control drawn corresponds to an implemented action and the inventory grid is absent; frontmatter and tags follow the standards.
+
+**Commit:** `3997178`
+
+---
+
+## Gate 5.3: Framework pin and vendoring
+
+**Changes.** `vendor/gc/`: the framework's consumable `src/` tree extracted verbatim from `git archive 952ae06e071a326e02f4ecb008256644fe2a5290 src/` (16 files), plus the provenance README recording the full pin SHA, charter version 1.8 at the pin, copy date, refresh procedure, and the MIT license. `scripts/check-vendor-pin.mjs` + `package.json` `check:vendor` entry: SHA-256 comparison of every vendored file against `git cat-file blob <pin>:<path>` with equal file counts. `vendor/README.md` interior readme added. `vendor/gameui/` untouched (retires at gate 5.5).
+
+**Validation.** Pin check OK (16 files byte-identical to the framework checkout at the pin; the pin resolves to a commit reachable from framework `main`, verified at startup). Mutation: a scratch copy with one byte changed in `src/core/components.css` fails the check with a byte mismatch (exit 1), pristine passes. Production build passes with the vendored tree present.
+
+**Commit:** this commit (SHA recorded at the next checkpoint)

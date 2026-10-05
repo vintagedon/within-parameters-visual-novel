@@ -1,0 +1,34 @@
+@layer reset {
+  :where(*, *::before, *::after) {
+    box-sizing: border-box;
+  }
+
+  :where(html) {
+    color-scheme: light dark;
+  }
+
+  :where(body, h1, h2, h3, p) {
+    margin: 0;
+  }
+
+  :where(button, input, meter) {
+    font: inherit;
+  }
+}
+
+@layer core {
+  :where(body) {
+    min-block-size: 100vh;
+    background: var(--gc-surface-canvas);
+    color: var(--gc-text-primary);
+    font-family: var(--gc-font-body);
+    font-size: var(--gc-type-body-size);
+    font-weight: var(--gc-type-body-weight);
+    line-height: var(--gc-type-body-line-height);
+  }
+
+  /* This small default is also the Gate 1.2 specificity discriminator. */
+  :where(.gc-specificity-probe) {
+    color: var(--gc-text-primary);
+  }
+}

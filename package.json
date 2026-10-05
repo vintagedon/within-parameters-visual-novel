@@ -15,7 +15,8 @@
     "audit:events": "/opt/agents/venv/bin/python scripts/audit-events.py",
     "test:screens": "/opt/agents/venv/bin/python tests/capture.py",
     "test:screens:check": "/opt/agents/venv/bin/python tests/capture.py --check",
-    "extremes": "node scripts/content-extremes.mjs"
+    "extremes": "node scripts/content-extremes.mjs",
+    "check:vendor": "node scripts/check-vendor-pin.mjs"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",

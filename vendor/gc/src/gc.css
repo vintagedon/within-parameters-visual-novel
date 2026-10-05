@@ -1,0 +1,15 @@
+/*
+ * Public framework entry point. This ordering statement is the single source
+ * of cascade precedence for framework and consumer styles.
+ */
+@layer reset, tokens, core, modules, theme, overrides;
+
+@import "./tokens/primitives.css";
+@import "./tokens/semantic.css";
+@import "./tokens/components.css";
+@import "./core/base.css";
+@import "./core/components.css";
+@import "./themes/modern.css";
+@import "./themes/arcade.css";
+@import "./themes/scifi.css";
+@import "./themes/fantasy.css";
