@@ -412,6 +412,12 @@ body {
   z-index: calc(var(--gc-z-overlay) + 1);
 }
 
+/* Modal stacking belongs beside the unlayered overlay rule so cascade-layer
+   precedence cannot leave confirmation dialogs beneath their opener screen. */
+.wp-modal {
+  z-index: var(--gc-z-modal);
+}
+
 /* ─── Title Screen ───────────────────────────────────────────────────────── */
 
 #title-screen {

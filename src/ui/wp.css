@@ -250,10 +250,6 @@
 
   /* ─── Modal composition (wp-modal on a gc-panel) ─── */
 
-  .wp-modal {
-    z-index: var(--gc-z-modal);
-  }
-
   .wp-modal:not(.is-open) {
     display: none;
   }

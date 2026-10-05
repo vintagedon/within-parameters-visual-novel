@@ -285,6 +285,26 @@ def main() -> int:
             page.wait_for_selector(".wp-modal.is-open", timeout=5000)
             seen_surfaces.add(".wp-modal.is-open")
             check_overlays(page, failures, "load-confirm")
+            modal_stacking = page.evaluate(
+                """() => {
+                    const modal = document.querySelector('.wp-modal.is-open');
+                    const save = document.getElementById('save-load-screen');
+                    const panel = modal.querySelector('.wp-modal__panel');
+                    const r = panel.getBoundingClientRect();
+                    const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+                    return {
+                      modalZ: Number(getComputedStyle(modal).zIndex) || 0,
+                      saveZ: Number(getComputedStyle(save).zIndex) || 0,
+                      modalOwnsCenter: hit === modal || modal.contains(hit),
+                    };
+                }"""
+            )
+            record(
+                failures,
+                "confirmation modal stacks above save/load",
+                modal_stacking["modalZ"] > modal_stacking["saveZ"] and modal_stacking["modalOwnsCenter"],
+                str(modal_stacking),
+            )
             record(
                 failures,
                 "modal open moves focus into the dialog",
