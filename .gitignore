@@ -92,3 +92,6 @@ local/
 
 .ruff_cache/
 __pycache__/
+
+# Retired files (never deleted, never tracked)
+recycle-bin/

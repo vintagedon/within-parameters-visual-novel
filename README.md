@@ -94,7 +94,7 @@ The 64 trait combinations (8 positive × 8 negative, modifier-only, no new conte
 |-----------|----------------|---------|
 | Engine | TypeScript + vanilla DOM | Scene progression, stat tracking, event system, save/load |
 | Data Layer | Structured JSON | Scenes, events, communities, characters, config |
-| UI | CSS custom properties, three-pane layout | Viewport (65%) + sidebar (35%) + bottom bar (33%) |
+| UI | gc framework primitives plus WP compositions | 1920x1080 stage (uniform min-fit scaling): scene region 1423px + status rail 401px + full-width dialogue band 272px |
 | Balance | Python Monte Carlo simulator | 45M total runs across parameter sweeps, heuristic agent |
 | Saves | localStorage | Autosave + 5 manual slots |
 | Audio | HTML5 Audio API | BGM crossfade, SFX, mute persistence |
@@ -205,7 +205,7 @@ Portfolio piece with intentional scope constraints and meaningful systems depth:
 | Environments | ~12-14 backgrounds, ~6-8 character portraits |
 | Video | 3-4 cutscenes (~8s each, skippable) |
 | Scoring | S through F grades, reroll-based difficulty slider |
-| Run length | ~25-35 minutes (design target; measured attentive median ~9.6 min, F-05 decision pending) |
+| Run length | Reading-model estimates from counted content (operator decision 2026-09-28, F-05 answered): attentive median ~9.6 minutes (range 5.5 to 12.0), leisured median ~11.9. These are not timed human playtests |
 
 ---
 

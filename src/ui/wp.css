@@ -1,0 +1,358 @@
+/*
+ * WP-owned presentation: stage host, WP theme tokens, and wp-* compositions
+ * over the vendored framework (vendor/gc). WP overrides live in the
+ * framework's `overrides` cascade layer, never inside the vendored tree.
+ *
+ * Stage host (gate 5.4): the outer host measures the window; the logical
+ * stage is authored at 1920x1080 and scaled uniformly by the host module
+ * (src/ui/stage.ts). Nothing inside the stage uses viewport units or
+ * width/height/orientation breakpoints; internal geometry resolves against
+ * stage regions, per charter 4.1.1.
+ */
+
+/* Import the framework first: its first statement declares the shared layer
+   order (reset, tokens, core, modules, theme, overrides), which establishes
+   cascade precedence for everything that follows. WP rules below sit in the
+   overrides layer and beat framework defaults by layer precedence, never by
+   specificity escalation or !important. */
+
+@import "../../vendor/gc/src/gc.css";
+
+/* ─── WP theme tokens ─── */
+
+@layer overrides {
+  :root {
+    /* Stage and chrome */
+    --wp-stage-bg: oklch(8% 0.025 250);
+    --wp-stage-width: 1920px;
+    --wp-stage-height: 1080px;
+
+    /* Journey region geometry (composition contract, gate 5.2) */
+    --wp-margin: 48px;
+    --wp-scene-width: 1423px;
+    --wp-rail-gutter: 24px;
+    --wp-upper-height: 688px;
+    --wp-band-gutter: 24px;
+    --wp-band-height: 272px;
+
+    /* Type scale (contract section 4; floor 20px) */
+    --wp-type-dialogue: 28px;
+    --wp-type-speaker: 26px;
+    --wp-type-choice: 26px;
+    --wp-type-rail-label: 22px;
+    --wp-type-readout: 22px;
+    --wp-type-route: 20px;
+    --wp-type-build-id: 20px;
+  }
+
+  /* ─── Stage host ─── */
+
+  .wp-stage-host {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    background: var(--wp-stage-bg);
+  }
+
+  .wp-stage {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: var(--wp-stage-width);
+    height: var(--wp-stage-height);
+    transform-origin: center;
+    background: var(--wp-stage-bg);
+  }
+
+  /* Pin every framework token that carries a viewport unit to a fixed value
+     for the whole stage subtree: raw viewport units must not drive
+     stage-internal typography (charter 4.1.1). The vendored
+     --gc-font-size-xl clamp is the one typography-bearing token. */
+  .wp-stage {
+    --gc-font-size-xl: 3rem;
+  }
+
+  /* ─── WP accent roles (composition contract section 6) ───
+     Cyan is the framework default --gc-accent; amber and red scope it. */
+
+  [data-wp-accent='amber'] {
+    --gc-accent: var(--gc-status-warning);
+    --gc-focus-ring: var(--gc-status-warning);
+  }
+
+  [data-wp-accent='red'] {
+    --gc-accent: var(--gc-status-danger);
+    --gc-focus-ring: var(--gc-status-danger);
+  }
+
+  /* ─── Buttons: WP variants over the framework's single .gc-button ─── */
+
+  .gc-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--gc-space-2);
+    font-family: var(--gc-font-code);
+    min-block-size: auto;
+  }
+
+  .gc-button[data-variant='solid'] {
+    background-color: var(--gc-accent);
+    border-color: var(--gc-accent);
+    color: var(--gc-on-accent);
+  }
+
+  .gc-button[data-variant='outline'] {
+    background-color: transparent;
+    border-color: var(--gc-accent);
+    color: var(--gc-accent);
+  }
+
+  .gc-button[data-variant='ghost'] {
+    background-color: transparent;
+    border-color: transparent;
+    color: var(--gc-accent);
+  }
+
+  .gc-button[data-variant='solid']:hover:not(:disabled) {
+    background-color: color-mix(in oklch, var(--gc-accent) 84%, var(--gc-surface-base));
+  }
+
+  .gc-button[data-variant='outline']:hover:not(:disabled),
+  .gc-button[data-variant='ghost']:hover:not(:disabled) {
+    background-color: color-mix(in oklch, var(--gc-accent) 14%, transparent);
+  }
+
+  /* ─── Panel headers/footers (WP composition over .gc-panel) ─── */
+
+  .wp-panel__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--gc-space-2);
+  }
+
+  .wp-panel__title {
+    font-family: var(--gc-font-code);
+    font-size: var(--wp-type-rail-label);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--gc-text-secondary);
+  }
+
+  .wp-panel__footer {
+    display: flex;
+    align-items: center;
+    gap: var(--gc-space-3);
+  }
+
+  /* Accent tinting for panels (clock urgency, comms, info surfaces). */
+  .gc-panel[data-wp-accent='amber'] {
+    border-color: color-mix(in oklch, var(--gc-status-warning) 55%, var(--gc-border-default));
+  }
+
+  .gc-panel[data-wp-accent='red'] {
+    border-color: color-mix(in oklch, var(--gc-status-danger) 60%, var(--gc-border-default));
+  }
+
+  /* Each meter owns its fill role. This prevents the clock panel's urgency
+     accent from recoloring the unrelated stat meters nested inside it. */
+  .gc-meter[data-wp-accent='cyan'] {
+    --gc-meter-fill: var(--gc-palette-scifi-accent);
+  }
+
+  .gc-meter[data-wp-accent='amber'] {
+    --gc-meter-fill: var(--gc-status-warning);
+  }
+
+  .gc-meter[data-wp-accent='red'] {
+    --gc-meter-fill: var(--gc-status-danger);
+  }
+
+  /* ─── Journey rail (composition contract section 2) ─── */
+
+  /* The intrusion clock's filled segments read red (danger role) at every
+     urgency; the panel border and the readout carry the urgency ramp. */
+  .wp-rail-row {
+    display: flex;
+    gap: var(--gc-space-3);
+    align-items: stretch;
+  }
+
+  /* The vertical clock spans the stat rows; the rail-meter's width is the
+     contract's 56 px column. */
+  .wp-rail-row .gc-meter[data-orientation='vertical'] {
+    inline-size: 56px;
+    block-size: auto;
+    align-self: stretch;
+    flex-shrink: 0;
+  }
+
+  .wp-rail-stats {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gc-space-2);
+    min-width: 0;
+  }
+
+  /* Threshold marker: an amber notch over the knowledge meter's track. */
+  .wp-knowledge-meter {
+    position: relative;
+  }
+
+  .wp-meter-marker {
+    position: absolute;
+    top: -2px;
+    bottom: -2px;
+    left: 50%;
+    width: 3px;
+    background-color: var(--gc-status-warning);
+    border-radius: var(--gc-radius-pill);
+    z-index: 1;
+  }
+
+  /* ─── Meters: WP label rows over the framework's value channel ─── */
+
+  .wp-meter-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--gc-space-2);
+  }
+
+  .wp-meter-label {
+    font-family: var(--gc-font-code);
+    font-size: var(--wp-type-rail-label);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--gc-text-secondary);
+  }
+
+  .wp-meter-value {
+    font-family: var(--gc-font-code);
+    font-size: var(--wp-type-readout);
+    font-weight: 700;
+    color: var(--gc-text-primary);
+  }
+
+  /* ─── Comms overlay: informational surface with a click-through scrim ───
+     The comms window is save-enabled: the sidebar's SAVE control must stay
+     reachable while the beat holds the run, so the scrim does not capture
+     pointer events; the panel and its ACKNOWLEDGE action do. */
+  #comms-overlay {
+    pointer-events: none;
+  }
+
+  #comms-overlay .wp-comms-panel {
+    pointer-events: auto;
+  }
+
+  /* ─── Modal composition (wp-modal on a gc-panel) ─── */
+
+  .wp-modal:not(.is-open) {
+    display: none;
+  }
+
+  .wp-modal__panel {
+    width: 100%;
+    max-width: 560px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gc-space-3);
+  }
+
+  .wp-modal__title {
+    font-family: var(--gc-font-code);
+    font-size: var(--gc-type-title-size);
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gc-text-primary);
+  }
+
+  .wp-modal--danger .wp-modal__title {
+    color: var(--gc-status-danger);
+  }
+
+  .wp-modal--danger .wp-modal__panel {
+    border-color: color-mix(in oklch, var(--gc-status-danger) 60%, var(--gc-border-default));
+  }
+
+  .wp-modal__body {
+    font-family: var(--gc-font-body);
+    font-size: var(--gc-type-body-size);
+    line-height: 1.6;
+    color: var(--gc-text-secondary);
+  }
+
+  .wp-modal__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--gc-space-2);
+  }
+
+  /* ─── Card composition (wp-card on a gc-panel) ─── */
+
+  .wp-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gc-space-2);
+  }
+
+  .wp-card.is-selectable {
+    cursor: pointer;
+  }
+
+  .wp-card.is-selectable:hover {
+    border-color: var(--gc-accent);
+  }
+
+  .wp-card__tag {
+    align-self: flex-start;
+    font-family: var(--gc-font-code);
+    font-size: var(--gc-type-label-size);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gc-accent);
+    border: var(--gc-border-width) solid var(--gc-accent);
+    border-radius: var(--gc-radius-pill);
+    padding: var(--gc-space-1) var(--gc-space-3);
+  }
+
+  .wp-card__title {
+    font-family: var(--gc-font-body);
+    font-size: var(--gc-type-title-size);
+    font-weight: 700;
+    color: var(--gc-text-primary);
+  }
+
+  .wp-card__body {
+    font-family: var(--gc-font-body);
+    font-size: var(--gc-type-body-size);
+    line-height: 1.5;
+    color: var(--gc-text-secondary);
+  }
+
+  /* ─── Switch/toggle compositions (button-based, role-driven) ─── */
+
+  .wp-switch,
+  .wp-toggle {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .wp-activatable-label {
+    font-family: var(--gc-font-code);
+    font-size: var(--gc-type-label-size);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .wp-activatable-state {
+    font-family: var(--gc-font-code);
+    font-size: var(--gc-type-label-size);
+    font-weight: 700;
+    color: var(--gc-accent);
+  }
+}

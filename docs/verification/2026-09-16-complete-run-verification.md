@@ -288,14 +288,20 @@ follow-up docs correction? (provide/leave)
 | F-01 | Matrix sufficient | |
 | F-02 | Deadlock evidence sufficient | |
 | F-03 | Source SFX in audio pass | |
-| F-04 | Reachability standard | |
-| F-05 | Run-length response (a/b/c) | |
-| F-06 | Rebalance comms tiers | |
-| F-07 | FD-01 name handling | |
+| F-04 | Reachability standard | **Yes** (operator, 2026-09-28): the corrected upper bound plus a demonstrated legal path is the standard, with the five recorded paths as evidence |
+| F-05 | Run-length response (a/b/c) | **(a)** (operator, 2026-09-28): the 25 to 35 minute target is retired; the accepted estimates are an attentive median of 9.6 minutes (range 5.5 to 12.0) and a leisured median of 11.9, derived from counted content as reading-model estimates, not timed human playtests |
+| F-06 | Rebalance comms tiers | **Yes** (operator, 2026-09-28): green 0-2, amber 3-5, red 6-9 |
+| F-07 | FD-01 name handling | Decided 2026-09-26 (before this amendment's review): the credentials holder is named by callsign only |
 | F-08 | Accounting confirmed | |
 | F-09 | project-brief disposition | |
 | F-10 | Retraction acknowledged | |
 | F-11 | Framework URL provided | |
+
+Note (2026-10-04, framework-migration unit): this unit retired the vendored
+predecessor tree from the runtime and vendored the successor framework at a
+reviewed pin, which retires the practical concern behind F-11's framework
+questions; the F-11 answer itself stays with the operator and is not filled
+by this note.
 
 ---
 
@@ -668,13 +674,13 @@ operator approval**; none is approved by this amendment.
 
 | Capture | Approve as new baseline? |
 |---------|--------------------------|
-| 03-hud-midrun | |
-| 06-reward-overlay | |
-| 07-comms-interrupt | |
-| 08-ending | |
-| 09-dossier | |
-| 10-dossier-reroll | |
-| 11-document-overlay (new) | |
+| 03-hud-midrun | Superseded by operator decision 2026-09-28, not approved |
+| 06-reward-overlay | Superseded by operator decision 2026-09-28, not approved |
+| 07-comms-interrupt | Superseded by operator decision 2026-09-28, not approved |
+| 08-ending | Superseded by operator decision 2026-09-28, not approved |
+| 09-dossier | Superseded by operator decision 2026-09-28, not approved |
+| 10-dossier-reroll | Superseded by operator decision 2026-09-28, not approved |
+| 11-document-overlay (new) | Superseded by operator decision 2026-09-28, not approved |
 
 ---
 
@@ -844,8 +850,15 @@ lives in `getRewardsForStop` (`src/engine/event-system.ts`):
 
 The defect case is gone: nothing renders "buying −1 clock units" for a
 reward that adds a segment. Engine-level sweep: the A2.3 live check
-compares displayed text and real `applyReward` deltas across 91 boundary
-states (rapport −6…+6 × clock 0…3). Browser coverage:
+compares displayed text and real `applyReward` deltas across 52 boundary
+states: 13 rapport values (−6…+6) by 4 clock values (0…3); the count is
+read from the test's loops, correcting this document's earlier "91".
+Browser coverage:
+`tests/reward_boundary_check.py` (dev build; the trigger is the DEV-gated
+`__wp.triggerReward`, stripped from production) drives the five cases in
+the table through the real `showRewardOverlay` card renderer and real
+`applyReward`, reading the HUD clock before and after the pick — **5/5
+boundary cases pass**. Browser coverage:
 `tests/reward_boundary_check.py` (dev build; the trigger is the DEV-gated
 `__wp.triggerReward`, stripped from production) drives the five cases in
 the table through the real `showRewardOverlay` card renderer and real
@@ -986,8 +999,8 @@ above for these new candidates):**
 
 | Capture | Approve as new baseline? |
 |---------|--------------------------|
-| 08-ending (A2.5 candidate — unobscured) | |
-| 06-reward-overlay (A2.5 candidate — truthful clock text) | |
+| 08-ending (A2.5 candidate — unobscured) | Superseded by operator decision 2026-09-28, not approved |
+| 06-reward-overlay (A2.5 candidate — truthful clock text) | Superseded by operator decision 2026-09-28, not approved |
 
 **Stale evidence copy of capture 05 refreshed.** The A1.6 pair directory's
 `after-candidate/05-save-load-confirm.png` had depicted the interim style

@@ -1,0 +1,153 @@
+/*
+ * Primitive tokens are internal literals. Semantic and component files may
+ * reference them, but framework rules never read them directly.
+ */
+@layer tokens {
+  :where(:root) {
+    /* Neutral and theme palette literals. */
+    --gc-palette-modern-00: oklch(99% 0.004 255);
+    --gc-palette-modern-10: oklch(96% 0.008 255);
+    --gc-palette-modern-20: oklch(91% 0.012 255);
+    --gc-palette-modern-40: oklch(65% 0.025 255);
+    --gc-palette-modern-44: oklch(56% 0.012 255);
+    --gc-palette-modern-55: oklch(46% 0.025 255);
+    --gc-palette-modern-60: oklch(44% 0.025 255);
+    --gc-palette-modern-70: oklch(34% 0.035 255);
+    --gc-palette-modern-85: oklch(22% 0.03 255);
+    --gc-palette-modern-95: oklch(14% 0.025 255);
+    --gc-palette-modern-accent: oklch(42% 0.19 255);
+    --gc-palette-modern-accent-on: oklch(99% 0.004 255);
+
+    --gc-palette-arcade-00: oklch(96% 0.04 105);
+    --gc-palette-arcade-20: oklch(84% 0.16 105);
+    --gc-palette-arcade-45: oklch(62% 0.22 330);
+    --gc-palette-arcade-70: oklch(43% 0.15 290);
+    --gc-palette-arcade-90: oklch(19% 0.06 290);
+    --gc-palette-arcade-98: oklch(9% 0.03 290);
+    --gc-palette-arcade-accent: oklch(82% 0.22 145);
+    --gc-palette-arcade-accent-on: oklch(12% 0.03 145);
+
+    --gc-palette-scifi-00: oklch(97% 0.02 210);
+    --gc-palette-scifi-20: oklch(82% 0.08 210);
+    --gc-palette-scifi-45: oklch(65% 0.18 210);
+    --gc-palette-scifi-55: oklch(56% 0.09 235);
+    --gc-palette-scifi-70: oklch(36% 0.09 235);
+    --gc-palette-scifi-90: oklch(17% 0.055 245);
+    --gc-palette-scifi-98: oklch(8% 0.025 250);
+    --gc-palette-scifi-accent: oklch(78% 0.18 195);
+    --gc-palette-scifi-accent-on: oklch(12% 0.04 235);
+
+    --gc-palette-fantasy-00: oklch(94% 0.045 85);
+    --gc-palette-fantasy-15: oklch(82% 0.07 82);
+    --gc-palette-fantasy-25: oklch(70% 0.09 70);
+    --gc-palette-fantasy-35: oklch(58% 0.09 70);
+    --gc-palette-fantasy-55: oklch(39% 0.065 55);
+    --gc-palette-fantasy-75: oklch(25% 0.045 45);
+    --gc-palette-fantasy-92: oklch(13% 0.025 40);
+    --gc-palette-fantasy-accent: oklch(74% 0.12 78);
+    --gc-palette-fantasy-accent-on: oklch(16% 0.025 45);
+
+    /* Status literals remain independent from the accent palette. */
+    --gc-palette-positive: oklch(68% 0.16 150);
+    --gc-palette-positive-on: oklch(13% 0.025 150);
+    --gc-palette-caution: oklch(79% 0.15 88);
+    --gc-palette-caution-on: oklch(17% 0.035 72);
+    --gc-palette-critical: oklch(50% 0.22 27);
+    --gc-palette-critical-on: oklch(98% 0.008 27);
+    --gc-palette-notice: oklch(46% 0.15 235);
+    --gc-palette-notice-on: oklch(98% 0.008 235);
+
+    /* Transparency, geometry, and depth literals. */
+    --gc-alpha-clear: transparent;
+    --gc-alpha-overlay: oklch(12% 0.02 255 / 88%);
+    --gc-alpha-scrim: oklch(8% 0.02 255 / 72%);
+    --gc-alpha-disabled: 0.48;
+    --gc-alpha-hidden: 0;
+    --gc-alpha-soft: 0.72;
+    --gc-alpha-full: 1;
+    --gc-border-thin: 1px;
+    --gc-border-medium: 2px;
+    --gc-border-thick: 3px;
+    --gc-radius-none: 0;
+    --gc-radius-small: 0.25rem;
+    --gc-radius-medium: 0.625rem;
+    --gc-radius-large: 1rem;
+    --gc-radius-pill: 999px;
+    --gc-shadow-none: none;
+    --gc-shadow-soft-low: 0 0.25rem 0.75rem oklch(12% 0.02 255 / 14%);
+    --gc-shadow-soft-mid: 0 0.75rem 2rem oklch(12% 0.02 255 / 20%);
+    --gc-shadow-soft-high: 0 1.25rem 3.5rem oklch(12% 0.02 255 / 28%);
+    --gc-shadow-hard-low: 0.2rem 0.2rem 0 oklch(9% 0.03 290);
+    --gc-shadow-hard-mid: 0.4rem 0.4rem 0 oklch(9% 0.03 290);
+    --gc-shadow-glow-low: 0 0 0.75rem oklch(78% 0.18 195 / 38%);
+    --gc-shadow-glow-mid: 0 0 1.5rem oklch(78% 0.18 195 / 48%);
+    --gc-shadow-carved-low: inset 0 1px 0 oklch(94% 0.045 85 / 22%), inset 0 -2px 0 oklch(13% 0.025 40 / 55%);
+    --gc-shadow-carved-mid: inset 0 2px 1px oklch(94% 0.045 85 / 28%), inset 0 -4px 3px oklch(13% 0.025 40 / 62%), 0 0.75rem 2rem oklch(8% 0.02 40 / 42%);
+
+    /* Spacing and typography literals. */
+    --gc-size-0: 0;
+    --gc-size-1: 0.25rem;
+    --gc-size-2: 0.5rem;
+    --gc-size-3: 0.75rem;
+    --gc-size-4: 1rem;
+    --gc-size-5: 1.5rem;
+    --gc-size-6: 2rem;
+    --gc-size-7: 3rem;
+    --gc-size-8: 4rem;
+    --gc-font-system: ui-sans-serif, system-ui, sans-serif;
+    --gc-font-editorial: Georgia, "Times New Roman", serif;
+    --gc-font-technical: ui-monospace, "Cascadia Code", monospace;
+    --gc-font-size-xs: 0.75rem;
+    --gc-font-size-sm: 0.875rem;
+    --gc-font-size-md: 1rem;
+    --gc-font-size-lg: 1.25rem;
+    --gc-font-size-xl: clamp(1.75rem, 4vw, 3rem);
+    --gc-font-weight-regular: 400;
+    --gc-font-weight-medium: 600;
+    --gc-font-weight-heavy: 800;
+    --gc-line-compact: 1.15;
+    --gc-line-normal: 1.5;
+    --gc-track-normal: 0;
+    --gc-track-wide: 0.08em;
+    --gc-case-normal: none;
+    --gc-case-upper: uppercase;
+
+    /* Motion and stacking literals. */
+    --gc-time-0: 0ms;
+    --gc-time-1: 80ms;
+    --gc-time-2: 160ms;
+    --gc-time-3: 280ms;
+    --gc-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+    --gc-ease-enter: cubic-bezier(0, 0, 0.2, 1);
+    --gc-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+    --gc-ease-steps: steps(3, end);
+    --gc-stack-0: 0;
+    --gc-stack-1: 10;
+    --gc-stack-2: 100;
+    --gc-stack-3: 1000;
+    --gc-stack-4: 1100;
+
+    /* Technique literals are selected through semantic roles. */
+    --gc-image-none: none;
+    --gc-image-arcade-grid:
+      repeating-linear-gradient(90deg, oklch(84% 0.16 105 / 8%) 0 1px, transparent 1px 0.5rem),
+      repeating-linear-gradient(0deg, oklch(62% 0.22 330 / 7%) 0 1px, transparent 1px 0.5rem);
+    --gc-image-scifi-readout:
+      repeating-linear-gradient(0deg, transparent 0 3px, oklch(78% 0.18 195 / 8%) 3px 4px),
+      conic-gradient(from 210deg at 80% 0%, transparent, oklch(78% 0.18 195 / 14%), transparent 28%);
+    --gc-image-fantasy-wash:
+      radial-gradient(circle at 20% 15%, oklch(94% 0.045 85 / 8%), transparent 35%),
+      repeating-linear-gradient(102deg, transparent 0 0.4rem, oklch(13% 0.025 40 / 5%) 0.45rem 0.5rem);
+    --gc-image-fantasy-parchment: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220' viewBox='0 0 220 220'%3E%3Cfilter id='grain' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.035' numOctaves='4' seed='17' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='220' height='220' fill='%23c4a66b' opacity='.2' filter='url(%23grain)'/%3E%3C/svg%3E");
+    --gc-image-fantasy-ornament: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'%3E%3Cg fill='none' stroke='black' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 88C8 44 44 8 88 8M8 66C8 34 34 8 66 8M17 49c18 0 32-14 32-32M47 13c0 20 16 36 36 36'/%3E%3Cpath d='M24 72c0-15 12-27 27-27M72 24c-15 0-27 12-27 27'/%3E%3C/g%3E%3Ccircle cx='9' cy='87' r='7' fill='black'/%3E%3Cpath d='M58 18c8-8 18-8 25-5-2 8-8 15-20 17zM18 58c-8 8-8 18-5 25 8-2 15-8 17-20z' fill='black'/%3E%3C/svg%3E");
+    --gc-image-scifi-ornament: conic-gradient(from 45deg, transparent 0 12.5%, currentColor 12.5% 18.75%, transparent 18.75% 31.25%, currentColor 31.25% 37.5%, transparent 37.5%);
+    --gc-filter-none: none;
+    --gc-filter-frost: blur(0.75rem) saturate(125%);
+    --gc-filter-weathered-edge: url("#gc-edge-distress");
+    --gc-shape-rect: none;
+    --gc-shape-chamfer: polygon(0.75rem 0, calc(100% - 0.75rem) 0, 100% 0.75rem, 100% calc(100% - 0.75rem), calc(100% - 0.75rem) 100%, 0.75rem 100%, 0 calc(100% - 0.75rem), 0 0.75rem);
+    --gc-shape-weathered: polygon(0.5% 2%, 7% 0.5%, 15% 1.5%, 24% 0, 36% 1.2%, 48% 0.4%, 61% 1.4%, 73% 0.2%, 86% 1.6%, 99.5% 0.5%, 99% 12%, 100% 25%, 99.2% 39%, 100% 53%, 99% 68%, 99.7% 82%, 98.8% 99%, 86% 98.4%, 73% 100%, 61% 98.8%, 49% 99.6%, 37% 98.7%, 24% 100%, 12% 98.5%, 0.5% 99.2%, 1.2% 86%, 0 72%, 0.8% 57%, 0 43%, 1% 28%);
+    --gc-render-auto: auto;
+    --gc-render-crisp: pixelated;
+  }
+}

@@ -32,7 +32,7 @@ from urllib.parse import urlparse
 from playwright.sync_api import sync_playwright
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-VIEWPORT = {"width": 1440, "height": 900}
+VIEWPORT = {"width": 1920, "height": 1080}
 
 
 def free_port() -> int:
@@ -93,7 +93,7 @@ def main() -> int:
             page.add_init_script("window.__wpSeed = 2027;")
             page.goto(base, wait_until="networkidle")
             page.wait_for_selector("#title-screen:not(.hidden)", timeout=15000)
-            page.locator("#title-menu .gui-btn", has_text="NEW GAME").first.click()
+            page.locator("#title-menu .gc-button", has_text="NEW GAME").first.click()
             page.wait_for_selector("#dossier-screen:not(.hidden)", timeout=10000)
             page.click("#dossier-deploy")
             page.wait_for_selector("#dialogue-text", timeout=10000)
@@ -104,20 +104,20 @@ def main() -> int:
                 if rewards_seen >= 2:
                     break
                 if page.locator("#document-overlay:not(.hidden)").count() > 0:
-                    page.click("#document-footer .gui-btn")
+                    page.click("#document-footer .gc-button")
                     time.sleep(0.1)
                     continue
                 if page.locator("#comms-overlay:not(.hidden)").count() > 0:
-                    page.click("#comms-panel-body .gui-btn")
+                    page.click("#comms-panel-body .gc-button")
                     time.sleep(0.1)
                     continue
                 if page.locator("#reward-overlay:not(.hidden)").count() > 0:
                     rewards_seen += 1
-                    page.locator(".wp-reward-cards .gui-card").first.click()
+                    page.locator(".wp-reward-cards .wp-card").first.click()
                     time.sleep(0.12)
                     continue
-                if page.query_selector("#choices-area .gui-btn:not([disabled])"):
-                    page.query_selector("#choices-area .gui-btn:not([disabled])").click()
+                if page.query_selector("#choices-area .gc-button:not([disabled])"):
+                    page.query_selector("#choices-area .gc-button:not([disabled])").click()
                     time.sleep(0.12)
                     continue
                 page.click("#bottom-bar")

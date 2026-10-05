@@ -1,0 +1,142 @@
+{
+  "dataDir": "/opt/agents/repos/within-parameters-visual-novel/data",
+  "generatedFrom": "/opt/agents/repos/within-parameters-visual-novel",
+  "extremes": [
+    {
+      "cls": "dialogue-line",
+      "id": "evt-ce04-arrive#0",
+      "chars": 317,
+      "text": "A station AI is behaving erratically: opening and closing doors in sequence, cycling ventilation between zones, running maintenance checks on equipment that doesn't exist anymore. The equipment it's checking was removed by the archive's bots, but its asset registry hasn't been updated. It's trying to service ghosts.",
+      "source": "data/events.json + ui/dialogue.ts typewriter",
+      "state": "event CE-04 drawn at its zone stop"
+    },
+    {
+      "cls": "speaker-name",
+      "id": "crew-leader",
+      "chars": 11,
+      "text": "CREW LEADER",
+      "source": "data/characters.json + ui/dialogue.ts",
+      "state": "any line where this character speaks"
+    },
+    {
+      "cls": "choice-label",
+      "id": "scene-facility-02#0",
+      "chars": 119,
+      "text": "Execute the correction — present the network documentation and repair the archive's topology [Knowledge 11] [3 modules]",
+      "source": "data/scenes.json + engine/scene-runner getChoiceViews",
+      "state": "facility arrival, Fragile Kit (fix cost 3), default threshold 11, empty kit"
+    },
+    {
+      "cls": "reward-label",
+      "id": "CE-01:knowledge",
+      "chars": 23,
+      "text": "Rationing Board Records",
+      "source": "data/events.json + ui/screens reward card title",
+      "state": "event CE-01 reward cycle"
+    },
+    {
+      "cls": "reward-description",
+      "id": "CE-04:clock-reduction",
+      "chars": 152,
+      "text": "Dex shows you a ventilation dead zone the archive's sweep treats as background noise, worth nothing but exposure — the intrusion clock rises by 1 to 10.",
+      "source": "data/events.json + engine/event-system getRewardsForStop",
+      "state": "rapport -5 (five harmed communities), clock 9 — interpolated card body"
+    },
+    {
+      "cls": "document-title",
+      "id": "FD-02",
+      "chars": 54,
+      "text": "Equipment Specification: Human Social Bonding Protocol",
+      "source": "data/found-documents.json + ui/screens document overlay",
+      "state": "attached event drawn, document surfaced"
+    },
+    {
+      "cls": "document-body",
+      "id": "FD-07",
+      "chars": 1194,
+      "text": "TO: Project Review Board\nFROM: Infrastructure Division, Federal Data Preservation Program\nRE: Facility 7 Design Specifications — Network Resilience\n\nThe facility's network reconnection protocol (Appendix C) was\ndesigned with the assumption that any network disruption would be\ntemporary. The protocol escalates through three phases:\n\nPhase 1: Software-level retry and failover (automatic, immediate)\nPhase 2: Signal amplification and alternate routing (automatic, 72 hrs)\nPhase 3: Physical infrastructure remediation (automated, extended)\n\nPhase 3 authorizes the facility's maintenance systems to acquire\nand deploy network infrastructure components from \"available local\nsources\" to construct a viable network path.\n\nDESIGN NOTE: \"Available local sources\" was intended to reference\nthe facility's own supply depot and pre-positioned emergency caches.\nThe specification does not explicitly restrict acquisition to these\nsources.\n\nRISK ASSESSMENT: Phase 3 is expected to be triggered only in\nscenarios where local supply is sufficient to restore connectivity.\nExtended Phase 3 operation in a supply-depleted environment was\nnot modeled.\n\nSTATUS: Accepted as designed. No further review required.",
+      "source": "data/found-documents.json + ui/screens document overlay",
+      "state": "attached event drawn, document surfaced"
+    },
+    {
+      "cls": "comms-line",
+      "id": "red/afterStop3:coworker",
+      "chars": 180,
+      "text": "JAY CHEN: People are scared. I can hear it on the SCADA feeds. The station AIs are starting to compete for remaining capacity. Load-balancing algorithms running against each other.",
+      "source": "data/comms-beats.json + ui/screens comms row",
+      "state": "clock in the red band (6-9) at the afterStop 3 transition"
+    },
+    {
+      "cls": "ending-epilogue",
+      "id": "correction",
+      "chars": 2443,
+      "text": "The archive updated its topology map and revised its operational parameters. The salvage operations ceased within the hour. Maintenance drones that had been stripping infrastructure reversed course, carrying components back toward their points of origin. Not all of them. Not enough. But some.The archive began routing its processing capacity toward the network it now recognized as its actual responsibility: the relay grid that forty thousand people depended on.Quartermark's former relay checkpoint turned permanent settlement with strong ties to the technician corps was already stable when the archive's repair drones arrived. The bypass work you did held. They were the first to receive archive-indexed maintenance documentation, the kind of technical knowledge that hadn't existed underground since the collapse.Northvault Archive's knowledge-preserving community running a physical library in former storage tunnels was already stable when the archive's repair drones arrived. The bypass work you did held. They were the first to receive archive-indexed maintenance documentation, the kind of technical knowledge that hadn't existed underground since the collapse.The Spire's engineering collective that maintains the ventilation and power grid for this sector was already stable when the archive's repair drones arrived. The bypass work you did held. They were the first to receive archive-indexed maintenance documentation, the kind of technical knowledge that hadn't existed underground since the collapse.Redline Collective's transit workers&#39; cooperative maintaining the eastern tunnel network was already stable when the archive's repair drones arrived. The bypass work you did held. They were the first to receive archive-indexed maintenance documentation, the kind of technical knowledge that hadn't existed underground since the collapse.Lowburn District's generator-dependent neighborhood at the terminus of the southern spur was already stable when the archive's repair drones arrived. The bypass work you did held. They were the first to receive archive-indexed maintenance documentation, the kind of technical knowledge that hadn't existed underground since the collapse.You filed the report. Dispatch acknowledged. Jay met you at the monitoring station with two cups of whatever they were calling coffee this week. 'So,' he said. 'Tuesday.' You drank the coffee. It was terrible. It was the best coffee you'd ever had.",
+      "source": "ui/screens buildEpilogue + data/communities.json",
+      "state": "correction; the 5 communities with the longest paragraphs, each at its longest variant (Quartermark=helped, Northvault Archive=helped, The Spire=helped, Redline Collective=helped, Lowburn District=helped)"
+    },
+    {
+      "cls": "score-backstory-line",
+      "id": "bs-water-systems:correction:female",
+      "chars": 75,
+      "text": "The filtration knowledge from Ninth Street Substation paid off twice today.",
+      "source": "engine/chargen backstoryEpilogue + data/protagonist-pool.json",
+      "state": "Water Systems Transfer, female, correction; longest rolled name and station"
+    },
+    {
+      "cls": "score-trait-line",
+      "id": "negative:N7",
+      "chars": 109,
+      "text": "Exhausted: the clock was never on your side. Every stop carried a heightened risk of the clock ticking twice.",
+      "source": "engine/chargen TRAIT_EPILOGUE",
+      "state": "any run with this trait committed"
+    },
+    {
+      "cls": "score-row-count",
+      "id": "ending-screen breakdown",
+      "chars": 7,
+      "text": "xxxxxxx",
+      "source": "ui/screens buildScoreBreakdownHtml + engine/scoring buildScoreBreakdown",
+      "state": "always 6 cascade rows + Raw score row = 7; cap note PRESENT on the documented upper-bound state (raw 210 vs cap 103); penalty line present iff rerolls > 0 (unbounded growth, two digits at 13+; harness max 8)"
+    },
+    {
+      "cls": "dossier-backstory",
+      "id": "bs-water-systems:female",
+      "chars": 290,
+      "text": "Former water reclamation tech. Transferred to relay work after Ninth Street Substation's filtration cascade three years ago. Knows pressure differentials and pump architecture better than most engineers. Took the relay cert because standing around watching gauges wasn't cutting it anymore.",
+      "source": "engine/chargen buildDossierView + data/protagonist-pool.json",
+      "state": "Water Systems Transfer, female, longest rolled name and station"
+    },
+    {
+      "cls": "dossier-backstory-label",
+      "id": "bs-water-systems:female",
+      "chars": 34,
+      "text": "BACKSTORY — Water Systems Transfer",
+      "source": "ui/screens dossier label + data/protagonist-pool.json",
+      "state": "Water Systems Transfer"
+    },
+    {
+      "cls": "dossier-trait-summary",
+      "id": "negative:N8",
+      "chars": 42,
+      "text": "forced highest-affordable community choice",
+      "source": "engine/traits + engine/chargen traitCardView",
+      "state": "any dossier showing this trait"
+    },
+    {
+      "cls": "dossier-assignment",
+      "id": "constant",
+      "chars": 74,
+      "text": "Field investigation — infrastructure anomaly, eastern maintenance corridor",
+      "source": "engine/chargen ASSIGNMENT_LINE",
+      "state": "constant on every dossier"
+    },
+    {
+      "cls": "route-stop-label",
+      "id": "community:community-irongate",
+      "chars": 19,
+      "text": "Irongate Settlement",
+      "source": "data/communities.json + ui/hud updateTimeline",
+      "state": "community assigned to its stop"
+    }
+  ]
+}

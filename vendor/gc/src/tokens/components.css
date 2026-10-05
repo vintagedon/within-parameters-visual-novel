@@ -1,0 +1,31 @@
+/*
+ * Component tokens bind proof specimens to semantic roles. State recipes live
+ * here once so every interactive component derives the same four states.
+ */
+@layer tokens {
+  :where(:root) {
+    --gc-control-fill-hover: color-mix(in oklch, var(--gc-surface-interactive) 84%, var(--gc-accent));
+    --gc-control-fill-active: color-mix(in oklch, var(--gc-surface-interactive) 70%, var(--gc-accent));
+    --gc-control-fill-disabled: color-mix(in oklch, var(--gc-surface-interactive) 72%, var(--gc-surface-canvas));
+    --gc-control-fill-selected: color-mix(in oklch, var(--gc-accent) 82%, var(--gc-surface-base));
+
+    --gc-button-fill: var(--gc-surface-interactive);
+    --gc-button-text: var(--gc-text-primary);
+    --gc-button-border: var(--gc-border-default);
+    --gc-button-selected-text: var(--gc-on-accent);
+
+    --gc-panel-fill: var(--gc-surface-raised);
+    --gc-panel-text: var(--gc-text-primary);
+    --gc-panel-border: var(--gc-border-default);
+
+    --gc-input-fill: var(--gc-surface-sunken);
+    --gc-input-text: var(--gc-text-primary);
+    --gc-input-placeholder: var(--gc-text-muted);
+    --gc-input-border: var(--gc-border-default);
+
+    --gc-meter-track: var(--gc-surface-sunken);
+    --gc-meter-fill: var(--gc-accent);
+    --gc-meter-text: var(--gc-text-primary);
+    --gc-meter-trail: var(--gc-status-danger);
+  }
+}

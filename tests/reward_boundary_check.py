@@ -47,7 +47,7 @@ from urllib.parse import urlparse
 from playwright.sync_api import sync_playwright
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-VIEWPORT = {"width": 1440, "height": 900}
+VIEWPORT = {"width": 1920, "height": 1080}
 
 CASES: list[dict] = [
     {
@@ -141,7 +141,7 @@ def run_case(browser, base: str, case: dict) -> dict:
         page.evaluate(f"window.__wp.triggerReward({json.dumps(case['name'])})")
         page.wait_for_selector("#reward-overlay:not(.hidden)", timeout=8000)
 
-        cards = page.locator("#reward-cards .gui-card")
+        cards = page.locator("#reward-cards .wp-card")
         assert cards.count() == 3, f"expected the three-card reward surface, got {cards.count()}"
         clock_card = None
         for i in range(cards.count()):

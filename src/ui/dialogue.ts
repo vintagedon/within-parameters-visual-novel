@@ -49,8 +49,9 @@ export function initDialogue(bottomBar: HTMLElement, config: GameConfig): void {
       </div>
     </div>
     <div id="dialogue-area">
-      <div id="speaker-name"></div>
-      <div id="dialogue-text"></div>
+      <div id="dialogue-row">
+        <span id="speaker-name"></span><span id="dialogue-text"></span>
+      </div>
       <div id="advance-indicator">▼</div>
       <div id="choices-area"></div>
     </div>
@@ -90,7 +91,7 @@ export function renderLine(
 
   // Speaker name
   if (character && character.id !== 'narrator') {
-    speakerEl.textContent = character.name;
+    speakerEl.textContent = `${character.name}: `;
     speakerEl.style.color = character.nameColor;
   } else {
     speakerEl.textContent = '';
@@ -128,7 +129,7 @@ function updatePortrait(
 
   const expressionKey = line.expression ?? character.defaultExpression;
   const assetKey = character.expressions[expressionKey] ?? character.expressions[character.defaultExpression] ?? '';
-  const placeholderColor = portraitColors.get(assetKey) ?? 'var(--gui-surface-strong)';
+  const placeholderColor = portraitColors.get(assetKey) ?? 'var(--gc-surface-raised)';
   const initials = character.name
     .split(' ')
     .map((w) => w[0] ?? '')

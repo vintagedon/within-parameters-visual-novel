@@ -1,0 +1,17 @@
+{
+  "captures": {
+    "01-title.png": "pending-approval",
+    "02-lore-card.png": "interim",
+    "03-hud-midrun.png": "interim",
+    "04-settings.png": "interim",
+    "05-save-load-confirm.png": "interim",
+    "06-reward-overlay.png": "interim",
+    "07-comms-interrupt.png": "interim",
+    "08-ending.png": "interim",
+    "09-dossier.png": "interim",
+    "10-dossier-reroll.png": "interim",
+    "11-document-overlay.png": "interim",
+    "12-journey-midrun.png": "pending-approval"
+  },
+  "generated": "PR 7 review-fix recapture at 1920x1080 DPR 1 (2026-10-05)"
+}

@@ -1,0 +1,48 @@
+diff --git a/tests/complete_run.py b/tests/complete_run.py
+index 564af62..95135b7 100644
+--- a/tests/complete_run.py
++++ b/tests/complete_run.py
+@@ -111,6 +111,7 @@ class RunResult:
+         self.strategy = strategy
+         self.ending: str | None = None
+         self.score: int | None = None
++        self.raw_score: int | None = None
+         self.grade: str | None = None
+         self.actions = 0
+         self.docs_read = 0
+@@ -249,6 +250,15 @@ def play_run(
+                 result.ending = ENDING_BY_LABEL.get(label, label)
+                 result.score = int(page.locator("#ending-score .wp-score-final-num").text_content().strip())
+                 result.grade = page.locator("#ending-score .wp-score-grade").first.text_content().strip()
++                # Gate 5.1 reference instrumentation (read-only): extract the
++                # existing Raw score row from the rendered ending DOM. No
++                # application source changes; harness-only diff.
++                raw_row = page.locator(
++                    "#ending-score .wp-score-row--total .wp-score-row-value"
++                )
++                result.raw_score = (
++                    int(raw_row.text_content().strip()) if raw_row.count() > 0 else None
++                )
+                 epilogue = page.locator("#ending-epilogue").text_content() or ""
+                 breakdown = page.locator("#ending-score").text_content() or ""
+                 result.instant_chars += len(epilogue) + len(breakdown)
+@@ -590,7 +600,10 @@ def main() -> int:
+             print(f"    {f}")
+ 
+     # Raw results for the verification document (staging only; not committed).
+-    out = Path("/tmp/kilo/complete-run-results.json")
++    # Gate 5.1: WP_COMPLETE_RUN_OUT redirects the output to the run-specific
++    # immutable reference path so later trace controls and mutations writing
++    # the default path cannot overwrite it.
++    out = Path(os.environ.get("WP_COMPLETE_RUN_OUT", "/tmp/kilo/complete-run-results.json"))
+     out.parent.mkdir(parents=True, exist_ok=True)
+     out.write_text(
+         json.dumps(
+@@ -600,6 +613,7 @@ def main() -> int:
+                     "strategy": r.strategy,
+                     "ending": r.ending,
+                     "score": r.score,
++                    "raw_score": r.raw_score,
+                     "grade": r.grade,
+                     "docs_read": r.docs_read,
+                     "comms_tiers": r.comms_tiers,

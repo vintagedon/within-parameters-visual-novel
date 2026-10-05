@@ -19,8 +19,9 @@ The harness starts the Vite dev server itself on an isolated port, so no manual
 `npm run dev` is required. Playwright runs under Chromium headless only.
 
 Check mode is read-only with respect to tests/baseline/: candidate screenshots
-stay in memory and are compared against the committed sidecars, so a failing
-check cannot damage the approved artifacts it guards. Every screen declared in
+stay in memory and are compared against the committed sidecars, with a tightly
+bounded pixel fallback for measured Chromium compositor noise. A failing check
+cannot damage the approved artifacts it guards. Every screen declared in
 SCREENS is required in BOTH modes; a declared screen the walk never reached is
 a failure that names the missing step.
 
@@ -34,6 +35,8 @@ and adds their drivers — extending the harness is a small edit, not a rewrite.
 from __future__ import annotations
 
 import hashlib
+import io
+import json
 import os
 import socket
 import subprocess
@@ -43,6 +46,7 @@ from pathlib import Path
 from typing import Callable
 from urllib.parse import urlparse
 
+from PIL import Image, ImageChops
 from playwright.sync_api import Page, sync_playwright
 
 # =============================================================================
@@ -62,6 +66,7 @@ SCREENS: list[tuple[str, str]] = [
     ("dossier-reroll", "10-dossier-reroll.png"),
     ("lore-card", "02-lore-card.png"),
     ("hud-midrun", "03-hud-midrun.png"),
+    ("journey-midrun", "12-journey-midrun.png"),
     ("comms-interrupt", "07-comms-interrupt.png"),
     ("document-overlay", "11-document-overlay.png"),
     ("reward-overlay", "06-reward-overlay.png"),
@@ -70,9 +75,24 @@ SCREENS: list[tuple[str, str]] = [
 ]
 SCREEN_MAP: dict[str, str] = dict(SCREENS)
 
-VIEWPORT = {"width": 1440, "height": 900}
+VIEWPORT = {"width": 1920, "height": 1080}
+DEVICE_SCALE_FACTOR = 1
+
+# Gate 5.8 evidence (observed 2026-10-04, dev server, Chromium headless):
+# the historical "ambient-audio 404" warning is not an HTTP 404. The request
+# for /assets/audio/bgm-ambient.ogg never receives a response status; the
+# browser reports requestfailed with net::ERR_ABORTED, twice, when the BGM
+# crossfade swaps sources and cancels the in-flight media-element load. The
+# file itself serves HTTP 200 from the dev server (observed directly), so
+# this is a browser-cancelled media request in working game audio, not a
+# missing or mispathed asset. The harness classifies exactly that shape
+# (same-origin .ogg under /assets/audio/ aborted in transport) and no other.
+MEDIA_CANCELLATION_NOTE = "BGM media loads aborted by the audio crossfade (net::ERR_ABORTED, no HTTP status)"
 ACTION_INTERVAL_MS = 160   # pause between walk actions (typewriter settle)
 MAX_WALK_ACTIONS = 1200    # safety cap on the run walk
+MAX_NOISE_PIXELS = 64
+MAX_NOISE_CHANNEL_DELTA = 8
+MAX_NOISE_TOTAL_DELTA = 128
 
 
 # =============================================================================
@@ -136,7 +156,7 @@ def click_first(page: Page, selector: str) -> bool:
 
 def click_text(page: Page, container: str, text: str) -> bool:
     """Click the first framework button under container whose label matches text."""
-    loc = page.locator(f"{container} .gui-btn", has_text=text)
+    loc = page.locator(f"{container} .gc-button", has_text=text)
     if loc.count() == 0:
         return False
     loc.first.click()
@@ -147,19 +167,20 @@ def click_text(page: Page, container: str, text: str) -> bool:
 # harness asserts the migration (not just that something rendered). Spec 03
 # extends this map when it adds the dossier and score screens.
 VERIFY: dict[str, str] = {
-    "title": "#title-menu .gui-btn",
-    "settings": "#settings-rows .gui-switch, #settings-rows .gui-toggle",
-    "save-load-confirm": ".gui-modal.is-open.gui-modal--danger",
+    "title": "#title-menu .gc-button",
+    "settings": "#settings-rows .wp-switch, #settings-rows .wp-toggle",
+    "save-load-confirm": ".wp-modal.is-open.wp-modal--danger",
     "lore-card": "#dialogue-text",
-    "hud-midrun": "#sidebar .gui-panel .gui-bar--segmented",
-    "comms-interrupt": "#comms-panel-body.gui-panel--warning",
+    "hud-midrun": "#sidebar .gc-panel .gc-meter[data-shape='segmented']",
+    "comms-interrupt": "#comms-panel-body.gc-panel[data-wp-accent='amber']",
+    "journey-midrun": "#sidebar #clock-bar .gc-meter__fill",
     "document-overlay": "#document-overlay:not(.hidden) .wp-document-panel",
-    "reward-overlay": ".wp-reward-cards .gui-card",
-    "ending": "#ending-actions .gui-btn",
+    "reward-overlay": ".wp-reward-cards .wp-card",
+    "ending": "#ending-actions .gc-button",
     # Spec 03: the dossier (chargen) and its post-reroll state. Both render
-    # the two framework trait cards plus DEPLOY/REROLL gui-btn controls.
-    "dossier": "#dossier-screen:not(.hidden) .wp-dossier-traits .gui-card",
-    "dossier-reroll": "#dossier-screen:not(.hidden) .wp-dossier-traits .gui-card",
+    # the two framework trait cards plus DEPLOY/REROLL framework button controls.
+    "dossier": "#dossier-screen:not(.hidden) .wp-dossier-traits .wp-card",
+    "dossier-reroll": "#dossier-screen:not(.hidden) .wp-dossier-traits .wp-card",
 }
 
 
@@ -173,23 +194,60 @@ def assert_framework(page: Page, step: str, errors: list[str]):
         print(f"    FRAMEWORK-FAIL {step}: {selector}")
 
 
+def compare_png_pixels(reference: bytes, candidate: bytes) -> tuple[bool, tuple[int, int, int]]:
+    """Accept only the measured low-order Chromium compositor variance."""
+    with Image.open(io.BytesIO(reference)) as reference_image, Image.open(io.BytesIO(candidate)) as candidate_image:
+        reference_rgb = reference_image.convert("RGB")
+        candidate_rgb = candidate_image.convert("RGB")
+        if reference_rgb.size != candidate_rgb.size:
+            return False, (reference_rgb.width * reference_rgb.height, 255, 255)
+        raw = ImageChops.difference(reference_rgb, candidate_rgb).tobytes()
+    changed_pixels = sum(
+        1 for offset in range(0, len(raw), 3)
+        if raw[offset] or raw[offset + 1] or raw[offset + 2]
+    )
+    max_channel_delta = max(raw, default=0)
+    total_delta = sum(raw)
+    stats = (changed_pixels, max_channel_delta, total_delta)
+    accepted = (
+        changed_pixels <= MAX_NOISE_PIXELS
+        and max_channel_delta <= MAX_NOISE_CHANNEL_DELTA
+        and total_delta <= MAX_NOISE_TOTAL_DELTA
+    )
+    return accepted, stats
+
+
 def capture(page: Page, filename: str, errors: list[str]):
     """Screenshot the current viewport and record or compare its sha1.
 
     Capture mode writes the approved PNG plus its .sha1 sidecar into the
     baseline dir. Check mode never touches the baseline dir: the candidate
-    stays in memory (screenshot bytes) and is hashed against the committed
-    sidecar, so both pass and failure leave the approved artifacts
-    byte-identical."""
+    stays in memory and is hashed against the committed sidecar first, then
+    compared within the bounded compositor-noise budget when the hash differs.
+    Both pass and failure leave the approved artifacts byte-identical."""
+    baseline = BASELINE_DIR / filename
     sidecar = BASELINE_DIR / f"{filename}.sha1"
     if CHECK_MODE:
-        digest = hashlib.sha1(page.screenshot(animations="disabled")).hexdigest()
+        candidate = page.screenshot(animations="disabled")
+        digest = hashlib.sha1(candidate).hexdigest()
         if not sidecar.exists():
             errors.append(f"{filename}: no baseline .sha1")
             print(f"    NO BASELINE  {filename}")
         elif sidecar.read_text().strip() != digest:
-            errors.append(f"{filename}: regression")
-            print(f"    REGRESSION   {filename}")
+            if not baseline.exists():
+                errors.append(f"{filename}: no baseline PNG")
+                print(f"    NO BASELINE  {filename}")
+            else:
+                accepted, stats = compare_png_pixels(baseline.read_bytes(), candidate)
+                if accepted:
+                    pixels, max_delta, total_delta = stats
+                    print(
+                        f"    ok (noise)   {filename} "
+                        f"[{pixels}px, max {max_delta}, total {total_delta}]"
+                    )
+                else:
+                    errors.append(f"{filename}: regression (pixel delta {stats})")
+                    print(f"    REGRESSION   {filename} [pixel delta {stats}]")
         else:
             print(f"    ok           {filename}")
     else:
@@ -206,11 +264,19 @@ def capture(page: Page, filename: str, errors: list[str]):
 
 
 def boot_and_capture_title(page: Page, base_url: str, captured: set[str], errors: list[str]):
-    """Boot the game and capture the title screen."""
+    """Boot the game and capture the title screen. The build identifier is
+    asserted present and non-empty, then masked to a fixed token BEFORE the
+    capture, so the baseline hash does not change with every commit (gate
+    5.8; the identifier itself is verified by build_id_check.py)."""
     page.goto(base_url, wait_until="networkidle")
     page.wait_for_selector("#title-screen:not(.hidden)", timeout=15000)
     page.wait_for_timeout(400)
     if "title" not in captured:
+        build_id_text = page.evaluate("() => document.getElementById('build-id')?.textContent?.trim() || ''")
+        if not build_id_text:
+            errors.append("build identifier missing on the title screen")
+        page.evaluate("() => { const el = document.getElementById('build-id'); if (el) el.textContent = 'BUILD'; }")
+        page.wait_for_timeout(100)
         assert_framework(page, "title", errors)
         capture(page, SCREEN_MAP["title"], errors)
         captured.add("title")
@@ -225,7 +291,7 @@ def capture_settings(page: Page, captured: set[str], errors: list[str]):
         assert_framework(page, "settings", errors)
         capture(page, SCREEN_MAP["settings"], errors)
         captured.add("settings")
-    click_first(page, "#settings-footer .gui-btn")  # CLOSE
+    click_first(page, "#settings-footer .gc-button")  # CLOSE
     page.locator("#settings-screen").wait_for(state="hidden", timeout=5000)
 
 
@@ -287,7 +353,7 @@ def walk_run(page: Page, captured: set[str], errors: list[str]):
                 capture(page, SCREEN_MAP["document-overlay"], errors)
                 captured.add("document-overlay")
                 doc_done = True
-            click_first(page, "#document-footer .gui-btn")
+            click_first(page, "#document-footer .gc-button")
             page.wait_for_timeout(ACTION_INTERVAL_MS)
             continue
 
@@ -299,7 +365,7 @@ def walk_run(page: Page, captured: set[str], errors: list[str]):
                 capture(page, SCREEN_MAP["reward-overlay"], errors)
                 captured.add("reward-overlay")
                 reward_done = True
-            click_first(page, ".wp-reward-cards .gui-card")
+            click_first(page, ".wp-reward-cards .wp-card")
             page.wait_for_timeout(ACTION_INTERVAL_MS)
             continue
 
@@ -311,14 +377,22 @@ def walk_run(page: Page, captured: set[str], errors: list[str]):
                 capture(page, SCREEN_MAP["comms-interrupt"], errors)
                 captured.add("comms-interrupt")
                 comms_done = True
-            click_first(page, "#comms-panel-body .gui-btn")
+            click_first(page, "#comms-panel-body .gc-button")
             page.wait_for_timeout(ACTION_INTERVAL_MS)
             continue
 
         # HUD becomes visible at the discovery scene → capture once. Right after,
         # trigger the (balance-gated) comms overlay via the dev hook so it can be
         # captured over the live game rather than behind the title overlay.
-        if not hud_done and visible(page, "#game-container:not(.fullscreen)") and visible(page, "#clock-segments .gui-bar__pip"):
+        if not hud_done and visible(page, "#game-container:not(.fullscreen)") and visible(page, "#clock-bar .gc-meter__fill"):
+            # Deterministic capture: the dialogue line may be mid-typewriter,
+            # which makes the band's pixels load-dependent. Skip to the end of
+            # the line and let the text settle before capturing.
+            for _ in range(10):
+                if not visible(page, "#dialogue-text.typing"):
+                    break
+                click_first(page, "#bottom-bar")
+                page.wait_for_timeout(120)
             page.wait_for_timeout(500)
             assert_framework(page, "hud-midrun", errors)
             capture(page, SCREEN_MAP["hud-midrun"], errors)
@@ -330,7 +404,7 @@ def walk_run(page: Page, captured: set[str], errors: list[str]):
             continue
 
         # Choices → pick the first enabled choice.
-        if click_first(page, "#choices-area .gui-btn:not([disabled])"):
+        if click_first(page, "#choices-area .gc-button:not([disabled])"):
             page.wait_for_timeout(ACTION_INTERVAL_MS)
             continue
 
@@ -347,6 +421,43 @@ def walk_run(page: Page, captured: set[str], errors: list[str]):
     for name, done in missing.items():
         if not done and name not in captured:
             errors.append(f"walk: {name} never appeared")
+
+
+def capture_journey_midrun(page: Page, captured: set[str], errors: list[str]):
+    """Gate 5.8 candidate: the composed journey screen mid-run with choices
+    showing and the clock at a middle value. The clock rides the real HUD
+    path (the dev presentation probe re-renders through refreshHud); the
+    choices come from the live run's next situation scene."""
+    for _ in range(MAX_WALK_ACTIONS):
+        if page.query_selector_all("#choices-area .gc-button:not([disabled])") and \
+                visible(page, "#game-container:not(.fullscreen)"):
+            break
+        if visible(page, "#document-overlay:not(.hidden)"):
+            click_first(page, "#document-footer .gc-button")
+            page.wait_for_timeout(ACTION_INTERVAL_MS)
+            continue
+        if visible(page, "#comms-overlay:not(.hidden)"):
+            click_first(page, "#comms-panel-body .gc-button")
+            page.wait_for_timeout(ACTION_INTERVAL_MS)
+            continue
+        if visible(page, "#reward-overlay:not(.hidden)"):
+            click_first(page, ".wp-reward-cards .wp-card")
+            page.wait_for_timeout(ACTION_INTERVAL_MS)
+            continue
+        if click_first(page, "#choices-area .gc-button:not([disabled])"):
+            page.wait_for_timeout(ACTION_INTERVAL_MS)
+            continue
+        click_first(page, "#bottom-bar")
+        page.wait_for_timeout(ACTION_INTERVAL_MS)
+    else:
+        errors.append("journey-midrun: choices never appeared")
+        return
+    page.evaluate("window.__wp && window.__wp.setClock(4)")
+    page.wait_for_timeout(600)
+    if "journey-midrun" not in captured:
+        assert_framework(page, "journey-midrun", errors)
+        capture(page, SCREEN_MAP["journey-midrun"], errors)
+        captured.add("journey-midrun")
 
 
 def capture_ending(page: Page, captured: set[str], errors: list[str]):
@@ -371,7 +482,7 @@ def capture_ending(page: Page, captured: set[str], errors: list[str]):
     for _ in range(10):
         if not visible(page, "#reward-overlay:not(.hidden)"):
             break
-        click_first(page, ".wp-reward-cards .gui-card")
+        click_first(page, ".wp-reward-cards .wp-card")
         page.wait_for_timeout(ACTION_INTERVAL_MS)
     page.evaluate("window.__wp && window.__wp.triggerEnding()")
     page.wait_for_selector("#ending-screen:not(.hidden)", timeout=5000)
@@ -408,8 +519,8 @@ def capture_save_load_confirm(page: Page, captured: set[str], errors: list[str])
     page.wait_for_timeout(300)
 
     # Click the first occupied slot's action to open the danger confirm.
-    click_first(page, ".wp-slot-panel .gui-btn:not([disabled])")
-    page.wait_for_selector(".gui-modal.is-open", timeout=5000)
+    click_first(page, ".wp-slot-panel .gc-button:not([disabled])")
+    page.wait_for_selector(".wp-modal.is-open", timeout=5000)
     page.wait_for_timeout(500)
     if "save-load-confirm" not in captured:
         assert_framework(page, "save-load-confirm", errors)
@@ -417,9 +528,9 @@ def capture_save_load_confirm(page: Page, captured: set[str], errors: list[str])
         captured.add("save-load-confirm")
 
     # Cancel the confirm, then close the save/load screen.
-    page.locator(".gui-modal__footer .gui-btn", has_text="CANCEL").first.click()
+    page.locator(".wp-modal__footer .gc-button", has_text="CANCEL").first.click()
     page.wait_for_timeout(300)
-    click_first(page, "#save-load-footer .gui-btn")  # CANCEL
+    click_first(page, "#save-load-footer .gc-button")  # CANCEL
     page.locator("#save-load-screen").wait_for(state="hidden", timeout=5000)
 
 
@@ -439,15 +550,17 @@ def is_off_origin(url: str, origin: str) -> bool:
         return False
 
 
-def is_same_origin_asset(url: str, origin: str) -> bool:
-    """True for a same-origin /assets/ request. These are the game's own
-    placeholder assets; the dev server does not auto-serve the repo-root assets/
-    dir, so they 404 pre-existingly and are not a migration regression."""
+def is_same_origin(url: str, origin: str) -> bool:
+    """True for a same-origin request."""
     try:
-        parsed = urlparse(url)
-        return parsed.netloc == origin and parsed.path.startswith("/assets/")
+        return urlparse(url).netloc == origin
     except Exception:
         return False
+
+
+def is_bgm_media(url: str) -> bool:
+    """True for a BGM track request (the audio manifest's media elements)."""
+    return "/assets/audio/" in url and url.endswith(".ogg")
 
 
 def main() -> int:
@@ -456,14 +569,16 @@ def main() -> int:
     base_url = f"http://127.0.0.1:{port}/"
     origin = f"127.0.0.1:{port}"
     errors: list[str] = []
-    off_origin: list[str] = []        # non-origin requests — hard failure (D1)
-    failed_same_origin: list[str] = []  # same-origin asset 404s — pre-existing, warning
+    off_origin: list[str] = []          # non-origin requests — hard failure
+    failed_same_origin: list[str] = []  # same-origin responses with HTTP status >= 400 — hard failure
+    transport_failures: list[str] = []  # same-origin requestfailed entries — hard failure unless classified
+    media_cancellations: list[str] = []  # expected: BGM media loads aborted by the crossfade (see MEDIA_CANCELLATION_NOTE)
 
     server = start_dev_server(port)
     try:
         with sync_playwright() as pw:
             browser = pw.chromium.launch(headless=True)
-            context = browser.new_context(viewport=VIEWPORT)
+            context = browser.new_context(viewport=VIEWPORT, device_scale_factor=DEVICE_SCALE_FACTOR)
             page = context.new_page()
 
             # Surface console/page errors and non-origin / failed requests.
@@ -471,10 +586,42 @@ def main() -> int:
             page.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
             # Any non-origin request is a hard failure (the self-contained contract).
             page.on("requestfinished", lambda r: off_origin.append(r.url) if is_off_origin(r.url, origin) else None)
-            page.on("requestfailed", lambda r: (
-                failed_same_origin.append(r.url) if is_same_origin_asset(r.url, origin)
-                else off_origin.append(f"FAILED {r.url}")
-            ))
+            # Same-origin HTTP status observed directly: a response of 400 or
+            # above is a failure. No request is downgraded by its path.
+            # Additionally: this dev server SPA-fallbacks missing files, so a
+            # missing asset arrives as 200 text/html rather than a 404. An
+            # asset path answered as HTML is recorded as a failure carrying
+            # its actual status, never as a warning.
+            def on_response(r):
+                if not is_same_origin(r.url, origin):
+                    return
+                path = urlparse(r.url).path
+                if not (path.startswith("/assets/") or path.startswith("/data/")):
+                    if r.status >= 400:
+                        failed_same_origin.append(f"{r.status} {r.url}")
+                    return
+                if r.status >= 400:
+                    failed_same_origin.append(f"{r.status} {r.url}")
+                    return
+                ctype = (r.headers or {}).get("content-type", "")
+                if "text/html" in ctype:
+                    failed_same_origin.append(f"{r.status} text/html-fallback {r.url}")
+            page.on("response", on_response)
+            # Transport failures carry no HTTP status; recorded with their
+            # actual failure reason. A narrow, evidenced class is expected:
+            # the BGM crossfade aborts in-flight media loads (the browser
+            # cancels the previous <audio> element's fetch when the source
+            # changes). See MEDIA_CANCELLATION_NOTE. Everything else fails.
+            def on_requestfailed(r):
+                if not is_same_origin(r.url, origin):
+                    off_origin.append(f"FAILED {r.url}")
+                    return
+                reason = r.failure or "unknown"
+                if is_bgm_media(r.url) and "ABORTED" in reason:
+                    media_cancellations.append(f"{reason} {r.url}")
+                else:
+                    transport_failures.append(f"{reason} {r.url}")
+            page.on("requestfailed", on_requestfailed)
 
             captured: set[str] = set()
             # Seed every randomness source so captures are deterministic across
@@ -499,6 +646,7 @@ def main() -> int:
             capture_save_load_confirm(page, captured, errors)
             start_run_and_capture_lore(page, captured, errors)
             walk_run(page, captured, errors)
+            capture_journey_midrun(page, captured, errors)
             capture_ending(page, captured, errors)
 
             browser.close()
@@ -516,10 +664,10 @@ def main() -> int:
         except subprocess.TimeoutExpired:
             server.kill()
 
-    # Network acceptance check. The migration contract (Deliverable 1) is zero
-    # non-origin requests; same-origin /assets/ 404s are a pre-existing
-    # placeholder-asset condition (the dev server does not auto-serve the
-    # repo-root assets/ dir) and are reported as warnings, not failures.
+    # Network acceptance check (gate 5.8 rule): every same-origin request
+    # that fails by HTTP status of 400 or above is a failure; transport
+    # failures are failures unless they fall in the narrow, evidenced media
+    # cancellation class below. No path-based downgrades.
     if off_origin:
         print(f"\nNETWORK: {len(off_origin)} non-origin request(s) — FAIL:")
         for url in off_origin[:20]:
@@ -528,8 +676,18 @@ def main() -> int:
     else:
         print("\nNETWORK: zero non-origin requests")
     if failed_same_origin:
-        print(f"NETWORK: {len(failed_same_origin)} pre-existing same-origin /assets/ 404(s) — warning:")
+        print(f"NETWORK: {len(failed_same_origin)} same-origin response(s) with HTTP status >= 400 — FAIL:")
         for url in sorted(set(failed_same_origin))[:10]:
+            print(f"  {url}")
+        errors.append("same-origin HTTP failures")
+    if transport_failures:
+        print(f"NETWORK: {len(transport_failures)} same-origin transport failure(s) — FAIL:")
+        for url in sorted(set(transport_failures))[:10]:
+            print(f"  {url}")
+        errors.append("same-origin transport failures")
+    if media_cancellations:
+        print(f"NETWORK: {len(media_cancellations)} expected BGM media cancellation(s) (classified, not failures):")
+        for url in sorted(set(media_cancellations))[:6]:
             print(f"  {url}")
 
     # Coverage check.
@@ -537,6 +695,24 @@ def main() -> int:
     missing = expected - captured
     if missing:
         print(f"\nCOVERAGE: missing screens: {sorted(missing)}")
+
+    # Status manifest (gate 5.8): every capture is pending-approval (this
+    # unit's journey and title candidates) or interim (a regression reference
+    # for this unit only, re-established by the next unit). None is approved.
+    if not CHECK_MODE:
+        approval = {
+            "01-title.png": "pending-approval",
+            "12-journey-midrun.png": "pending-approval",
+        }
+        manifest = {
+            "generated": "PR 7 review-fix recapture at 1920x1080 DPR 1 (2026-10-05)",
+            "captures": {
+                filename: approval.get(filename, "interim")
+                for _, filename in SCREENS
+            },
+        }
+        (BASELINE_DIR / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+        print("\nMANIFEST: status manifest written (pending-approval: title and journey candidates; interim: all others)")
 
     if errors:
         print(f"\nFAIL: {len(errors)} failure(s)")

@@ -322,7 +322,7 @@ export function buildDossierView(
     gender: protagonist.gender ?? 'female',
     portraitKey,
     portraitPlaceholderColor:
-      portraitColors.get(portraitKey) ?? portraitColors.get('protagonist-neutral') ?? 'var(--gui-surface-strong)',
+      portraitColors.get(portraitKey) ?? portraitColors.get('protagonist-neutral') ?? 'var(--gc-surface-raised)',
     assignment: ASSIGNMENT_LINE,
     backstoryTitle: backstory?.title ?? '',
     backstoryFlavor: flavor,

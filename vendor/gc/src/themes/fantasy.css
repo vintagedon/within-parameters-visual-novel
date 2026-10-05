@@ -1,0 +1,95 @@
+@layer theme {
+  :where(html[data-gc-theme="fantasy"]) {
+    --gc-surface-canvas: var(--gc-palette-fantasy-92);
+    --gc-surface-base: var(--gc-palette-fantasy-75);
+    --gc-surface-raised: var(--gc-palette-fantasy-75);
+    --gc-surface-sunken: var(--gc-palette-fantasy-92);
+    --gc-surface-interactive: var(--gc-palette-fantasy-75);
+    --gc-surface-overlay: var(--gc-palette-fantasy-75);
+    --gc-surface-texture: var(--gc-image-fantasy-parchment), var(--gc-image-fantasy-wash);
+    --gc-surface-backdrop-filter: var(--gc-filter-none);
+    --gc-surface-shape: var(--gc-shape-weathered);
+    --gc-surface-edge-filter: var(--gc-filter-weathered-edge);
+    --gc-ornament-color: var(--gc-palette-fantasy-accent);
+    --gc-ornament-mask: var(--gc-image-fantasy-ornament);
+    --gc-ornament-opacity: var(--gc-alpha-full);
+
+    --gc-text-primary: var(--gc-palette-fantasy-00);
+    --gc-text-secondary: var(--gc-palette-fantasy-15);
+    --gc-text-muted: var(--gc-palette-fantasy-25);
+    --gc-text-inverse: var(--gc-palette-fantasy-92);
+    --gc-text-disabled: var(--gc-palette-fantasy-55);
+
+    --gc-border-default: var(--gc-palette-fantasy-35);
+    --gc-border-strong: var(--gc-palette-fantasy-accent);
+    --gc-divider: var(--gc-palette-fantasy-35);
+    --gc-border-width: var(--gc-border-medium);
+
+    --gc-accent: var(--gc-palette-fantasy-accent);
+    --gc-on-accent: var(--gc-palette-fantasy-accent-on);
+    --gc-focus-ring: var(--gc-palette-fantasy-accent);
+    --gc-focus-width: var(--gc-border-medium);
+    --gc-focus-offset: var(--gc-size-1);
+
+    --gc-status-success: var(--gc-palette-positive);
+    --gc-on-status-success: var(--gc-palette-positive-on);
+    --gc-status-warning: var(--gc-palette-caution);
+    --gc-on-status-warning: var(--gc-palette-caution-on);
+    --gc-status-danger: var(--gc-palette-critical);
+    --gc-on-status-danger: var(--gc-palette-critical-on);
+    --gc-status-info: var(--gc-palette-notice);
+    --gc-on-status-info: var(--gc-palette-notice-on);
+
+    --gc-disabled-opacity: var(--gc-alpha-disabled);
+    --gc-overlay-fill: var(--gc-alpha-overlay);
+    --gc-scrim-fill: var(--gc-alpha-scrim);
+    --gc-elevation-none: var(--gc-shadow-none);
+    --gc-elevation-low: var(--gc-shadow-carved-low);
+    --gc-elevation-mid: var(--gc-shadow-carved-mid);
+    --gc-elevation-high: var(--gc-shadow-carved-mid);
+    --gc-radius-control: var(--gc-radius-small);
+    --gc-radius-panel: var(--gc-radius-small);
+    --gc-radius-round: var(--gc-radius-pill);
+
+    --gc-space-1: var(--gc-size-1);
+    --gc-space-2: var(--gc-size-2);
+    --gc-space-3: var(--gc-size-3);
+    --gc-space-4: var(--gc-size-4);
+    --gc-space-5: var(--gc-size-5);
+    --gc-space-6: var(--gc-size-6);
+    --gc-space-7: var(--gc-size-7);
+    --gc-space-8: var(--gc-size-8);
+
+    --gc-font-body: var(--gc-font-editorial);
+    --gc-font-display: var(--gc-font-editorial);
+    --gc-font-code: var(--gc-font-technical);
+    --gc-type-caption-size: var(--gc-font-size-xs);
+    --gc-type-body-size: var(--gc-font-size-md);
+    --gc-type-label-size: var(--gc-font-size-sm);
+    --gc-type-title-size: var(--gc-font-size-lg);
+    --gc-type-display-size: var(--gc-font-size-xl);
+    --gc-type-body-weight: var(--gc-font-weight-regular);
+    --gc-type-label-weight: var(--gc-font-weight-medium);
+    --gc-type-title-weight: var(--gc-font-weight-heavy);
+    --gc-type-body-line-height: var(--gc-line-normal);
+    --gc-type-heading-line-height: var(--gc-line-compact);
+    --gc-type-label-tracking: var(--gc-track-wide);
+    --gc-type-title-tracking: var(--gc-track-normal);
+    --gc-type-label-transform: var(--gc-case-upper);
+
+    --gc-motion-instant: var(--gc-time-0);
+    --gc-motion-fast: var(--gc-time-1);
+    --gc-motion-base: var(--gc-time-2);
+    --gc-motion-slow: var(--gc-time-3);
+    --gc-easing-standard: var(--gc-ease-standard);
+    --gc-easing-enter: var(--gc-ease-enter);
+    --gc-easing-exit: var(--gc-ease-exit);
+    --gc-easing-stepped: var(--gc-ease-steps);
+    --gc-z-base: var(--gc-stack-0);
+    --gc-z-raised: var(--gc-stack-1);
+    --gc-z-overlay: var(--gc-stack-2);
+    --gc-z-modal: var(--gc-stack-3);
+    --gc-z-toast: var(--gc-stack-4);
+    --gc-image-rendering: var(--gc-render-auto);
+  }
+}

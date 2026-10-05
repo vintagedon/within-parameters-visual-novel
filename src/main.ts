@@ -8,6 +8,7 @@
  */
 
 import './styles.css';
+import './ui/wp.css';
 
 import type {
   GameConfig,
@@ -81,10 +82,30 @@ import {
   showRewardOverlay,
   showCommsOverlay,
   showDocumentOverlay,
+  hideDocumentOverlay,
+  hideCommsOverlay,
+  hideRewardOverlay,
   showDossierScreen,
   hideDossierScreen,
   type CommsLineView,
 } from './ui/screens';
+import { createStageHost } from './ui/stage';
+import { ensureFrameworkDefs } from './ui/gc-defs';
+
+/** Build identifier, injected at build time (gate 5.7). Dev builds get a dev
+ *  marker with the SHA; production builds carry the full SHA and dirty flag. */
+declare const __WP_BUILD__: { sha: string; dirty: boolean };
+
+/** Renders the build identifier: visible short form on the title screen, full
+ *  values in the DOM (data-build on the root element). */
+function renderBuildId(): string {
+  const dev = (import.meta as { env?: { DEV?: boolean } }).env?.DEV ?? false;
+  const label = dev ? `dev:${__WP_BUILD__.sha.slice(0, 7)}` : `${__WP_BUILD__.sha.slice(0, 7)}${__WP_BUILD__.dirty ? ' (dirty)' : ''}`;
+  const el = document.getElementById('build-id');
+  if (el) el.textContent = label;
+  document.getElementById('root')?.setAttribute('data-build', JSON.stringify(__WP_BUILD__));
+  return label;
+}
 
 // Audio
 import * as Audio from './audio/audio-manager';
@@ -112,9 +133,11 @@ async function boot(): Promise<void> {
   const root = document.getElementById('root');
   if (!root) throw new Error('No #root element found');
 
-  // Build DOM skeleton
+  // Build DOM skeleton: the stage host wraps the whole game; screens mount
+  // inside the stage so every surface scales with it.
   const layout = initLayout(root);
-  initScreens(document.body);
+  ensureFrameworkDefs(document);
+  initScreens(layout.stage);
 
   // Load all data files in parallel
   [config, manifest, scenesData, eventsData, { communities: communitiesData }, pool, documentsData, commsBeatsData] =
@@ -153,6 +176,7 @@ async function boot(): Promise<void> {
   // Show title screen
   Audio.playBGM('bgm-title', false);
   setFullScreen();
+  renderBuildId();
 
   showTitleScreen(hasAutosave(), {
     onNewGame: () => {
@@ -200,14 +224,20 @@ async function boot(): Promise<void> {
       { community: { name: 'Silver Spring Junction', description: 'a small trading post at the intersection of three major tunnel routes' }, state: 'harmed', stop: 3 },
     ] as unknown as GameState['communities'];
     (window as unknown as {
-      __wp?: {
-        triggerComms: () => void;
-        triggerEnding: () => void;
-        triggerReward: (caseName: string) => void;
-        seedAutosave: () => void;
-        setClock: (current: number) => void;
-        setKnowledge: (knowledge: number) => void;
-      };
+    __wp?: {
+      triggerComms: () => void;
+      triggerEnding: () => void;
+      triggerReward: (caseName: string) => void;
+      seedAutosave: () => void;
+      setClock: (current: number) => void;
+      setKnowledge: (knowledge: number) => void;
+      setModules: (modules: number) => void;
+      stageFixture: () => void;
+      dossierExtreme: () => void;
+      showDocument: (id?: string) => void;
+      hideOverlays: () => void;
+      gotoScene: (sceneId: string) => void;
+    };
     }).__wp = {
       triggerComms: () => {
         // Renders a real beat from the loaded data (amber, after stop 1) so
@@ -253,6 +283,46 @@ async function boot(): Promise<void> {
       seedAutosave: () => {
         autosave(initNewGame(config, 1), 'scene-discovery-01', 'discovery');
       },
+      // Gate 5.5 walk fixtures: render a real surface with its longest real
+      // content, or navigate the live runner to a scene the walk cannot
+      // reach in short runs (the facility grid). DEV-gated like the other
+      // harness hooks; they drive presentation and the real runner only.
+      dossierExtreme: () => {
+        const r = createRng(1337);
+        const protagonist = generateProtagonist(pool, r);
+        const longestBackstory = pool.backstories.reduce((a, b) => (b.flavor.length > a.flavor.length ? b : a));
+        const longestName = [
+          ...pool.names.poolA,
+          ...pool.names.poolB,
+        ].reduce((a, b) => (b.length > a.length ? b : a));
+        const longestSurname = pool.names.surnames.reduce((a, b) => (b.length > a.length ? b : a));
+        const withExtreme: typeof protagonist = {
+          ...protagonist,
+          name: `${longestName} ${longestSurname}`,
+          backstoryId: longestBackstory.id,
+          positiveTrait: 'P1',
+          negativeTrait: 'N7',
+        };
+        const view = buildDossierView(withExtreme, pool, config, portraitColors, 8);
+        showDossierScreen(view, { onDeploy: () => {}, onReroll: () => {} });
+      },
+      showDocument: (id?: string) => {
+        const doc = (id ? documentsData.find((d) => d.id === id) : undefined) ?? documentsData.reduce((a, b) => ((b.body.length > (a?.body.length ?? 0)) ? b : a));
+        if (!doc) return;
+        showDocumentOverlay(doc, () => {});
+      },
+      // Presentation reset for the walk: hides the hook-mounted surfaces so
+      // the natural run flow continues underneath.
+      hideOverlays: () => {
+        hideDossierScreen();
+        hideEndingScreen();
+        hideDocumentOverlay();
+        hideCommsOverlay();
+        hideRewardOverlay();
+      },
+      gotoScene: (sceneId: string) => {
+        runner?.loadScene(sceneId);
+      },
       triggerReward: (caseName: string) => {
         // Boundary fixture (A2.3): renders the REAL reward overlay from the
         // real event data for a controlled (rapport, clock) state, and
@@ -297,6 +367,39 @@ async function boot(): Promise<void> {
         const s = runner?.getState();
         if (!s) return;
         refreshHud({ ...s, stats: { ...s.stats, knowledge } });
+      },
+      setModules: (modules: number) => {
+        const s = runner?.getState();
+        if (!s) return;
+        refreshHud({ ...s, stats: { ...s.stats, consumables: modules } });
+      },
+      // Gate 5.4 isolated-host fixture: swaps the app root for the bare
+      // stage host with representative (game-concept-free) controls, so the
+      // stage-fit checks measure the host in isolation. DEV-gated like the
+      // other harness hooks; stripped from production builds.
+      stageFixture: () => {
+        // Replacing root removes the stage-mounted app and every overlay, so
+        // the isolated host is the only hit-test target.
+        root.innerHTML = `
+          <div class="wp-stage-host" id="stage-host">
+            <div class="wp-stage" id="stage">
+              <button class="gc-button wp-fixture-control" id="fx-center" style="position:absolute;left:936px;top:516px;" type="button">CENTER</button>
+              <button class="gc-button wp-fixture-control" id="fx-topleft" style="position:absolute;left:48px;top:48px;" type="button">TOP LEFT</button>
+              <button class="gc-button wp-fixture-control" id="fx-bottomright" style="position:absolute;left:1720px;top:984px;" type="button">BOTTOM RIGHT</button>
+              <div class="gc-meter" data-shape="segmented" data-orientation="vertical" id="fx-vmeter" style="--gc-meter-count:10;--gc-meter-value:40%;position:absolute;left:100px;top:200px;width:56px;height:400px;">
+                <div class="gc-meter__fill"></div>
+              </div>
+              <div class="gc-meter" data-shape="continuous" id="fx-hmeter" style="--gc-meter-value:60%;position:absolute;left:400px;top:200px;width:600px;height:24px;">
+                <div class="gc-meter__fill"></div>
+              </div>
+              <p class="wp-fixture-text" id="fx-text" style="position:absolute;left:400px;top:300px;width:600px;">Stage host fixture text. The quick brown fox jumps over the lazy dog while measuring scale and input alignment.</p>
+            </div>
+          </div>
+        `;
+        const hostEl = document.getElementById('stage-host')!;
+        const stageEl = document.getElementById('stage')!;
+        const host = createStageHost({ host: hostEl, stage: stageEl });
+        (window as unknown as { __wpStageHost?: unknown }).__wpStageHost = host;
       },
     };
   }
@@ -612,7 +715,7 @@ function runDialogueSequence(
 boot().catch((err) => {
   console.error('[main] Boot failed:', err);
   document.body.innerHTML = `
-    <div style="color:var(--gui-accent-danger,#ff3b30);font-family:var(--gui-font-mono,monospace);padding:40px">
+    <div style="color:var(--gc-status-danger,#ff3b30);font-family:var(--gc-font-code,monospace);padding:40px">
       <h2>BOOT FAILURE</h2>
       <pre>${String(err)}</pre>
     </div>

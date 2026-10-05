@@ -56,7 +56,7 @@ from urllib.parse import urlparse
 from playwright.sync_api import sync_playwright, BrowserContext
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-VIEWPORT = {"width": 1440, "height": 900}
+VIEWPORT = {"width": 1920, "height": 1080}
 ACTION_MS = 120
 SEED = 555555
 MAX_ACTIONS = 3000
@@ -160,7 +160,7 @@ def new_game_to_first_choice(base: str, page, result: PhaseResult) -> dict:
     HUD readings at the save point."""
     page.goto(base, wait_until="networkidle")
     page.wait_for_selector("#title-screen:not(.hidden)", timeout=15000)
-    page.locator("#title-menu .gui-btn", has_text="NEW GAME").first.click()
+    page.locator("#title-menu .gc-button", has_text="NEW GAME").first.click()
     page.wait_for_selector("#dossier-screen:not(.hidden)", timeout=15000)
     page.click("#dossier-deploy")
     page.wait_for_selector("#dialogue-text", timeout=15000)
@@ -177,7 +177,7 @@ def read_hud(page) -> dict:
 
 
 def has_choices(page) -> bool:
-    return len(page.query_selector_all("#choices-area .gui-btn:not([disabled])")) > 0
+    return len(page.query_selector_all("#choices-area .gc-button:not([disabled])")) > 0
 
 
 def any_overlay(page) -> bool:
@@ -197,18 +197,18 @@ def pump_until(page, result: PhaseResult, stop_when, max_actions: int = MAX_ACTI
         if page.locator("#ending-screen:not(.hidden)").count() > 0:
             raise RuntimeError("run reached an ending before the save point")
         if page.locator("#document-overlay:not(.hidden)").count() > 0:
-            page.click("#document-footer .gui-btn")
+            page.click("#document-footer .gc-button")
             time.sleep(ACTION_MS / 1000)
             continue
         if page.locator("#comms-overlay:not(.hidden)").count() > 0:
-            page.click("#comms-panel-body .gui-btn")
+            page.click("#comms-panel-body .gc-button")
             time.sleep(ACTION_MS / 1000)
             continue
         if page.locator("#reward-overlay:not(.hidden)").count() > 0:
-            page.locator(".wp-reward-cards .gui-card").nth(1).click()
+            page.locator(".wp-reward-cards .wp-card").nth(1).click()
             time.sleep(ACTION_MS / 1000)
             continue
-        choices = page.query_selector_all("#choices-area .gui-btn:not([disabled])")
+        choices = page.query_selector_all("#choices-area .gc-button:not([disabled])")
         if choices:
             choices[0].click()
             time.sleep(ACTION_MS / 1000)
@@ -223,7 +223,7 @@ def save_via_hud(page) -> None:
     context, so the save proceeds without a confirm dialog."""
     page.click("#hud-save")
     page.wait_for_selector("#save-load-screen:not(.hidden)", timeout=5000)
-    page.locator(".wp-slot-panel", has_text="SLOT 1").locator(".gui-btn").first.click()
+    page.locator(".wp-slot-panel", has_text="SLOT 1").locator(".gc-button").first.click()
     time.sleep(0.4)
     if not page.evaluate("localStorage.getItem('wp_save_0')"):
         raise RuntimeError("slot 1 save did not write")
@@ -233,11 +233,11 @@ def load_via_title(page) -> None:
     """reload → LOAD GAME → SLOT 1 → CONFIRM through the real controls."""
     page.reload(wait_until="networkidle")
     page.wait_for_selector("#title-screen:not(.hidden)", timeout=15000)
-    page.locator("#title-menu .gui-btn", has_text="LOAD GAME").first.click()
+    page.locator("#title-menu .gc-button", has_text="LOAD GAME").first.click()
     page.wait_for_selector("#save-load-screen:not(.hidden)", timeout=5000)
-    page.locator(".wp-slot-panel", has_text="SLOT 1").locator(".gui-btn").first.click()
-    page.wait_for_selector(".gui-modal.is-open", timeout=5000)
-    page.locator(".gui-modal__footer .gui-btn", has_text="CONFIRM").first.click()
+    page.locator(".wp-slot-panel", has_text="SLOT 1").locator(".gc-button").first.click()
+    page.wait_for_selector(".wp-modal.is-open", timeout=5000)
+    page.locator(".wp-modal__footer .gc-button", has_text="CONFIRM").first.click()
 
 
 def assert_journey_restored(page, before: dict, phase: str) -> None:
@@ -336,11 +336,11 @@ def assert_actionable_continuation(page, result: PhaseResult, phase: str) -> Non
     acting on it advances the run."""
     if phase == "comms":
         page.wait_for_selector("#comms-overlay:not(.hidden)", timeout=8000)
-        page.locator("#comms-panel-body .gui-btn").first.click()
+        page.locator("#comms-panel-body .gc-button").first.click()
     else:
         try:
             page.wait_for_function(
-                "() => document.querySelector('#dialogue-text') && (document.querySelector('#dialogue-text').textContent.trim().length > 0 || document.querySelectorAll('#choices-area .gui-btn:not([disabled])').length > 0)",
+                "() => document.querySelector('#dialogue-text') && (document.querySelector('#dialogue-text').textContent.trim().length > 0 || document.querySelectorAll('#choices-area .gc-button:not([disabled])').length > 0)",
                 timeout=8000,
             )
         except Exception as e:
@@ -367,7 +367,7 @@ def run_phase(browser, base: str, phase: str, viewport: dict | None = None, seed
         if phase == "event-choice" or phase == "audio-muted-load":
             pass  # already at the stop-1 choice point
         elif phase == "event-consequence":
-            page.query_selector_all("#choices-area .gui-btn:not([disabled])")[0].click()
+            page.query_selector_all("#choices-area .gc-button:not([disabled])")[0].click()
             time.sleep(ACTION_MS / 1000)
             # Post-choice, pre-reward: consequence dialogue on screen.
             assert not has_choices(page), "consequence save point shows choices"
@@ -394,12 +394,12 @@ def run_phase(browser, base: str, phase: str, viewport: dict | None = None, seed
             page.click("#hud-save")
             page.wait_for_selector("#save-load-screen:not(.hidden)", timeout=5000)
             auto_panel = page.locator(".wp-slot-panel", has_text="AUTOSAVE").first
-            auto_btn = auto_panel.locator(".gui-btn").first
+            auto_btn = auto_panel.locator(".gc-button").first
             assert auto_btn.is_visible(), "AUTOSAVE action hidden in save mode (must be disabled, not hidden)"
             assert auto_btn.is_disabled(), "AUTOSAVE action enabled in save mode (the silent no-op)"
             assert "automatically" in (auto_panel.locator(".wp-slot-meta").text_content() or ""), \
                 "AUTOSAVE row carries no reason for the disabled action"
-            slot2 = page.locator(".wp-slot-panel", has_text="SLOT 2").locator(".gui-btn").first
+            slot2 = page.locator(".wp-slot-panel", has_text="SLOT 2").locator(".gc-button").first
             assert slot2.is_enabled(), "an empty manual slot must offer SAVE"
             slot2.click()
             time.sleep(0.4)
@@ -420,14 +420,14 @@ def run_phase(browser, base: str, phase: str, viewport: dict | None = None, seed
                 }"""
             )
             load_via_title(page)
-            page.wait_for_selector(".gui-modal.is-open", timeout=5000)
-            modal_text = page.locator(".gui-modal").text_content() or ""
+            page.wait_for_selector(".wp-modal.is-open", timeout=5000)
+            modal_text = page.locator(".wp-modal").text_content() or ""
             assert "LOAD FAILED" in modal_text, f"no visible refusal modal (got: {modal_text[:120]})"
             assert "CE-99" in modal_text, "refusal does not name the missing event"
-            page.locator(".gui-modal__footer .gui-btn", has_text="OK").first.click()
+            page.locator(".wp-modal__footer .gc-button", has_text="OK").first.click()
             time.sleep(0.3)
             assert page.locator("#title-screen:not(.hidden)").count() > 0, "title not usable after refusal"
-            page.locator("#title-menu .gui-btn", has_text="LOAD GAME").first.click()
+            page.locator("#title-menu .gc-button", has_text="LOAD GAME").first.click()
             page.wait_for_selector("#save-load-screen:not(.hidden)", timeout=5000)
             assert page.evaluate("localStorage.getItem('wp_save_0')"), "refused slot was not preserved"
             result.ok = True
@@ -454,7 +454,7 @@ def run_phase(browser, base: str, phase: str, viewport: dict | None = None, seed
             load_via_title(page)
             assert_journey_restored(page, before, phase)
             page.wait_for_selector("#comms-overlay:not(.hidden)", timeout=8000)
-            page.locator("#comms-panel-body .gui-btn").first.click()
+            page.locator("#comms-panel-body .gc-button").first.click()
             pump_until(
                 page,
                 result,
@@ -483,25 +483,25 @@ def run_phase(browser, base: str, phase: str, viewport: dict | None = None, seed
                         )
                         top = page.evaluate("() => document.getElementById('document-body').scrollTop")
                         assert top > 0, f"first document could not scroll (scrollTop {top}) — fixture invalid"
-                        page.click("#document-footer .gui-btn")
+                        page.click("#document-footer .gc-button")
                         time.sleep(ACTION_MS / 1000)
                         continue
                     top = page.evaluate("() => document.getElementById('document-body').scrollTop")
                     assert top == 0, f"second long document opened scrolled (scrollTop {top})"
-                    page.click("#document-footer .gui-btn")
+                    page.click("#document-footer .gc-button")
                     result.ok = True
                     return result
                 if page.locator("#ending-screen:not(.hidden)").count() > 0:
                     raise RuntimeError(f"run ended after {docs_seen} documents; need two")
                 if page.locator("#comms-overlay:not(.hidden)").count() > 0:
-                    page.click("#comms-panel-body .gui-btn")
+                    page.click("#comms-panel-body .gc-button")
                     time.sleep(ACTION_MS / 1000)
                     continue
                 if page.locator("#reward-overlay:not(.hidden)").count() > 0:
-                    page.locator(".wp-reward-cards .gui-card").nth(1).click()
+                    page.locator(".wp-reward-cards .wp-card").nth(1).click()
                     time.sleep(ACTION_MS / 1000)
                     continue
-                choices = page.query_selector_all("#choices-area .gui-btn:not([disabled])")
+                choices = page.query_selector_all("#choices-area .gc-button:not([disabled])")
                 if choices:
                     choices[0].click()
                     time.sleep(ACTION_MS / 1000)
@@ -541,7 +541,7 @@ def run_title_dossier_audio(browser, base: str) -> PhaseResult:
         page.goto(base, wait_until="networkidle")
         page.wait_for_selector("#title-screen:not(.hidden)", timeout=15000)
         assert_no_journey_audio(page, "title surface")
-        page.locator("#title-menu .gui-btn", has_text="NEW GAME").first.click()
+        page.locator("#title-menu .gc-button", has_text="NEW GAME").first.click()
         page.wait_for_selector("#dossier-screen:not(.hidden)", timeout=15000)
         assert_no_journey_audio(page, "dossier surface")
         result.ok = True
@@ -561,7 +561,7 @@ def run_autosave_continue(browser, base: str) -> PhaseResult:
         before = new_game_to_first_choice(base, page, result)
         page.reload(wait_until="networkidle")
         page.wait_for_selector("#title-screen:not(.hidden)", timeout=15000)
-        continue_btn = page.locator("#title-menu .gui-btn", has_text="CONTINUE").first
+        continue_btn = page.locator("#title-menu .gc-button", has_text="CONTINUE").first
         assert continue_btn.is_enabled(), "CONTINUE disabled despite a valid autosave"
         continue_btn.click()
         assert_journey_restored(page, before, "autosave-continue")
@@ -593,21 +593,18 @@ def main() -> int:
                 # event-choice phase carries the full audio assertion.
                 phases.append(run_phase(browser, base, "event-choice"))
             else:
-                # The comms panel (bottom-right, fixed) occludes the sidebar's
-                # SAVE control at the 1440x900 harness viewport; at 2560x1440 —
-                # the viewport the independent review used to reproduce R1 — the
-                # control is reachable. The comms phases run there.
+                # Gate 5.8: the comms overlay is now a full-stage surface
+                # (wp-overlay) and no longer occludes the sidebar's SAVE
+                # control, so the old 2560x1440 workaround viewport is gone:
+                # every phase runs at the default 1920x1080.
                 for phase in ("event-choice", "event-consequence", "comms", "facility-entry", "facility-core"):
-                    viewport = {"width": 2560, "height": 1440} if phase == "comms" else None
-                    phases.append(run_phase(browser, base, phase, viewport))
+                    phases.append(run_phase(browser, base, phase))
                 # A2.2: the saved mute preference is preserved — the track
                 # restores at zero volume, with no audible output required.
                 phases.append(run_phase(browser, base, "audio-muted-load", muted=True))
                 phases.append(run_phase(browser, base, "save-menu-policy"))
                 phases.append(run_phase(browser, base, "load-refusal"))
-                phases.append(
-                    run_phase(browser, base, "legacy-comms-slot", viewport={"width": 2560, "height": 1440})
-                )
+                phases.append(run_phase(browser, base, "legacy-comms-slot"))
                 # 20260916 knowledge reads two found documents in one run.
                 phases.append(run_phase(browser, base, "document-scroll", seed=20260916))
                 phases.append(run_autosave_continue(browser, base))
