@@ -236,6 +236,18 @@
     color: var(--gc-text-primary);
   }
 
+  /* ─── Comms overlay: informational surface with a click-through scrim ───
+     The comms window is save-enabled: the sidebar's SAVE control must stay
+     reachable while the beat holds the run, so the scrim does not capture
+     pointer events; the panel and its ACKNOWLEDGE action do. */
+  #comms-overlay {
+    pointer-events: none;
+  }
+
+  #comms-overlay .wp-comms-panel {
+    pointer-events: auto;
+  }
+
   /* ─── Modal composition (wp-modal on a gc-panel) ─── */
 
   .wp-modal {

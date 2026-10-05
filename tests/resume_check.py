@@ -56,7 +56,7 @@ from urllib.parse import urlparse
 from playwright.sync_api import sync_playwright, BrowserContext
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-VIEWPORT = {"width": 1440, "height": 900}
+VIEWPORT = {"width": 1920, "height": 1080}
 ACTION_MS = 120
 SEED = 555555
 MAX_ACTIONS = 3000
@@ -593,21 +593,18 @@ def main() -> int:
                 # event-choice phase carries the full audio assertion.
                 phases.append(run_phase(browser, base, "event-choice"))
             else:
-                # The comms panel (bottom-right, fixed) occludes the sidebar's
-                # SAVE control at the 1440x900 harness viewport; at 2560x1440 —
-                # the viewport the independent review used to reproduce R1 — the
-                # control is reachable. The comms phases run there.
+                # Gate 5.8: the comms overlay is now a full-stage surface
+                # (wp-overlay) and no longer occludes the sidebar's SAVE
+                # control, so the old 2560x1440 workaround viewport is gone:
+                # every phase runs at the default 1920x1080.
                 for phase in ("event-choice", "event-consequence", "comms", "facility-entry", "facility-core"):
-                    viewport = {"width": 2560, "height": 1440} if phase == "comms" else None
-                    phases.append(run_phase(browser, base, phase, viewport))
+                    phases.append(run_phase(browser, base, phase))
                 # A2.2: the saved mute preference is preserved — the track
                 # restores at zero volume, with no audible output required.
                 phases.append(run_phase(browser, base, "audio-muted-load", muted=True))
                 phases.append(run_phase(browser, base, "save-menu-policy"))
                 phases.append(run_phase(browser, base, "load-refusal"))
-                phases.append(
-                    run_phase(browser, base, "legacy-comms-slot", viewport={"width": 2560, "height": 1440})
-                )
+                phases.append(run_phase(browser, base, "legacy-comms-slot"))
                 # 20260916 knowledge reads two found documents in one run.
                 phases.append(run_phase(browser, base, "document-scroll", seed=20260916))
                 phases.append(run_autosave_continue(browser, base))

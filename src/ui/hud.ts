@@ -63,7 +63,7 @@ export function initHUD(sidebar: HTMLElement, config: GameConfig, onSave?: () =>
              style="--gc-meter-count: ${config.clockMax}; --gc-meter-value: 0%;" aria-label="Intrusion clock">
           <div class="gc-meter__fill" id="clock-segments"></div>
         </div>
-        <div class="wp-rail-stats">
+        <div class="wp-rail-stats" id="stat-panel">
           <div class="wp-meter-head">
             <span class="wp-meter-label">Intrusion</span>
             <span class="wp-meter-value wp-clock-reading" id="clock-reading" data-level="safe">0 / ${config.clockMax}</span>

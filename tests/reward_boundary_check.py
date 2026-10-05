@@ -47,7 +47,7 @@ from urllib.parse import urlparse
 from playwright.sync_api import sync_playwright
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-VIEWPORT = {"width": 1440, "height": 900}
+VIEWPORT = {"width": 1920, "height": 1080}
 
 CASES: list[dict] = [
     {

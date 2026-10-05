@@ -45,7 +45,7 @@ from playwright.sync_api import sync_playwright, BrowserContext
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 BASELINE_DIR = Path(__file__).resolve().parent / "baseline"
-VIEWPORT = {"width": 1440, "height": 900}
+VIEWPORT = {"width": 1920, "height": 1080}
 ACTION_MS = 90
 MAX_ACTIONS = 6000
 
