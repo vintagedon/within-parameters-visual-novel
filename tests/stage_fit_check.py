@@ -21,7 +21,7 @@ Host-fit set (a bounded set, not layout targets; scale must equal
 min(W/1920, H/1080) within 0.001, stage centered within 1 px, opposing
 bars equal):
     1920x1200, 2560x1080, 1600x900, 1366x768
-Input alignment: at a non-unit scale (1600x900) and a letterboxed size
+Input alignment: at a non-unit scale (1600x900) and a pillarboxed size
 (2560x1080), document.elementFromPoint at each fixture control's displayed
 center returns that control or a descendant.
 """
@@ -51,6 +51,17 @@ HOST_FIT = [
     (1366, 768),
 ]
 CONTROLS = ["#fx-center", "#fx-topleft", "#fx-bottomright", "#fx-vmeter", "#fx-hmeter", "#fx-text"]
+
+HIT_TEST_JS = """
+(sel) => {
+  const el = document.querySelector(sel);
+  const r = el.getBoundingClientRect();
+  const cx = r.x + r.width / 2;
+  const cy = r.y + r.height / 2;
+  const hit = document.elementFromPoint(cx, cy);
+  return { hit: hit ? (el === hit || el.contains(hit)) : false, tag: hit ? hit.tagName : null };
+}
+"""
 
 MEASURE_JS = """
 () => {
@@ -98,6 +109,10 @@ def measure(page, w: int, h: int) -> dict:
     page.set_viewport_size({"width": w, "height": h})
     page.wait_for_timeout(120)
     return page.evaluate(MEASURE_JS)
+
+
+def expected_bar_axis(w: int, h: int) -> str:
+    return "pillarbox" if h / 1080 < w / 1920 else "letterbox"
 
 
 def main() -> int:
@@ -164,7 +179,7 @@ def main() -> int:
                     centered_x <= 1 and centered_y <= 1,
                     f"dx {centered_x:.2f} dy {centered_y:.2f}",
                 )
-                if h / 1080 < w / 1920:
+                if expected_bar_axis(w, h) == "letterbox":
                     check(f"letterbox bars equal {w}x{h}", abs(bars_t - bars_b) <= 1, f"T{bars_t:.2f} B{bars_b:.2f}")
                 else:
                     check(f"pillarbox bars equal {w}x{h}", abs(bars_l - bars_r) <= 1, f"L{bars_l:.2f} R{bars_r:.2f}")
@@ -173,17 +188,7 @@ def main() -> int:
             for w, h in [(1600, 900), (2560, 1080)]:
                 measure(page, w, h)
                 for sel in CONTROLS:
-                    hit = page.evaluate(
-                        """(sel) => {
-                            const el = document.querySelector(sel);
-                            const r = el.getBoundingClientRect();
-                            const cx = r.x + r.width / 2;
-                            const cy = r.y + r.height / 2;
-                            const hit = document.elementFromPoint(cx, cy);
-                            return { hit: hit ? (el === hit || el.contains(hit) || hit.contains(el)) : false, tag: hit ? hit.tagName : null };
-                        }""",
-                        sel,
-                    )
+                    hit = page.evaluate(HIT_TEST_JS, sel)
                     check(f"elementFromPoint {sel} @ {w}x{h}", hit["hit"], f"hit {hit['tag']}")
 
             browser.close()
