@@ -201,6 +201,27 @@ def drive_choices_visible(page, max_clicks: int = 40) -> int:
     return 0
 
 
+def should_run_dev(production_only: bool) -> bool:
+    return not production_only
+
+
+def run_production_check(browser, failures: list[str]) -> None:
+    pport = free_port()
+    pbase = f"http://127.0.0.1:{pport}/"
+    pserver = start_server(pport, production=True)
+    try:
+        context = browser.new_context(viewport=VIEWPORT)
+        page = context.new_page()
+        page.goto(pbase, wait_until="networkidle")
+        page.wait_for_selector("#title-screen:not(.hidden)", timeout=15000)
+        has_hooks = page.evaluate("() => typeof window.__wp !== 'undefined'")
+        record(failures, "production exposes no __wp state-control object", not has_hooks)
+        context.close()
+    finally:
+        pserver.terminate()
+        pserver.wait(timeout=5)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--production-only", action="store_true")
@@ -208,6 +229,18 @@ def main() -> int:
 
     failures: list[str] = []
     seen_surfaces: set[str] = set()
+
+    if not should_run_dev(args.production_only):
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(headless=True)
+            run_production_check(browser, failures)
+            browser.close()
+        print("=" * 76)
+        if failures:
+            print(f"screen walk check FAILED ({len(failures)} failure(s))")
+            return 1
+        print("screen walk check PASSED")
+        return 0
 
     port = free_port()
     base = f"http://127.0.0.1:{port}/"
@@ -436,20 +469,7 @@ def main() -> int:
                 context.close()
 
             # ── Production page: no __wp state-control object ──
-            pport = free_port()
-            pbase = f"http://127.0.0.1:{pport}/"
-            pserver = start_server(pport, production=True)
-            try:
-                context = browser.new_context(viewport=VIEWPORT)
-                page = context.new_page()
-                page.goto(pbase, wait_until="networkidle")
-                page.wait_for_selector("#title-screen:not(.hidden)", timeout=15000)
-                has_hooks = page.evaluate("() => typeof window.__wp !== 'undefined'")
-                record(failures, "production exposes no __wp state-control object", not has_hooks)
-                context.close()
-            finally:
-                pserver.terminate()
-                pserver.wait(timeout=5)
+            run_production_check(browser, failures)
 
             browser.close()
     finally:
