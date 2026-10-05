@@ -23,8 +23,8 @@ for (let i = allowIdx; i >= 0 && i < args.length - 1 && args[i] === '--allow'; i
 }
 const targets = args.filter((a, i) => a !== '--allow' && args[i - 1] !== '--allow');
 
-const UNIT = /(?<![\w-])(?:\d+\.?\d*|\.\d+)(?:vw|vh|vmin|vmax|svw|svh|lvw|lvh|dvw|dvh|dvi|dvb|vi|vb)\b/;
-const BREAKPOINT = /@media[^{]*\b(min-width|max-width|min-height|max-height|orientation|device-width|device-height|aspect-ratio)\s*[: (]/;
+const UNIT = /(?<![\w-])[+-]?(?:\d+\.?\d*|\.\d+)(?:vw|vh|vmin|vmax|svw|svh|lvw|lvh|dvw|dvh|dvi|dvb|vi|vb)\b/i;
+const BREAKPOINT = /@media[^{]*(?:\b(?:min-width|max-width|min-height|max-height|orientation|device-width|device-height|aspect-ratio)\s*[: (]|\b(?:width|height|device-width|device-height|aspect-ratio)\s*(?:[<>]=?|=))/i;
 
 function stripComments(src) {
   // Block comments (CSS, JS) and line comments (JS). Keeps string contents;

@@ -84,7 +84,7 @@ No title design exists in the source image; the title inherits the documented pa
 
 ## 4. Type scale
 
-All values are logical pixels at scale 1. **Floor: no text shrinks below 20.**
+All values are logical pixels at scale 1. **On the journey and title surfaces, no text shrinks below 20.** Overlay and utility screens outside this unit's composition scope retain the framework type scale described in section 7.
 
 | Role | Size | Line height | Face | Notes |
 |---|---|---|---|---|

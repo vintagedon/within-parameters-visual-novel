@@ -93,7 +93,7 @@ export interface ModalControl {
 /**
  * WP modal composition: a full-stage wp-overlay scrim carrying one gc-panel.
  * The caller mounts el inside the stage; open/close toggle `is-open` (the
- * element renders only when open). Danger confirms set data-wp-modal-danger.
+ * element renders only when open). Danger confirms add `wp-modal--danger`.
  */
 export function createModal(options: ModalOptions = {}): ModalControl {
   const el = document.createElement('div');

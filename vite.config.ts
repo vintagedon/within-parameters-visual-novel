@@ -4,6 +4,7 @@ import { copyFileSync, mkdirSync, readdirSync, statSync, readFileSync } from 'no
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { runtimeDirtyFromPorcelain } from './scripts/build-id.mjs';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
@@ -17,14 +18,8 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 function buildInfo(): { sha: string; dirty: boolean } {
   try {
     const sha = execSync('git rev-parse HEAD', { cwd: __dirname }).toString().trim();
-    const porcelain = execSync('git status --porcelain', { cwd: __dirname })
-      .toString()
-      .split('\n')
-      .map((l) => l.trimEnd())
-      .filter((l) => l.length > 0);
-    const tracked = porcelain.filter((l) => !l.startsWith('??'));
-    const runtimeUntracked = porcelain.filter((l) => l.startsWith('??') && /^(\?\?\s+)?(src|data|assets|public)\//.test(l));
-    return { sha, dirty: tracked.length > 0 || runtimeUntracked.length > 0 };
+    const porcelain = execSync('git status --porcelain', { cwd: __dirname }).toString();
+    return { sha, dirty: runtimeDirtyFromPorcelain(porcelain) };
   } catch {
     // No git context (scratch copies): never label such a build clean.
     return { sha: 'unknown', dirty: true };

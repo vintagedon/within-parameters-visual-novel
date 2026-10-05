@@ -144,6 +144,35 @@ def main() -> int:
             page.evaluate("() => window.__wp.stageFixture()")
             page.wait_for_selector("#stage", timeout=10000)
 
+            fixture_meters = page.evaluate(
+                """() => {
+                    const inspect = (id, axis) => {
+                      const meter = document.getElementById(id);
+                      const fill = meter.querySelector(':scope > .gc-meter__fill');
+                      if (!fill) return { direct: false, ratio: null, value: getComputedStyle(meter).getPropertyValue('--gc-meter-value').trim() };
+                      const ratio = axis === 'height'
+                        ? fill.getBoundingClientRect().height / meter.clientHeight
+                        : fill.getBoundingClientRect().width / meter.clientWidth;
+                      return { direct: true, ratio, value: getComputedStyle(meter).getPropertyValue('--gc-meter-value').trim() };
+                    };
+                    return { vertical: inspect('fx-vmeter', 'height'), horizontal: inspect('fx-hmeter', 'width') };
+                }"""
+            )
+            check(
+                "fixture vertical meter uses current API at 40%",
+                fixture_meters["vertical"]["direct"]
+                and fixture_meters["vertical"]["value"] == "40%"
+                and abs(fixture_meters["vertical"]["ratio"] - 0.4) < 0.02,
+                str(fixture_meters["vertical"]),
+            )
+            check(
+                "fixture horizontal meter uses current API at 60%",
+                fixture_meters["horizontal"]["direct"]
+                and fixture_meters["horizontal"]["value"] == "60%"
+                and abs(fixture_meters["horizontal"]["ratio"] - 0.6) < 0.02,
+                str(fixture_meters["horizontal"]),
+            )
+
             print("Presentation targets (charter values, no bars):")
             for w, h, expected in TARGETS:
                 m = measure(page, w, h)

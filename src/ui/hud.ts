@@ -146,9 +146,9 @@ export function initHUD(sidebar: HTMLElement, config: GameConfig, onSave?: () =>
  *  elements (data-wp-accent: cyan/amber/red).
  *
  *  The knowledge meter scales against the run's effective correction
- *  threshold (trait-adjusted, passed in by the caller): the meter fills
- *  exactly when the threshold is met, and the readout carries the threshold
- *  so the target is visible on the meter. */
+ *  threshold (trait-adjusted, passed in by the caller): the fill uses the
+ *  fixed visual scale, while the marker and readout carry the effective
+ *  threshold so the target remains visible. */
 export function updateStats(state: GameState, knowledgeThreshold: number): void {
   const { stats, clock } = state;
 

@@ -136,7 +136,6 @@ body {
 /* Rail panels: tighten padding so the stacked HUD reads compact. */
 #sidebar .gc-panel {
   padding: var(--gc-space-3);
-  gap: var(--gc-space-2);
 }
 
 /* Clock reading — terminal-style mono readout; color follows urgency. */

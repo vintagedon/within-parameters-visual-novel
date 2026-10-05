@@ -378,20 +378,19 @@ async function boot(): Promise<void> {
       // stage-fit checks measure the host in isolation. DEV-gated like the
       // other harness hooks; stripped from production builds.
       stageFixture: () => {
-        // Remove the app's screen overlays (mounted on body, some visible at
-        // boot) so the bare host is the only hit-test target.
-        document.body.querySelectorAll('.screen-overlay, #reward-overlay, #comms-overlay, #document-overlay').forEach((el) => el.remove());
+        // Replacing root removes the stage-mounted app and every overlay, so
+        // the isolated host is the only hit-test target.
         root.innerHTML = `
           <div class="wp-stage-host" id="stage-host">
             <div class="wp-stage" id="stage">
               <button class="gc-button wp-fixture-control" id="fx-center" style="position:absolute;left:936px;top:516px;" type="button">CENTER</button>
               <button class="gc-button wp-fixture-control" id="fx-topleft" style="position:absolute;left:48px;top:48px;" type="button">TOP LEFT</button>
               <button class="gc-button wp-fixture-control" id="fx-bottomright" style="position:absolute;left:1720px;top:984px;" type="button">BOTTOM RIGHT</button>
-              <div class="gc-meter" data-shape="segmented" data-orientation="vertical" id="fx-vmeter" style="--gc-meter-count:10;position:absolute;left:100px;top:200px;width:56px;height:400px;">
-                <div class="gc-meter__track"><div class="gc-meter__fill" style="--amount:0.4;"></div></div>
+              <div class="gc-meter" data-shape="segmented" data-orientation="vertical" id="fx-vmeter" style="--gc-meter-count:10;--gc-meter-value:40%;position:absolute;left:100px;top:200px;width:56px;height:400px;">
+                <div class="gc-meter__fill"></div>
               </div>
-              <div class="gc-meter" data-shape="continuous" id="fx-hmeter" style="position:absolute;left:400px;top:200px;width:600px;height:24px;">
-                <div class="gc-meter__track"><div class="gc-meter__fill" style="--amount:0.6;"></div></div>
+              <div class="gc-meter" data-shape="continuous" id="fx-hmeter" style="--gc-meter-value:60%;position:absolute;left:400px;top:200px;width:600px;height:24px;">
+                <div class="gc-meter__fill"></div>
               </div>
               <p class="wp-fixture-text" id="fx-text" style="position:absolute;left:400px;top:300px;width:600px;">Stage host fixture text. The quick brown fox jumps over the lazy dog while measuring scale and input alignment.</p>
             </div>
