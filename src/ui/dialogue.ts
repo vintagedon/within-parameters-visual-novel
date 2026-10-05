@@ -91,7 +91,7 @@ export function renderLine(
 
   // Speaker name
   if (character && character.id !== 'narrator') {
-    speakerEl.textContent = character.name;
+    speakerEl.textContent = `${character.name}: `;
     speakerEl.style.color = character.nameColor;
   } else {
     speakerEl.textContent = '';

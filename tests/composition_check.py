@@ -379,6 +379,13 @@ def main() -> int:
                 time.sleep(ACTION_MS / 1000)
             record(failures, "run reaches the event phase", reached or page.locator("#reward-overlay:not(.hidden)").count() > 0)
 
+            speaker_prefix = page.locator("#speaker-name").text_content() or ""
+            record(
+                failures,
+                "speaker label carries the contract ': ' separator",
+                bool(speaker_prefix.strip()) and speaker_prefix.endswith(": "),
+                repr(speaker_prefix),
+            )
 
             # ── Journey regions and meter mechanics (event phase: the rail
             # and band are the game-UI layout, not the fullscreen scene) ──
