@@ -2,9 +2,36 @@ import { defineConfig } from 'vite';
 import { resolve, join } from 'node:path';
 import { copyFileSync, mkdirSync, readdirSync, statSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { execSync } from 'node:child_process';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
+
+/**
+ * Build identifier (gate 5.7): the full SHA of HEAD plus a dirty flag that
+ * detects staged and unstaged tracked changes. A build that consumes
+ * untracked runtime source, styles, or assets refuses to label itself clean;
+ * ignored paths (evidence, build output, recycle-bin) are not runtime inputs
+ * and do not make the build dirty.
+ */
+function buildInfo(): { sha: string; dirty: boolean } {
+  try {
+    const sha = execSync('git rev-parse HEAD', { cwd: __dirname }).toString().trim();
+    const porcelain = execSync('git status --porcelain', { cwd: __dirname })
+      .toString()
+      .split('\n')
+      .map((l) => l.trimEnd())
+      .filter((l) => l.length > 0);
+    const tracked = porcelain.filter((l) => !l.startsWith('??'));
+    const runtimeUntracked = porcelain.filter((l) => l.startsWith('??') && /^(\?\?\s+)?(src|data|assets|public)\//.test(l));
+    return { sha, dirty: tracked.length > 0 || runtimeUntracked.length > 0 };
+  } catch {
+    // No git context (scratch copies): never label such a build clean.
+    return { sha: 'unknown', dirty: true };
+  }
+}
+
+const wpBuild = buildInfo();
 
 function copyDir(src: string, dest: string): void {
   mkdirSync(dest, { recursive: true });
@@ -22,6 +49,9 @@ function copyDir(src: string, dest: string): void {
 export default defineConfig({
   root: '.',
   publicDir: 'public',
+  define: {
+    __WP_BUILD__: JSON.stringify(wpBuild),
+  },
   build: {
     outDir: 'dist',
     assetsDir: 'assets',

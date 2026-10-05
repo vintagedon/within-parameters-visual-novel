@@ -92,6 +92,21 @@ import {
 import { createStageHost } from './ui/stage';
 import { ensureFrameworkDefs } from './ui/gc-defs';
 
+/** Build identifier, injected at build time (gate 5.7). Dev builds get a dev
+ *  marker with the SHA; production builds carry the full SHA and dirty flag. */
+declare const __WP_BUILD__: { sha: string; dirty: boolean };
+
+/** Renders the build identifier: visible short form on the title screen, full
+ *  values in the DOM (data-build on the root element). */
+function renderBuildId(): string {
+  const dev = (import.meta as { env?: { DEV?: boolean } }).env?.DEV ?? false;
+  const label = dev ? `dev:${__WP_BUILD__.sha.slice(0, 7)}` : `${__WP_BUILD__.sha.slice(0, 7)}${__WP_BUILD__.dirty ? ' (dirty)' : ''}`;
+  const el = document.getElementById('build-id');
+  if (el) el.textContent = label;
+  document.getElementById('root')?.setAttribute('data-build', JSON.stringify(__WP_BUILD__));
+  return label;
+}
+
 // Audio
 import * as Audio from './audio/audio-manager';
 
@@ -161,6 +176,7 @@ async function boot(): Promise<void> {
   // Show title screen
   Audio.playBGM('bgm-title', false);
   setFullScreen();
+  renderBuildId();
 
   showTitleScreen(hasAutosave(), {
     onNewGame: () => {

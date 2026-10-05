@@ -93,4 +93,14 @@ Startup prerequisites, all four verified before the first change: (1) WP `main` 
 
 **Validation.** New `tests/composition_check.py`: journey and title regions match the contract within 2 logical px at 1920x1080; in a live run the clock's quantized fill reads zero segments at start with count = clockMax; the knowledge marker sits at the effective threshold both under the default configuration (50.5 percent measured against the fixed scale) and under Clear-Headed (46.0 percent); modules above eight render capped pips with the exact readout; the PA-003 confirmation measures the vertical fill at the track's inner width (excluding border) within 1 logical px at clock 0, 4, and 10; the palette walk samples every visible element's color, background, border, and outline on the journey and title and finds no green; enabled controls perform their documented actions in the live run (settings, load, new game, band advance, save, choice, reward pick) and the disabled CONTINUE retains its state; dialogue body and title display compute at the contract sizes. Mutations in a scratch copy: hardcoding the threshold marker to the default threshold fails the Clear-Headed marker assertion; assigning a green (`rgb(34, 197, 94)`) to a rail label fails the palette check. An earlier mutation attempt with `oklch(70% 0.17 140)` was correctly NOT flagged: it computes to HSL saturation below the contract's 25 percent green threshold. Unmutated controls pass. Screen walk and stage-fit checks still pass.
 
+**Commit:** `fee41c0`
+
+---
+
+## Gate 5.7: Build identifier and the ML01 preview
+
+**Changes.** `vite.config.ts`: build-time injection of `__WP_BUILD__` (full HEAD SHA plus a dirty flag; staged and unstaged tracked changes make a build dirty, and so does untracked runtime source under src/data/assets/public; ignored evidence and build output do not; a build outside git context labels itself unknown/dirty rather than clean). `src/main.ts`: renders the identifier at boot: visible short SHA (and any dirty marker) in the title's `#build-id` element, full values in `data-build` on the root element; the dev server shows a `dev:` marker with the SHA. `tests/build_id_check.py`: asserts the served page's DOM-reported SHA equals the expected commit with the expected dirty flag and the visible short SHA; parameterized base and expected SHA.
+
+**Validation.** Dev rendering verified (`dev:fee41c0`, dirty true on the uncommitted working tree: the dirty-detection mutation evidence). The hosted verification runs after this commit's clean rebuild: the served preview at `https://within.donfather.site/` must report this commit's SHA with dirty false; recorded with the next checkpoint. Preview-reversal baseline: the starting main commit is `ff9f442`; withdrawing the candidate means rebuilding that revision from a clean checkout into the existing `dist/` target, no nginx or symlink change.
+
 **Commit:** this commit (SHA recorded at the next checkpoint)
