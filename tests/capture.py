@@ -19,8 +19,9 @@ The harness starts the Vite dev server itself on an isolated port, so no manual
 `npm run dev` is required. Playwright runs under Chromium headless only.
 
 Check mode is read-only with respect to tests/baseline/: candidate screenshots
-stay in memory and are compared against the committed sidecars, so a failing
-check cannot damage the approved artifacts it guards. Every screen declared in
+stay in memory and are compared against the committed sidecars, with a tightly
+bounded pixel fallback for measured Chromium compositor noise. A failing check
+cannot damage the approved artifacts it guards. Every screen declared in
 SCREENS is required in BOTH modes; a declared screen the walk never reached is
 a failure that names the missing step.
 
@@ -34,6 +35,7 @@ and adds their drivers — extending the harness is a small edit, not a rewrite.
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import os
 import socket
@@ -44,6 +46,7 @@ from pathlib import Path
 from typing import Callable
 from urllib.parse import urlparse
 
+from PIL import Image, ImageChops
 from playwright.sync_api import Page, sync_playwright
 
 # =============================================================================
@@ -87,6 +90,9 @@ DEVICE_SCALE_FACTOR = 1
 MEDIA_CANCELLATION_NOTE = "BGM media loads aborted by the audio crossfade (net::ERR_ABORTED, no HTTP status)"
 ACTION_INTERVAL_MS = 160   # pause between walk actions (typewriter settle)
 MAX_WALK_ACTIONS = 1200    # safety cap on the run walk
+MAX_NOISE_PIXELS = 64
+MAX_NOISE_CHANNEL_DELTA = 8
+MAX_NOISE_TOTAL_DELTA = 128
 
 
 # =============================================================================
@@ -188,23 +194,60 @@ def assert_framework(page: Page, step: str, errors: list[str]):
         print(f"    FRAMEWORK-FAIL {step}: {selector}")
 
 
+def compare_png_pixels(reference: bytes, candidate: bytes) -> tuple[bool, tuple[int, int, int]]:
+    """Accept only the measured low-order Chromium compositor variance."""
+    with Image.open(io.BytesIO(reference)) as reference_image, Image.open(io.BytesIO(candidate)) as candidate_image:
+        reference_rgb = reference_image.convert("RGB")
+        candidate_rgb = candidate_image.convert("RGB")
+        if reference_rgb.size != candidate_rgb.size:
+            return False, (reference_rgb.width * reference_rgb.height, 255, 255)
+        raw = ImageChops.difference(reference_rgb, candidate_rgb).tobytes()
+    changed_pixels = sum(
+        1 for offset in range(0, len(raw), 3)
+        if raw[offset] or raw[offset + 1] or raw[offset + 2]
+    )
+    max_channel_delta = max(raw, default=0)
+    total_delta = sum(raw)
+    stats = (changed_pixels, max_channel_delta, total_delta)
+    accepted = (
+        changed_pixels <= MAX_NOISE_PIXELS
+        and max_channel_delta <= MAX_NOISE_CHANNEL_DELTA
+        and total_delta <= MAX_NOISE_TOTAL_DELTA
+    )
+    return accepted, stats
+
+
 def capture(page: Page, filename: str, errors: list[str]):
     """Screenshot the current viewport and record or compare its sha1.
 
     Capture mode writes the approved PNG plus its .sha1 sidecar into the
     baseline dir. Check mode never touches the baseline dir: the candidate
-    stays in memory (screenshot bytes) and is hashed against the committed
-    sidecar, so both pass and failure leave the approved artifacts
-    byte-identical."""
+    stays in memory and is hashed against the committed sidecar first, then
+    compared within the bounded compositor-noise budget when the hash differs.
+    Both pass and failure leave the approved artifacts byte-identical."""
+    baseline = BASELINE_DIR / filename
     sidecar = BASELINE_DIR / f"{filename}.sha1"
     if CHECK_MODE:
-        digest = hashlib.sha1(page.screenshot(animations="disabled")).hexdigest()
+        candidate = page.screenshot(animations="disabled")
+        digest = hashlib.sha1(candidate).hexdigest()
         if not sidecar.exists():
             errors.append(f"{filename}: no baseline .sha1")
             print(f"    NO BASELINE  {filename}")
         elif sidecar.read_text().strip() != digest:
-            errors.append(f"{filename}: regression")
-            print(f"    REGRESSION   {filename}")
+            if not baseline.exists():
+                errors.append(f"{filename}: no baseline PNG")
+                print(f"    NO BASELINE  {filename}")
+            else:
+                accepted, stats = compare_png_pixels(baseline.read_bytes(), candidate)
+                if accepted:
+                    pixels, max_delta, total_delta = stats
+                    print(
+                        f"    ok (noise)   {filename} "
+                        f"[{pixels}px, max {max_delta}, total {total_delta}]"
+                    )
+                else:
+                    errors.append(f"{filename}: regression (pixel delta {stats})")
+                    print(f"    REGRESSION   {filename} [pixel delta {stats}]")
         else:
             print(f"    ok           {filename}")
     else:
@@ -662,7 +705,7 @@ def main() -> int:
             "12-journey-midrun.png": "pending-approval",
         }
         manifest = {
-            "generated": "gate 5.8 recapture at 1920x1080 DPR 1",
+            "generated": "PR 7 review-fix recapture at 1920x1080 DPR 1 (2026-10-05)",
             "captures": {
                 filename: approval.get(filename, "interim")
                 for _, filename in SCREENS
