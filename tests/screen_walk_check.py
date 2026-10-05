@@ -246,11 +246,67 @@ def main() -> int:
             page.wait_for_selector("#save-load-screen:not(.hidden)")
             seen_surfaces.add("#save-load-screen")
             check_overlays(page, failures, "save-load")
-            page.locator(".wp-slot-panel", has_text="AUTOSAVE").locator(".gc-button").first.click()
+            modal_opener = page.locator(".wp-slot-panel", has_text="AUTOSAVE").locator(".gc-button").first
+            modal_opener.focus()
+            page.keyboard.press("Enter")
             page.wait_for_selector(".wp-modal.is-open", timeout=5000)
             seen_surfaces.add(".wp-modal.is-open")
             check_overlays(page, failures, "load-confirm")
-            page.locator(".wp-modal__footer .gc-button", has_text="CANCEL").first.click()
+            record(
+                failures,
+                "modal open moves focus into the dialog",
+                page.evaluate("() => document.querySelector('.wp-modal.is-open')?.contains(document.activeElement) === true"),
+            )
+
+            # If focus remains on the opener, the second Enter activates it
+            # again and mounts another confirm. With focus inside, it can only
+            # act on the current dialog.
+            page.keyboard.press("Enter")
+            page.wait_for_timeout(150)
+            record(
+                failures,
+                "repeated Enter on the opener cannot stack a second confirm",
+                page.locator(".wp-modal.is-open").count() <= 1,
+                f"open dialogs={page.locator('.wp-modal.is-open').count()}",
+            )
+            while page.locator(".wp-modal.is-open").count() > 0:
+                page.locator(".wp-modal.is-open .wp-modal__footer .gc-button", has_text="CANCEL").last.click()
+
+            # Reopen for focus-wrap, Escape, and focus-restore checks.
+            modal_opener.focus()
+            page.keyboard.press("Enter")
+            page.wait_for_selector(".wp-modal.is-open", timeout=5000)
+            modal_buttons = page.locator(".wp-modal.is-open .wp-modal__footer .gc-button")
+            first_modal_button = modal_buttons.first
+            last_modal_button = modal_buttons.last
+            last_modal_button.focus()
+            page.keyboard.press("Tab")
+            record(
+                failures,
+                "modal Tab wraps from last control to first",
+                first_modal_button.evaluate("(el) => document.activeElement === el"),
+            )
+            first_modal_button.focus()
+            page.keyboard.press("Shift+Tab")
+            record(
+                failures,
+                "modal Shift+Tab wraps from first control to last",
+                last_modal_button.evaluate("(el) => document.activeElement === el"),
+            )
+            page.keyboard.press("Escape")
+            page.wait_for_timeout(150)
+            record(
+                failures,
+                "modal Escape closes the dialog",
+                page.locator(".wp-modal.is-open").count() == 0,
+            )
+            record(
+                failures,
+                "modal close restores focus to its opener",
+                modal_opener.evaluate("(el) => document.activeElement === el"),
+            )
+            while page.locator(".wp-modal.is-open").count() > 0:
+                page.locator(".wp-modal.is-open .wp-modal__footer .gc-button", has_text="CANCEL").last.click()
             page.locator("#save-load-footer .gc-button", has_text="CANCEL").first.click()
 
             # Dossier: deploy the real roll first (the runner commits the

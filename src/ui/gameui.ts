@@ -106,6 +106,7 @@ export function createModal(options: ModalOptions = {}): ModalControl {
   panel.className = 'gc-panel wp-modal__panel';
   panel.setAttribute('role', 'dialog');
   panel.setAttribute('aria-modal', 'true');
+  panel.tabIndex = -1;
 
   if (options.title) {
     const header = document.createElement('div');
@@ -142,20 +143,60 @@ export function createModal(options: ModalOptions = {}): ModalControl {
   const openFns: Array<() => void> = [];
   const closeFns: Array<(reason: string) => void> = [];
   let open = false;
+  let previousFocus: HTMLElement | null = null;
+
+  const focusableControls = (): HTMLElement[] =>
+    Array.from(
+      panel.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
+    );
 
   function close(reason: string = 'closed'): void {
     if (!open) return;
     open = false;
     el.classList.remove('is-open');
+    const restore = previousFocus;
+    previousFocus = null;
+    if (restore?.isConnected) restore.focus();
     closeFns.forEach((fn) => fn(reason));
   }
+
+  el.addEventListener('keydown', (event) => {
+    if (!open) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      close('escape');
+      return;
+    }
+    if (event.key !== 'Tab') return;
+
+    const controls = focusableControls();
+    if (controls.length === 0) {
+      event.preventDefault();
+      panel.focus();
+      return;
+    }
+    const first = controls[0]!;
+    const last = controls[controls.length - 1]!;
+    if (event.shiftKey && (document.activeElement === first || !panel.contains(document.activeElement))) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && (document.activeElement === last || !panel.contains(document.activeElement))) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
 
   return {
     el,
     open: () => {
       if (open) return;
+      previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       open = true;
       el.classList.add('is-open');
+      (focusableControls()[0] ?? panel).focus();
       openFns.forEach((fn) => fn());
     },
     close,
