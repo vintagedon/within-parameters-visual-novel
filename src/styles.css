@@ -408,6 +408,11 @@ body {
 
 .wp-overlay.hidden { display: none; }
 
+/* Save/load is a player-invoked menu and must cover transient comms beats. */
+#save-load-screen {
+  z-index: calc(var(--gc-z-overlay) + 1);
+}
+
 /* ─── Title Screen ───────────────────────────────────────────────────────── */
 
 #title-screen {

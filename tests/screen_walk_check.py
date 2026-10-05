@@ -377,6 +377,29 @@ def main() -> int:
             page.wait_for_selector("#comms-overlay:not(.hidden)")
             seen_surfaces.add("#comms-overlay")
             check_overlays(page, failures, "comms")
+            page.click("#hud-save")
+            page.wait_for_selector("#save-load-screen:not(.hidden)")
+            stacking = page.evaluate(
+                """() => {
+                    const save = document.getElementById('save-load-screen');
+                    const comms = document.getElementById('comms-overlay');
+                    const panel = save.querySelector('.wp-save-load-panel');
+                    const r = panel.getBoundingClientRect();
+                    const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+                    return {
+                      saveZ: Number(getComputedStyle(save).zIndex) || 0,
+                      commsZ: Number(getComputedStyle(comms).zIndex) || 0,
+                      saveOwnsCenter: hit === save || save.contains(hit),
+                    };
+                }"""
+            )
+            record(
+                failures,
+                "save/load stacks above an active comms overlay",
+                stacking["saveZ"] > stacking["commsZ"] and stacking["saveOwnsCenter"],
+                str(stacking),
+            )
+            page.locator("#save-load-footer .gc-button", has_text="CANCEL").first.click()
             page.click("#comms-panel-body .gc-button")
 
             # Facility grid via the live runner (the 119-char choice renders).
