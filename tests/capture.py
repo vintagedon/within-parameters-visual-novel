@@ -221,11 +221,19 @@ def capture(page: Page, filename: str, errors: list[str]):
 
 
 def boot_and_capture_title(page: Page, base_url: str, captured: set[str], errors: list[str]):
-    """Boot the game and capture the title screen."""
+    """Boot the game and capture the title screen. The build identifier is
+    asserted present and non-empty, then masked to a fixed token BEFORE the
+    capture, so the baseline hash does not change with every commit (gate
+    5.8; the identifier itself is verified by build_id_check.py)."""
     page.goto(base_url, wait_until="networkidle")
     page.wait_for_selector("#title-screen:not(.hidden)", timeout=15000)
     page.wait_for_timeout(400)
     if "title" not in captured:
+        build_id_text = page.evaluate("() => document.getElementById('build-id')?.textContent?.trim() || ''")
+        if not build_id_text:
+            errors.append("build identifier missing on the title screen")
+        page.evaluate("() => { const el = document.getElementById('build-id'); if (el) el.textContent = 'BUILD'; }")
+        page.wait_for_timeout(100)
         assert_framework(page, "title", errors)
         capture(page, SCREEN_MAP["title"], errors)
         captured.add("title")
@@ -334,6 +342,14 @@ def walk_run(page: Page, captured: set[str], errors: list[str]):
         # trigger the (balance-gated) comms overlay via the dev hook so it can be
         # captured over the live game rather than behind the title overlay.
         if not hud_done and visible(page, "#game-container:not(.fullscreen)") and visible(page, "#clock-bar .gc-meter__fill"):
+            # Deterministic capture: the dialogue line may be mid-typewriter,
+            # which makes the band's pixels load-dependent. Skip to the end of
+            # the line and let the text settle before capturing.
+            for _ in range(10):
+                if not visible(page, "#dialogue-text.typing"):
+                    break
+                click_first(page, "#bottom-bar")
+                page.wait_for_timeout(120)
             page.wait_for_timeout(500)
             assert_framework(page, "hud-midrun", errors)
             capture(page, SCREEN_MAP["hud-midrun"], errors)
@@ -583,13 +599,6 @@ def main() -> int:
                 "})();"
             )
             boot_and_capture_title(page, base_url, captured, errors)
-            # Build identifier (gate 5.7/5.8): the identifier changes with
-            # every commit, so captures mask it to a fixed token; a separate
-            # assertion confirms it was present and non-empty before masking.
-            build_id_text = page.evaluate("() => document.getElementById('build-id')?.textContent?.trim() || ''")
-            if not build_id_text:
-                errors.append("build identifier missing on the title screen")
-            page.evaluate("() => { const el = document.getElementById('build-id'); if (el) el.textContent = 'BUILD'; }")
             capture_settings(page, captured, errors)
             capture_save_load_confirm(page, captured, errors)
             start_run_and_capture_lore(page, captured, errors)
