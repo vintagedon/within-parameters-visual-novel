@@ -131,3 +131,11 @@ Startup prerequisites, all four verified before the first change: (1) WP `main` 
 **Frozen-tree verification.** `git diff ff9f442 -- data/ src/types/ simulation/` is empty; the only diff under `src/engine/` is the single authorized `buildDossierView` presentation-token literal.
 
 **Commit:** this commit (SHA recorded at the next checkpoint)
+
+---
+
+## Gate 5.10: The visual review surface
+
+**Changes.** New `docs/verification/2026-10-04-presentation-review.md`: how to review (preview URL, build-ID reading, the PR pointer, and the withdrawal procedure), the visual review index (the journey candidate beside the annotated mockup regions; the title candidate against the documented treatment with its explicit no-source rationale; interim captures in a labelled section), the stage-fit evidence summary, findings V-01 through V-05 with evidence and closed questions, the five suspected findings each answered from evidence (viewport units: clean scan plus the stage-root pin; overlay overflow: the uniform rule and DOM enumeration; the audio warning: the evidenced cancellation classification; the 07 transient: timing evidence with the recorded unresolved limit; the split: held at the F-P1 cost), and the blank operator answer record. Nothing in the surface states that any capture or the composition is approved.
+
+**Commit:** `2e881c1` (rides the parity gate commit; both are pure evidence gates)
